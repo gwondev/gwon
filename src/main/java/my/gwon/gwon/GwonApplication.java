@@ -7,9 +7,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 @SpringBootApplication
 public class GwonApplication {
 
-	@GetMapping("/")
+
 	public static void main(String[] args) {
 		SpringApplication.run(GwonApplication.class, args);
 	}
+
 
 }
