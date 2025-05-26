@@ -18,8 +18,10 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /home/gwon/gwon
+            git reset --hard HEAD
             git pull
             docker stop myapp || true
             docker rm myapp || true
+            
             docker build -t myapp .
             docker run -d -p 80:8080 --name myapp myapp
