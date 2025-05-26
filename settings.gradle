@@ -1,1 +1,6 @@
 rootProject.name = 'gwon'
+buildCache {
+    local {
+        enabled = false
+    }
+}
