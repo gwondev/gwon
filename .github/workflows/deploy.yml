@@ -23,5 +23,5 @@ jobs:
             ./gradlew clean build
             docker stop myapp || true
             docker rm myapp || true
-            docker build -t myapp .
+            docker build --no-cache -t myapp .
             docker run -d -p 8080:8080 --name myapp myapp
