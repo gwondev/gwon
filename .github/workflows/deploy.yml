@@ -17,10 +17,14 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
             cd /home/gwon/gwon
             git reset --hard HEAD
             git pull origin main
+            
+            chmod +x ./gradlew
             ./gradlew clean build
+            
             docker stop myapp || true
             docker rm myapp || true
             docker build --no-cache -t myapp .
