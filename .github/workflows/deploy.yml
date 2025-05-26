@@ -19,9 +19,9 @@ jobs:
           script: |
             cd /home/gwon/gwon
             git reset --hard HEAD
-            git pull
+            git pull origin main
+            ./gradlew clean build
             docker stop myapp || true
             docker rm myapp || true
-            
             docker build -t myapp .
             docker run -d -p 8080:8080 --name myapp myapp
