@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import "package:firebase_core/firebase_core.dart";
 import './functions.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+
+  );
   runApp(const MaterialApp(home: MyHomePage()));
 }
 
@@ -27,7 +34,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text1("이성권의 포트폴리오 사이트"),
+            Text("이성권의 포트폴리오 사이트"),
           ],
         ),
       ),
