@@ -5,15 +5,11 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api")
 public class DataController {
+    @Autowired private SimpMessagingTemplate msg;
 
-    @Autowired
-    private SimpMessagingTemplate messagingTemplate;
-
-    @PostMapping("/data")
-    public String receiveData(@RequestBody String data) {
-        messagingTemplate.convertAndSend("/topic/data", data);
-        return "OK";
+    @PostMapping("/api/data")
+    public void send(@RequestBody String d) {
+        msg.convertAndSend("/topic/data", d);
     }
 }

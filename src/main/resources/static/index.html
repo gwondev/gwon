@@ -5,31 +5,12 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <script src="main.js" defer></script>
 </head>
 <body>
 <div id="current-time"></div>
 <div id="data-list"></div>
 
-<script>
-  // 실시간 시간
-  function updateTime() {
-      document.getElementById('current-time').textContent = new Date().toLocaleString();
-  }
-  setInterval(updateTime, 1000);
-  updateTime();
 
-  // WebSocket
-  var socket = new SockJS('/ws');
-  var stompClient = Stomp.over(socket);
-
-  stompClient.connect({}, function() {
-      stompClient.subscribe('/topic/data', function(message) {
-          var div = document.createElement('div');
-          div.className = 'data-item';
-          div.textContent = message.body;
-          document.getElementById('data-list').appendChild(div);
-      });
-  });
-</script>
 </body>
 </html>
