@@ -19,14 +19,18 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	implementation 'org.springframework.integration:spring-integration-mqtt'
+	implementation 'org.springframework.boot:spring-boot-starter-integration'
+
+	// MQTT 관련 의존성들
+	implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+	implementation 'org.springframework.integration:spring-integration-core'
+
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'io.projectreactor:reactor-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
-
 tasks.named('test') {
 	useJUnitPlatform()
 }
