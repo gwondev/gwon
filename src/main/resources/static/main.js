@@ -1,30 +1,45 @@
-// 현재 시간 갱신
-function updateTime() {
-    document.getElementById('current-time').textContent = new Date().toLocaleString();
+let map;
+const markers = {};
+
+function initMap() {
+  map = L.map("map").setView([35.1434, 126.9318], 15);
+
+  // OpenStreetMap 타일 추가
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap contributors",
+  }).addTo(map);
+
+  connectWebSocket();
 }
-setInterval(updateTime, 1000);
-updateTime();
 
-// WebSocket 연결 및 구독
-// 서버와 WebSocket 통신 연결을 시작한다
-var socket = new SockJS('/ws');
+function connectWebSocket() {
+  const socket = new SockJS("/ws");
+  const client = new StompJs.Client({
+    webSocketFactory: () => socket,
+    onConnect: () => {
+      console.log("✅ WebSocket 연결됨");
 
-// WebSocket은 연결되었고, 이제 STOMP 프로토콜(메시지 포맷과 규칙)을 사용하겠다
-var stompClient = Stomp.over(socket);
+      client.subscribe("/topic/data", (message) => {
+        const data = JSON.parse(message.body);
+        const { id, lat, lng, name } = data;
 
-// 서버에 STOMP 연결을 시도한다
-stompClient.connect({}, () => {
+        const pos = [lat, lng];
 
-    // '/topic/data' 경로로 메시지가 오면 구독해서 받아 처리하겠다
-    stompClient.subscribe('/topic/data', (message) => {
+        if (markers[id]) {
+          markers[id].setLatLng(pos);
+        } else {
+          const marker = L.marker(pos).addTo(map).bindPopup(name);
+          markers[id] = marker;
+        }
+      });
+    },
+    onStompError: (error) => {
+      console.error("❌ STOMP 에러:", error);
+    },
+  });
 
-        // 받은 메시지를 담을 div 요소 생성
-        var div = document.createElement('div');
-        div.className = 'data-item';
-        div.textContent = message.body;
+  client.activate();
+}
 
-        // 생성한 div를 화면에 추가하여 메시지를 표시
-        document.getElementById('data-list').appendChild(div);
-    });
-
-});
+window.onload = initMap;
