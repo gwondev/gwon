@@ -31,23 +31,9 @@ jobs:
             cd /home/gwon/gwon
             git fetch origin main
             git reset --hard origin/main
-
             cd backend
             chmod +x gradlew
             ./gradlew build -x test
             cd ..
-
-            # docker compose 명령 확인 (신버전 우선)
-            if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-              docker compose down || true
-              docker compose up --build -d
-
-            # docker-compose (구버전 하이픈 방식) 확인
-            elif command -v docker-compose >/dev/null 2>&1; then
-              docker-compose down || true
-              docker-compose up --build -d
-
-            else
-              echo "❌ Docker Compose가 설치되어 있지 않습니다."
-              exit 1
-            fi
+            docker compose down
+            docker compose up --build -d
