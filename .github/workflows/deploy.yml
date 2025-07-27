@@ -31,9 +31,15 @@ jobs:
             cd /home/gwon/gwon
             git fetch origin main
             git reset --hard origin/main
+
             cd backend
             chmod +x gradlew
             ./gradlew build -x test
             cd ..
-            docker compose down
+
+            # Gradle 빌드 결과를 target 폴더로 복사 (Dockerfile 호환용)
+            mkdir -p target
+            cp backend/build/libs/*.jar target/
+
+            docker compose down || true
             docker compose up --build -d
