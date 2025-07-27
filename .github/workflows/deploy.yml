@@ -26,7 +26,7 @@ jobs:
           host: gwon.my
           username: gwon
           port : 2222
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.g }}
           script: |
             cd /home/gwon/app/backend
             ./gradlew build
