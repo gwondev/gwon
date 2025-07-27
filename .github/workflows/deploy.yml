@@ -31,14 +31,8 @@ jobs:
             cd /home/gwon/gwon
             git fetch origin main
             git reset --hard origin/main
-            pwd
-            ls -la
+            cd backend
             ./gradlew build
-            if [ -f "docker-compose.yml" ]; then
-              echo "docker-compose.yml found in root"
-              docker compose down || docker-compose down
-              docker compose up --build -d || docker-compose up --build -d
-            else
-              echo "docker-compose.yml not found"
-              exit 1
-            fi
+            cd ..
+            docker compose down || sudo docker compose down
+            docker compose up --build -d || sudo docker compose up --build -d
