@@ -28,7 +28,10 @@ jobs:
           port : 2222
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/gwon/app/backend
+            cd /home/gwon/gwon
+            git pull origin main
+            cd backend
             ./gradlew build
+            cd ../frontend
             docker-compose down
             docker-compose up --build -d
