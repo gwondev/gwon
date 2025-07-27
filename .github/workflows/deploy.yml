@@ -25,13 +25,20 @@ jobs:
         with:
           host: gwon.my
           username: gwon
-          port : 2222
+          port: 2222
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/gwon/gwon
-            git pull origin main
-            cd backend
+            git fetch origin main
+            git reset --hard origin/main
+            pwd
+            ls -la
             ./gradlew build
-            cd ../frontend
-            docker-compose down
-            docker-compose up --build -d
+            if [ -f "docker-compose.yml" ]; then
+              echo "docker-compose.yml found in root"
+              docker compose down || docker-compose down
+              docker compose up --build -d || docker-compose up --build -d
+            else
+              echo "docker-compose.yml not found"
+              exit 1
+            fi
