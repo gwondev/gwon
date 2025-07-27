@@ -32,7 +32,13 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             cd backend
+            chmod +x gradlew
             ./gradlew build
             cd ..
-            docker compose down || sudo docker compose down
-            docker compose up --build -d || sudo docker compose up --build -d
+
+            # docker 그룹에 사용자 추가 (sudo 없이 docker 사용)
+            sudo usermod -aG docker $USER || true
+
+            # docker-compose 사용 (기존 설치된 것)
+            /usr/bin/docker-compose down || true
+            /usr/bin/docker-compose up --build -d
