@@ -37,14 +37,17 @@ jobs:
             ./gradlew build -x test
             cd ..
 
-            # Docker Compose plugin 설치 (없다면)
-            if ! docker compose version >/dev/null 2>&1; then
-              apt update
-              apt install -y docker-compose-plugin
+            # docker compose 명령 확인 (신버전 우선)
+            if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+              docker compose down || true
+              docker compose up --build -d
+
+            # docker-compose (구버전 하이픈 방식) 확인
+            elif command -v docker-compose >/dev/null 2>&1; then
+              docker-compose down || true
+              docker-compose up --build -d
+
+            else
+              echo "❌ Docker Compose가 설치되어 있지 않습니다."
+              exit 1
             fi
-
-            # Docker 그룹 권한 부여는 생략 (이미 되어 있어야 함)
-
-            # 기존 컨테이너 종료 및 재시작
-            docker compose down || true
-            docker compose up --build -d
