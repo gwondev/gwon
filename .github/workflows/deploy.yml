@@ -33,20 +33,18 @@ jobs:
             git reset --hard origin/main
             cd backend
             chmod +x gradlew
-
-            # 테스트 스킵하고 빌드 (테스트 실패로 빌드 중단되는 것 방지)
             ./gradlew build -x test
             cd ..
 
-            # docker-compose Python 문제 해결
-            sudo apt update && sudo apt install -y python3-distutils python3-setuptools || true
+            # Docker Compose plugin 설치 (없다면)
+            if ! docker compose version >/dev/null 2>&1; then
+              sudo apt update
+              sudo apt install -y docker-compose-plugin
+            fi
 
-            # docker-compose 실행
-            python3 -c "
-            import subprocess
-            try:
-                subprocess.run(['/usr/bin/docker-compose', 'down'], check=False)
-                subprocess.run(['/usr/bin/docker-compose', 'up', '--build', '-d'], check=True)
-            except:
-                print('docker-compose failed')
-            "
+            # Docker 권한 문제 해결
+            sudo usermod -aG docker $USER || true
+
+            # Docker compose 실행
+            sudo docker compose down || true
+            sudo docker compose up --build -d
