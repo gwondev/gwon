@@ -1,3 +1,4 @@
+package my.gwon.backend.socket;
 import org.json.JSONObject;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
