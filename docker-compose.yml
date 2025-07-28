@@ -1,12 +1,9 @@
 version: '3.8'
 services:
-
-
-
   app:
     build: .
     ports:
-      - "80:8080" #외부 브라우저의 80포트를 Docker를 통해 8080포트로 전달한다
+      - "80:8080" #외부 브라우저의 80포트를 Docker를 통해 8080포트로 전달한다 Docker의 자체 포트 우회기능이다
     depends_on:
       - db
   
