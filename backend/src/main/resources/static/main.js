@@ -55,10 +55,16 @@ function del(id) {
 
 // GPS 데이터 로드
 function loadGpsData() {
-    fetch('/api/gps')
+    fetch('/api/gps')  // 전체 데이터 가져오기
         .then(response => response.json())
         .then(data => {
-            displayGpsData(data);
+            // 시간 내림차순 정렬 (최신순)
+            const sortedData = data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            // 최근 10개만 선택
+            const recent10 = sortedData.slice(0, 10);
+
+            displayGpsData(recent10);
         })
         .catch(error => {
             document.getElementById('gps-list').innerHTML = 'GPS 데이터 로드 실패';
