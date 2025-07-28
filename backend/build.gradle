@@ -18,9 +18,14 @@ repositories {
 }
 
 dependencies {
+
+
 	// WebSocker 통신을 위한 의존성
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
+	// Lobmbok 이다 Entity에서 Getter, Setter를 편하게 사용할 수 있는 매크로
+	compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'

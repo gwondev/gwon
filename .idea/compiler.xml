@@ -3,6 +3,9 @@
   <component name="CompilerConfiguration">
     <bytecodeTargetLevel>
       <module name="backend" target="21" />
+      <module name="gwon.backend" target="21" />
+      <module name="gwon.backend.main" target="21" />
+      <module name="gwon.backend.test" target="21" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

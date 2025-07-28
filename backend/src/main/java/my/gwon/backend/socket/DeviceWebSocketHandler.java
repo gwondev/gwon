@@ -1,25 +1,55 @@
 package my.gwon.backend.socket;
-import org.json.JSONObject;
+
+import my.gwon.backend.entity.GpsData;
+import my.gwon.backend.repository.GpsDataRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.time.LocalDateTime;
+
 public class DeviceWebSocketHandler extends TextWebSocketHandler {
+
+    private final GpsDataRepository gpsRepo;
+    private final ObjectMapper objectMapper = new ObjectMapper();  // Jackson 추가
+
+    public DeviceWebSocketHandler(GpsDataRepository gpsRepo) {
+        this.gpsRepo = gpsRepo;
+    }
+
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) {
+        ClientSessionManager.add(session);
+        System.out.println("WebSocket 연결됨: " + session.getId());
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, org.springframework.web.socket.CloseStatus status) {
+        ClientSessionManager.remove(session);
+        System.out.println("WebSocket 연결 해제됨: " + session.getId());
+    }
 
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) {
         String payload = message.getPayload();
 
         try {
-            JSONObject json = new JSONObject(payload);
-            String id = json.getString("id");
-            double lat = json.getDouble("lat");
-            double lng = json.getDouble("lng");
-            String name = json.getString("name");
+            // JSONObject → JsonNode로 변경
+            JsonNode json = objectMapper.readTree(payload);
 
-            System.out.println("🛰️ 받은 데이터 → ID: " + id + ", 이름: " + name + ", 위도: " + lat + ", 경도: " + lng);
+            GpsData data = GpsData.builder()
+                    .deviceId(json.get("id").asText())      // getString → asText
+                    .name(json.get("name").asText())
+                    .lat(json.get("lat").asDouble())        // getDouble → asDouble
+                    .lng(json.get("lng").asDouble())
+                    .timestamp(LocalDateTime.now())
+                    .build();
 
-            // React에게 그대로 전달
+            gpsRepo.save(data);  // ✅ DB 저장
+
+            // 다른 클라이언트들에게 브로드캐스트
             for (WebSocketSession client : ClientSessionManager.getSessions()) {
                 if (client.isOpen()) {
                     client.sendMessage(new TextMessage(payload));
@@ -27,7 +57,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
             }
 
         } catch (Exception e) {
-            System.out.println("❌ 파싱 오류: " + e.getMessage());
+            System.out.println("WebSocket 메시지 처리 실패: " + e.getMessage());
         }
     }
 }

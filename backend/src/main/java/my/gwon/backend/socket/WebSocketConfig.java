@@ -1,7 +1,8 @@
 package my.gwon.backend.socket;
 
+import my.gwon.backend.repository.GpsDataRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
@@ -10,17 +11,12 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
 
+    @Autowired
+    private GpsDataRepository gpsDataRepository;  // Repository 주입
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(deviceHandler(), "/ws").setAllowedOrigins("*");
-        registry.addHandler(clientHandler(), "/client").setAllowedOrigins("*");
-    }
-
-    public WebSocketHandler deviceHandler() {
-        return new DeviceWebSocketHandler();
-    }
-
-    public WebSocketHandler clientHandler() {
-        return new ClientWebSocketHandler();
+        registry.addHandler(new DeviceWebSocketHandler(gpsDataRepository), "/websocket")
+                .setAllowedOrigins("*");  // Repository 전달
     }
 }
