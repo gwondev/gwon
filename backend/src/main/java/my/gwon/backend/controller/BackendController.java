@@ -20,13 +20,6 @@ public class BackendController{
     }
 
 
-
-    @GetMapping("api/move")
-    @ResponseBody
-    public ResponseEntity<String> moveApi(){
-        return ResponseEntity.ok("MOVE 탭 API");
-    }
-
     @GetMapping("api/test")
     @ResponseBody
     public ResponseEntity<String> testApi(){
