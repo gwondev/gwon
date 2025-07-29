@@ -44,6 +44,7 @@ public class GwonController {
         }
     }
 
+    @Transactional
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteText(@PathVariable Long id) {
         try {
