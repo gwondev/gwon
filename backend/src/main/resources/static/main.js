@@ -42,7 +42,11 @@ function load() {
 
 function del(id) {
     fetch(`/backend/api/gwon/delete/${id}`, { method: 'DELETE' })
-        .then(() => load());
+        .then(res => res.text()) // 응답 확인
+        .then(msg => {
+            console.log("삭제 응답:", msg);
+            load(); // 삭제 성공 후 재로딩
+        });
 }
 
 
