@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   app:
     build: .
@@ -24,9 +25,9 @@ services:
     image: eclipse-mosquitto:2.0
     ports:
       - "1883:1883"
-    environment:
-      - MOSQUITTO_CONFIG_FILE=/dev/null
-    command: ["mosquitto", "-c", "/dev/null", "-p", "1883"]
+    command: mosquitto -c /mosquitto/config/mosquitto.conf
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     restart: unless-stopped
 
 volumes:

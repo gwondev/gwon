@@ -32,6 +32,13 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            # Mosquitto 설정 파일 자동 생성 (없을 경우에만)
+            if [ ! -f ./mosquitto.conf ]; then
+              echo "📄 mosquitto.conf 파일 생성 중..."
+              echo "listener 1883" > mosquitto.conf
+              echo "allow_anonymous true" >> mosquitto.conf
+            fi
+
             cd backend
             chmod +x gradlew
             ./gradlew build -x test
@@ -52,4 +59,5 @@ jobs:
             docker container prune -f
             docker network prune -f
 
+            # 컨테이너 실행
             docker compose up --build -d
