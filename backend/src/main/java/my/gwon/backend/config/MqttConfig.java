@@ -1,9 +1,8 @@
-// 방법 1: 파일 완전 삭제
-// MqttConfig.java 파일을 아예 삭제하세요!
-
-// 방법 2: 또는 이렇게 수정
 package my.gwon.backend.config;
 
+import lombok.RequiredArgsConstructor;
+import my.gwon.backend.socket.DeviceWebSocketHandler;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,10 +11,12 @@ import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
 import org.springframework.messaging.MessageChannel;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 
 @Configuration
+@RequiredArgsConstructor
 public class MqttConfig {
+
+    private final DeviceWebSocketHandler deviceWebSocketHandler;
 
     @Value("${mqtt.broker.url}")
     private String brokerUrl;
@@ -42,13 +43,14 @@ public class MqttConfig {
     public MqttPahoMessageDrivenChannelAdapter mqttInbound() {
         MqttPahoMessageDrivenChannelAdapter adapter =
                 new MqttPahoMessageDrivenChannelAdapter("gwon-client", mqttClientFactory(), topic);
-        adapter.setOutputChannel(mqttInputChannel()); // 이 줄이 핵심!
+        adapter.setOutputChannel(mqttInputChannel());
         adapter.setCompletionTimeout(5000);
         return adapter;
     }
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleGpsData(String gpsData) {
-        System.out.println("GPS 데이터: " + gpsData);
+        System.out.println("📡 MQTT 수신: " + gpsData);
+        deviceWebSocketHandler.broadcastToClients(gpsData);
     }
 }
