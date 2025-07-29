@@ -1,3 +1,5 @@
+package my.gwon.backend.mqtt;
+
 import lombok.RequiredArgsConstructor;
 import my.gwon.backend.socket.DeviceWebSocketHandler;
 import org.json.JSONObject;
@@ -25,19 +27,18 @@ public class MqttMessageHandler {
             System.out.printf("📡 [GPS] %s: (%.6f, %.6f) time=%s speed=%.1f gyro=%.1f%n",
                     deviceId, lat, lon, time, speed, gyro);
 
-            // 가공해서 WebSocket으로 전송
             JSONObject toClient = new JSONObject();
             toClient.put("id", deviceId);
             toClient.put("lat", lat);
-            toClient.put("lng", lon);
-            toClient.put("speed", speed);
+            toClient.put("lng", lon); // ⚠️ lng로 맞춰야 React 지도에서 먹힘
             toClient.put("time", time);
-            toClient.put("gyro" , gyro);
+            toClient.put("speed", speed);
+            toClient.put("gyro", gyro);
 
             socketHandler.broadcastToClients(toClient.toString());
 
         } catch (Exception e) {
-            System.err.println("⚠️ 메시지 파싱 오류: " + e.getMessage());
+            System.err.println("⚠️ JSON 파싱 오류: " + e.getMessage());
         }
     }
 }
