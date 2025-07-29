@@ -10,7 +10,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(new DeviceWebSocketHandler(), "/socket")
-                .setAllowedOrigins("*");  // 혹은 "http://localhost:3000", "http://gwon.my"
+                .setAllowedOrigins("*").withSockJS();  // 혹은 "http://localhost:3000", "http://gwon.my"
     }
 }
 
