@@ -1,6 +1,6 @@
 import { Button } from '@mui/material';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import Move from 'pages/Move.js';
+import Move from './pages/Move.js';
 
 function HomePage() {
   const navigate = useNavigate();
