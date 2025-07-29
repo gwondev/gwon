@@ -16,6 +16,11 @@ services:
       MYSQL_ROOT_PASSWORD: password
     volumes:
       - db_data:/var/lib/mysql
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"
+    command: mosquitto -c /dev/null
 
 volumes:
   db_data:
