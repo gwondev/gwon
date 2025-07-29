@@ -6,14 +6,11 @@ import org.springframework.web.socket.config.annotation.*;
 
 @Configuration
 @EnableWebSocket
-@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
-
-    private final DeviceWebSocketHandler handler;
-
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(handler, "/backend/socket")
-                .setAllowedOrigins("*");
+        registry.addHandler(new DeviceWebSocketHandler(), "/backend/socket")
+                .setAllowedOrigins("*");  // 혹은 "http://localhost:3000", "http://gwon.my"
     }
 }
+
