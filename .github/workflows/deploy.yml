@@ -41,13 +41,15 @@ jobs:
             mkdir -p target
             cp backend/build/libs/*.jar target/
 
-            # 기존 mosquitto 컨테이너 정리 (이름 충돌 방지)
-            docker stop gwon-mosquitto-1 2>/dev/null || true
-            docker rm gwon-mosquitto-1 2>/dev/null || true
+            # 기존 컨테이너 완전 정리 (포트 충돌 방지)
+            docker stop $(docker ps -aq) 2>/dev/null || true
+            docker rm $(docker ps -aq) 2>/dev/null || true
+
+            # orphan 컨테이너도 정리
+            docker compose down --remove-orphans || true
 
             # 컨테이너 및 네트워크 정리
             docker container prune -f
             docker network prune -f
 
-            docker compose down || true
             docker compose up --build -d
