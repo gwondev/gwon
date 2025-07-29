@@ -9,14 +9,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-@RestController
-public class RootController {
 
-    @GetMapping("/")
-    public String root() {
-        return "🟢 Spring 루트 정상 응답";
-    }
-}
 
 
 @Controller
