@@ -5,19 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="de46a310-22d2-48db-8bb2-a787fed325be" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/config/MqttConfig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/backend/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/controller/GpsController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/entity/GpsData.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/socket/ClientSessionManager.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/socket/ClientWebSocketHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/socket/DeviceWebSocketHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/socket/WebSocketConfig.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/static/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/static/main.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/config/MqttConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/config/MqttConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/entity/GwonText.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/entity/GwonText.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/repository/GpsDataRepository.java" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/main/resources/templates/main.html" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/templates/main.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

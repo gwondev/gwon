@@ -4,9 +4,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
+import org.springframework.messaging.MessageChannel;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 
 @Configuration
@@ -28,9 +30,16 @@ public class MqttConfig {
     }
 
     @Bean
+    public MessageChannel mqttInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
     public MqttPahoMessageDrivenChannelAdapter inbound() {
-        return new MqttPahoMessageDrivenChannelAdapter(
-            "spring-client", mqttClientFactory(), topic);
+        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
+                "spring-client", mqttClientFactory(), topic);
+        adapter.setOutputChannel(mqttInputChannel()); // 이 줄 추가!
+        return adapter;
     }
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
