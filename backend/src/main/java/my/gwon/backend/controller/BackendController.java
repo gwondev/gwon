@@ -9,6 +9,14 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+@RestController
+public class RootController {
+
+    @GetMapping("/")
+    public String root() {
+        return "🟢 Spring 루트 정상 응답";
+    }
+}
 
 
 @Controller
@@ -20,11 +28,6 @@ public class BackendController{
     }
 
 
-    @GetMapping("/")
-    @ResponseBody
-    public String rootForWebSocket() {
-        return "🟢 WebSocket 연결용 루트 응답";
-    }
 
     @GetMapping("api/test")
     @ResponseBody
