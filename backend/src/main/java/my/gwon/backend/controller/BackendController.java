@@ -20,6 +20,12 @@ public class BackendController{
     }
 
 
+    @GetMapping("/")
+    @ResponseBody
+    public String rootForWebSocket() {
+        return "🟢 WebSocket 연결용 루트 응답";
+    }
+
     @GetMapping("api/test")
     @ResponseBody
     public ResponseEntity<String> testApi(){
