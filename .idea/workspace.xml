@@ -6,9 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="de46a310-22d2-48db-8bb2-a787fed325be" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/config/MqttConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/config/MqttConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/entity/GwonText.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/entity/GwonText.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/my/gwon/backend/repository/GpsDataRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/templates/main.html" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/templates/main.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
