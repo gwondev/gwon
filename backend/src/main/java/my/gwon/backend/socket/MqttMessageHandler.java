@@ -32,6 +32,7 @@ public class MqttMessageHandler {
             toClient.put("lng", lon);
             toClient.put("speed", speed);
             toClient.put("time", time);
+            toClient.put("gyro" , gyro);
 
             socketHandler.broadcastToClients(toClient.toString());
 
