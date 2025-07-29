@@ -29,35 +29,44 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/gwon/gwon
+
+            echo "📦 Git 최신 상태로 리셋"
             git fetch origin main
             git reset --hard origin/main
 
-            # Mosquitto 설정 파일 자동 생성 (없을 경우에만)
+            echo "🔧 Mosquitto 설정 파일 검사 및 생성"
+            # mosquitto.conf가 디렉터리일 경우 삭제
+            if [ -d ./mosquitto.conf ]; then
+              echo "⚠️ mosquitto.conf가 디렉터리로 잘못 생성됨 → 삭제"
+              rm -rf ./mosquitto.conf
+            fi
+
+            # 설정 파일 없으면 생성
             if [ ! -f ./mosquitto.conf ]; then
-              echo "📄 mosquitto.conf 파일 생성 중..."
+              echo "📄 mosquitto.conf 생성 중..."
               echo "listener 1883" > mosquitto.conf
               echo "allow_anonymous true" >> mosquitto.conf
             fi
 
+            echo "🛠️ Gradle 빌드 시작"
             cd backend
             chmod +x gradlew
             ./gradlew build -x test
             cd ..
 
-            # Gradle 빌드 결과를 target 폴더로 복사 (Dockerfile 호환용)
+            echo "📁 JAR 복사"
             mkdir -p target
             cp backend/build/libs/*.jar target/
 
-            # 기존 컨테이너 완전 정리 (포트 충돌 방지)
+            echo "🧼 기존 Docker 컨테이너 정리"
             docker stop $(docker ps -aq) 2>/dev/null || true
             docker rm $(docker ps -aq) 2>/dev/null || true
 
-            # orphan 컨테이너도 정리
+            echo "🔻 orphan 컨테이너 및 리소스 정리"
             docker compose down --remove-orphans || true
-
-            # 컨테이너 및 네트워크 정리
             docker container prune -f
             docker network prune -f
 
-            # 컨테이너 실행
+            echo "🚀 Docker Compose 실행"
             docker compose up --build -d
+          
