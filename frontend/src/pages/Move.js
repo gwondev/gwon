@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, Button, TextField } from '@mui/material';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
@@ -9,38 +9,42 @@ function Move() {
   const stompClientRef = useRef(null);
   const [gps, setGps] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('연결 중...');
+  const [realtimeGps, setRealtimeGps] = useState(null);
+  const [deviceStatus, setDeviceStatus] = useState('');
+  const [requestMessage, setRequestMessage] = useState('');
 
   useEffect(() => {
-    // STOMP 클라이언트 설정
+    // STOMP 클라이언트 설정 (백엔드 구조에 완벽 매칭)
     const stompClient = new Client({
-      // SockJS를 사용 (백엔드 STOMP 엔드포인트와 일치)
-      webSocketFactory: () => new SockJS('http://gwon.my/ws/gps'),
+      // 백엔드 엔드포인트: /ws/gps (SockJS)
+      webSocketFactory: () => new SockJS('/ws/gps'),
       
       debug: function (str) {
         console.log('🔧 STOMP Debug:', str);
       },
       
+      // 백엔드 하트비트 설정과 동일
       reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      heartbeatIncoming: 10000, // 백엔드: 10000ms
+      heartbeatOutgoing: 10000,
     });
 
-    // 연결 성공 시
+    // STOMP 연결 성공
     stompClient.onConnect = (frame) => {
       console.log('✅ STOMP 연결 성공:', frame);
       setConnectionStatus('연결됨');
       
-      // GPS 데이터를 구독 (/topic/gps - 백엔드와 일치)
+      // 1. 메인 GPS 토픽 구독 (MqttConfig + GpsStompController)
       stompClient.subscribe('/topic/gps', (message) => {
         try {
-          console.log('🧾 GPS 메시지 수신:', message.body);
+          console.log('🧾 STOMP GPS 수신:', message.body);
           const parsed = JSON.parse(message.body);
           
-          // 백엔드 데이터 형식에 맞춰 필드명 매핑
+          // 백엔드 GPS 데이터 매핑
           const gpsData = {
-            id: parsed.deviceId,        // deviceId → id
+            id: parsed.deviceId,
             lat: parsed.lat,
-            lng: parsed.lon,            // lon → lng
+            lng: parsed.lon,
             time: parsed.time,
             speed: parsed.speed,
             gyro: parsed.gyro
@@ -48,35 +52,51 @@ function Move() {
           
           setGps(gpsData);
         } catch (err) {
-          console.error('❌ GPS 데이터 파싱 실패:', err);
+          console.error('❌ GPS 파싱 실패:', err);
         }
       });
+
+      // 2. 실시간 GPS 토픽 구독 (MqttConfig 추가 채널)
+      stompClient.subscribe('/topic/gps/realtime', (message) => {
+        try {
+          console.log('⚡ STOMP 실시간 GPS:', message.body);
+          const parsed = JSON.parse(message.body);
+          setRealtimeGps(parsed);
+        } catch (err) {
+          console.error('❌ 실시간 GPS 파싱 실패:', err);
+        }
+      });
+
+      // 3. 기기 상태 토픽 구독 (MqttConfig 디바이스 채널)
+      stompClient.subscribe('/topic/devices', (message) => {
+        console.log('📱 STOMP 디바이스 상태:', message.body);
+        setDeviceStatus(message.body);
+      });
+
+      // 4. 구독 시 초기 메시지 받기 (GpsStompController @SubscribeMapping)
+      console.log('🎯 STOMP 구독 완료 - 초기 메시지 대기중');
     };
 
-    // 연결 오류 시
+    // STOMP 오류 처리
     stompClient.onStompError = (frame) => {
       console.error('❌ STOMP 오류:', frame.headers['message']);
-      console.error('상세:', frame.body);
-      setConnectionStatus('연결 오류');
+      setConnectionStatus('STOMP 연결 오류');
     };
 
-    // 연결 해제 시
     stompClient.onDisconnect = () => {
       console.log('🔌 STOMP 연결 해제');
       setConnectionStatus('연결 해제됨');
     };
 
-    // WebSocket 오류 시
     stompClient.onWebSocketError = (error) => {
       console.error('❌ WebSocket 오류:', error);
       setConnectionStatus('WebSocket 오류');
     };
 
-    // 연결 시작
+    // STOMP 활성화
     stompClient.activate();
     stompClientRef.current = stompClient;
 
-    // 클린업 함수
     return () => {
       if (stompClientRef.current) {
         stompClientRef.current.deactivate();
@@ -84,7 +104,7 @@ function Move() {
     };
   }, []);
 
-  // 카카오맵 초기화 및 GPS 데이터 업데이트
+  // 카카오맵 GPS 업데이트
   useEffect(() => {
     if (!window.kakao || !window.kakao.maps) return;
 
@@ -95,7 +115,6 @@ function Move() {
         level: 3,
       };
       mapRef.current = new window.kakao.maps.Map(container, options);
-
       markerRef.current = new window.kakao.maps.Marker({
         map: mapRef.current,
         position: options.center,
@@ -109,13 +128,16 @@ function Move() {
     }
   }, [gps]);
 
-  // 메시지 전송 함수 (필요한 경우)
-  const sendMessage = (destination, message) => {
+  // STOMP 메시지 전송 함수 (GpsStompController @MessageMapping 사용)
+  const sendGpsRequest = () => {
     if (stompClientRef.current && stompClientRef.current.connected) {
+      // 백엔드 @MessageMapping("/gps/request")로 전송
       stompClientRef.current.publish({
-        destination: destination,
-        body: JSON.stringify(message)
+        destination: '/app/gps/request', // /app prefix 사용
+        body: requestMessage || 'GPS 데이터 요청'
       });
+      console.log('📤 STOMP 요청 전송:', requestMessage);
+      setRequestMessage('');
     } else {
       console.warn('⚠️ STOMP 연결이 없습니다');
     }
@@ -123,9 +145,9 @@ function Move() {
 
   return (
     <Box>
-      <h3>Move 실시간 GPS (STOMP)</h3>
+      <h3>Move 실시간 GPS (완전한 STOMP)</h3>
       
-      {/* 연결 상태 표시 */}
+      {/* STOMP 연결 상태 */}
       <div style={{ 
         padding: '8px', 
         marginBottom: '10px', 
@@ -133,9 +155,41 @@ function Move() {
         borderRadius: '4px',
         fontSize: '14px'
       }}>
-        연결 상태: <strong>{connectionStatus}</strong>
+        STOMP 연결: <strong>{connectionStatus}</strong>
       </div>
 
+      {/* 디바이스 상태 */}
+      {deviceStatus && (
+        <div style={{ 
+          padding: '8px', 
+          marginBottom: '10px', 
+          backgroundColor: '#e8f4fd',
+          borderRadius: '4px',
+          fontSize: '12px'
+        }}>
+          📱 디바이스: <strong>{deviceStatus}</strong>
+        </div>
+      )}
+
+      {/* STOMP 메시지 전송 */}
+      <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+        <TextField
+          size="small"
+          placeholder="GPS 요청 메시지 입력"
+          value={requestMessage}
+          onChange={(e) => setRequestMessage(e.target.value)}
+          style={{ flex: 1 }}
+        />
+        <Button 
+          variant="contained" 
+          onClick={sendGpsRequest}
+          disabled={connectionStatus !== '연결됨'}
+        >
+          STOMP 요청 전송
+        </Button>
+      </div>
+
+      {/* GPS 데이터 테이블 */}
       {gps ? (
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
           <thead>
@@ -167,7 +221,20 @@ function Move() {
           borderRadius: '4px',
           marginBottom: '20px'
         }}>
-          ⏳ 위치 정보를 기다리는 중...
+          ⏳ STOMP GPS 데이터 대기중...
+        </div>
+      )}
+
+      {/* 실시간 GPS 상태 (추가 채널) */}
+      {realtimeGps && (
+        <div style={{ 
+          padding: '10px', 
+          marginBottom: '10px', 
+          backgroundColor: '#fff3cd',
+          borderRadius: '4px',
+          fontSize: '12px'
+        }}>
+          ⚡ 실시간: {realtimeGps.lat}, {realtimeGps.lon} | 속도: {realtimeGps.speed}m/s
         </div>
       )}
       
