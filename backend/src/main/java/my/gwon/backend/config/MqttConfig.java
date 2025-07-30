@@ -1,7 +1,8 @@
 package my.gwon.backend.config;
 
 import lombok.RequiredArgsConstructor;
-import my.gwon.backend.socket.DeviceWebSocketHandler;
+import my.gwon.backend.controller.GpsWebSocketHandler;
+
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -15,8 +16,6 @@ import org.springframework.messaging.MessageChannel;
 @Configuration
 @RequiredArgsConstructor
 public class MqttConfig {
-
-    private final DeviceWebSocketHandler deviceWebSocketHandler;
 
     @Value("${mqtt.broker.url}")
     private String brokerUrl;
@@ -33,7 +32,7 @@ public class MqttConfig {
     public DefaultMqttPahoClientFactory mqttClientFactory() {
         DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
         MqttConnectOptions options = new MqttConnectOptions();
-        options.setServerURIs(new String[]{brokerUrl});
+        options.setServerURIs(new String[] { brokerUrl });
         options.setCleanSession(true);
         factory.setConnectionOptions(options);
         return factory;
@@ -41,8 +40,8 @@ public class MqttConfig {
 
     @Bean
     public MqttPahoMessageDrivenChannelAdapter mqttInbound() {
-        MqttPahoMessageDrivenChannelAdapter adapter =
-                new MqttPahoMessageDrivenChannelAdapter("gwon-client", mqttClientFactory(), topic);
+        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter("gwon-client",
+                mqttClientFactory(), topic);
         adapter.setOutputChannel(mqttInputChannel());
         adapter.setCompletionTimeout(5000);
         return adapter;
@@ -51,6 +50,6 @@ public class MqttConfig {
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleGpsData(String gpsData) {
         System.out.println("📡 MQTT 수신: " + gpsData);
-        deviceWebSocketHandler.broadcastToClients(gpsData);
+        GpsWebSocketHandler.broadcast(gpsData);
     }
 }
