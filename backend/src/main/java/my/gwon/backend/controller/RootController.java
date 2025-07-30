@@ -8,6 +8,6 @@ public class RootController {
 
     @GetMapping("/")
     public String root() {
-        return "🟢 Spring 루트 정상 응답";
+        return "root";
     }
 }
