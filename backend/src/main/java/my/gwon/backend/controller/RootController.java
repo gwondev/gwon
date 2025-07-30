@@ -12,6 +12,6 @@ public class RootController {
     @GetMapping()
     public String root() {
           System.out.println("Root controller 호출됨! 호출 되었습니다."); // 이 로그가 나오는지 확인
-        return "root";  // src/main/resources/templates/root.html 반환
+        return "main";  // src/main/resources/templates/root.html 반환
     }
 }
