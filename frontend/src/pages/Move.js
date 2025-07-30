@@ -13,15 +13,8 @@ function Move() {
   useEffect(() => {
     // STOMP 클라이언트 설정
     const stompClient = new Client({
-      // SockJS를 사용하는 경우
-      webSocketFactory: () => new SockJS('http://gwon.my/ws'),
-      
-      // 또는 일반 WebSocket을 사용하는 경우 (위 줄 대신 사용)
-      // brokerURL: 'ws://gwon.my/ws',
-      
-      connectHeaders: {
-        // 필요한 경우 인증 헤더 추가
-      },
+      // SockJS를 사용 (백엔드 STOMP 엔드포인트와 일치)
+      webSocketFactory: () => new SockJS('http://gwon.my/ws/gps'),
       
       debug: function (str) {
         console.log('🔧 STOMP Debug:', str);
@@ -37,21 +30,27 @@ function Move() {
       console.log('✅ STOMP 연결 성공:', frame);
       setConnectionStatus('연결됨');
       
-      // GPS 데이터를 구독
+      // GPS 데이터를 구독 (/topic/gps - 백엔드와 일치)
       stompClient.subscribe('/topic/gps', (message) => {
         try {
           console.log('🧾 GPS 메시지 수신:', message.body);
-          const gpsData = JSON.parse(message.body);
+          const parsed = JSON.parse(message.body);
+          
+          // 백엔드 데이터 형식에 맞춰 필드명 매핑
+          const gpsData = {
+            id: parsed.deviceId,        // deviceId → id
+            lat: parsed.lat,
+            lng: parsed.lon,            // lon → lng
+            time: parsed.time,
+            speed: parsed.speed,
+            gyro: parsed.gyro
+          };
+          
           setGps(gpsData);
         } catch (err) {
           console.error('❌ GPS 데이터 파싱 실패:', err);
         }
       });
-      
-      // 특정 기기의 GPS 데이터만 구독하려면
-      // stompClient.subscribe('/topic/gps/device123', (message) => {
-      //   // 처리 로직
-      // });
     };
 
     // 연결 오류 시
