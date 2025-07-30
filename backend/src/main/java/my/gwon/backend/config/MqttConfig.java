@@ -1,10 +1,6 @@
 package my.gwon.backend.config;
 
-import lombok.RequiredArgsConstructor;
-import my.gwon.backend.controller.GpsStompController;
-
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,10 +9,13 @@ import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 
 @Configuration
-@RequiredArgsConstructor
 public class MqttConfig {
 
     @Value("${mqtt.broker.url}")
@@ -25,7 +24,8 @@ public class MqttConfig {
     @Value("${mqtt.topic}")
     private String topic;
 
-    private final SimpMessagingTemplate stompTemplate;
+    @Autowired
+    private ApplicationContext applicationContext;
 
     @Bean
     public MessageChannel mqttInputChannel() {
@@ -38,8 +38,8 @@ public class MqttConfig {
         MqttConnectOptions options = new MqttConnectOptions();
         options.setServerURIs(new String[] { brokerUrl });
         options.setCleanSession(true);
-        options.setKeepAliveInterval(60); // MQTT 연결 유지
-        options.setConnectionTimeout(30); // MQTT 연결 타임아웃
+        options.setKeepAliveInterval(60);
+        options.setConnectionTimeout(30);
         factory.setConnectionOptions(options);
         return factory;
     }
@@ -47,24 +47,39 @@ public class MqttConfig {
     @Bean
     public MqttPahoMessageDrivenChannelAdapter mqttInbound() {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
-                "gwon-stomp-client", // STOMP 클라이언트 ID
+                "gwon-stomp-client",
                 mqttClientFactory(), 
                 topic);
         adapter.setOutputChannel(mqttInputChannel());
-     
         return adapter;
     }
 
-    // MQTT → STOMP 브릿지 (여기가 핵심!)
+    // MessageHandler로 변경 (SimpMessagingTemplate 의존성 제거)
+    @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
-    public void mqttToStompBridge(String gpsData) {
-        System.out.println("🌉 MQTT → STOMP 브릿지: " + gpsData);
-        
-        // STOMP 토픽으로 직접 전송
-        stompTemplate.convertAndSend("/topic/gps", gpsData);
-        
-        // 추가 STOMP 채널들
-        stompTemplate.convertAndSend("/topic/gps/realtime", gpsData);
-        stompTemplate.convertAndSend("/topic/devices", "GPS 업데이트: " + System.currentTimeMillis());
+    public MessageHandler mqttMessageHandler() {
+        return message -> {
+            try {
+                String gpsData = message.getPayload().toString();
+                System.out.println("🌉 MQTT 데이터 수신: " + gpsData);
+                
+                // SimpMessagingTemplate을 나중에 가져오기
+                try {
+                    SimpMessagingTemplate stompTemplate = applicationContext.getBean(SimpMessagingTemplate.class);
+                    
+                    // STOMP로 브로드캐스트
+                    stompTemplate.convertAndSend("/topic/gps", gpsData);
+                    stompTemplate.convertAndSend("/topic/gps/realtime", gpsData);
+                    stompTemplate.convertAndSend("/topic/devices", "GPS 업데이트: " + System.currentTimeMillis());
+                    
+                    System.out.println("✅ MQTT → STOMP 브릿지 성공");
+                } catch (Exception e) {
+                    System.out.println("⚠️ STOMP 브로드캐스트 실패 (아직 준비되지 않음): " + e.getMessage());
+                }
+                
+            } catch (Exception e) {
+                System.err.println("❌ MQTT 메시지 처리 오류: " + e.getMessage());
+            }
+        };
     }
 }
