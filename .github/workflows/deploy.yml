@@ -23,5 +23,6 @@ jobs:
             cd backend
             chmod +x ./gradlew
             ./gradlew build -x test
+            ls -la build/libs/
             cd ..  # 다시 루트로 돌아가기
             docker compose up -d
