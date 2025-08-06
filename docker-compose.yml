@@ -1,0 +1,24 @@
+services:
+  backend:
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    build: ./backend
+
+  frontend:
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    build: ./frontend
+
+  db:
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    image: mysql
+    environment:
+      MYSQL_USERNAME: gwon
+      MYSQL_DATABASE: gwondb
+      MYSQL_PASSWORD: gwondb
+    volumes:
+      - db_data:/var/lib/mysql  # ✅ 들여쓰기 맞게 수정

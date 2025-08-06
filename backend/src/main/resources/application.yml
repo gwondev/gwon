@@ -1,0 +1,14 @@
+server:
+  name: gwon
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://db:3306/gwondb
+    username: gwon
+    password: gwondb
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
