@@ -4,6 +4,8 @@ services:
     ports:
       - "8080:8080"
     build: ./backend
+    depends_on:
+      - db  # MySQL이 먼저 시작되도록
 
   frontend:
     restart: unless-stopped
@@ -17,6 +19,7 @@ services:
       - "3306:3306"
     image: mysql
     environment:
+      MYSQL_ROOT_PASSWORD: gwondb
       MYSQL_USERNAME: gwon
       MYSQL_DATABASE: gwondb
       MYSQL_PASSWORD: gwondb
