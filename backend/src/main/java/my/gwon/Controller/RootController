@@ -1,0 +1,13 @@
+package my.gwon.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.controller;
+
+@controller
+public class RootController{
+    
+    @GetMapping("/")
+    public string root(){
+        return "root";
+    }
+}
