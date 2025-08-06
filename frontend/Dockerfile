@@ -1,6 +1,6 @@
 FROM node:22-alpine
 WORKDIR /frontend
 COPY . .     
-RUN npm ci           <-의존성설치
+RUN npm ci          
 EXPOSE 3000
-CMD ["npm", "start"] <- 서버 실행
+CMD ["npm", "start"]
