@@ -2,14 +2,14 @@ name : Deploy
 
 on:
 	push:
-		branchs: [main] #main 브랜치에 푸시될 때만 실행한다.
+		branches: [main] #main 브랜치에 푸시될 때만 실행한다.
 		
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH 접속 및 자동배포 실행.....
+      - name: SSH 접속 및 자동배포 실행....합니다!.
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_HOST }}   
