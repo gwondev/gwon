@@ -20,6 +20,11 @@ jobs:
           script: |
             cd ~/gwon
             git pull
+
+            # 🔸 로그 및 빌드 디렉토리 삭제
+            rm -rf backend/logs
+            rm -rf backend/build
+
             cd backend
             chmod +x ./gradlew
             ./gradlew build -x test
@@ -27,4 +32,5 @@ jobs:
             cd ..  # 다시 루트로 돌아가기
             
             docker compose down -v --remove-orphans
+            docker system prune -af --volumes
             docker compose up -d --build --force-recreate
