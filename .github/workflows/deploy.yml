@@ -9,17 +9,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH 접속 및 docker-compose up합니다!
+      - name: SSH 접속 및 docker-compose up합니다!!
         uses: appleboy/ssh-action@v1.0.0
         
         with:
           port: 2222
           host: ${{ secrets.SERVER_HOST }}
           key: ${{ secrets.SERVER_KEY }}
+          username: ${{ secrets.SERVER_USER }}
           script: |
             cd ~/gwon
             git pull
             ./gradlew build
             docker compose up -d
-          username: ${{ secrets.SERVER_USER }}
+          
             
