@@ -11,7 +11,9 @@ jobs:
     steps:
       - name: SSH 접속 및 docker-compose up합니다!
         uses: appleboy/ssh-action@v1.0.0
+        
         with:
+          port: 2222
           host: ${{ secrets.SERVER_HOST }}
           key: ${{ secrets.SERVER_KEY }}
           script: |
