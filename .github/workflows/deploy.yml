@@ -25,4 +25,6 @@ jobs:
             ./gradlew build -x test
             ls -la build/libs/
             cd ..  # 다시 루트로 돌아가기
-            docker compose up -d
+            
+            docker compose down -v --remove-orphans
+            docker compose up -d --build --force-recreate
