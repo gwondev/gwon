@@ -2,7 +2,7 @@ name : Deploy
 
 on:
 	push:
-		branch: [main] #main 브랜치에 푸시될 때만 실행한다.
+		branchs: [main] #main 브랜치에 푸시될 때만 실행한다.
 		
 jobs:
   deploy:
