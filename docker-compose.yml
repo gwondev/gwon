@@ -21,4 +21,4 @@ services:
       MYSQL_DATABASE: gwondb
       MYSQL_PASSWORD: gwondb
     volumes:
-      - db_data:/var/lib/mysql  # ✅ 들여쓰기 맞게 수정
+      - db_data:/var/lib/mysql # ✅ 들여쓰기 맞게 수정
