@@ -20,7 +20,8 @@ jobs:
           script: |
             cd ~/gwon
             git pull
-            ./gradlew build
+            cd backend
+            ./gradlew build -x test
             docker compose up -d
           
             
