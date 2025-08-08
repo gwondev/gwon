@@ -21,10 +21,6 @@ jobs:
             cd ~/gwon
             git pull
 
-            # 🔸 로그 및 빌드 디렉토리 삭제
-            rm -rf backend/logs
-            rm -rf backend/build
-
             cd backend
             chmod +x ./gradlew
             ./gradlew build -x test
