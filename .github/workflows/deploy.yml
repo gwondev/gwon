@@ -29,8 +29,9 @@ jobs:
             chmod +x ./gradlew
             ./gradlew build -x test
             ls -la build/libs/
-            cd ..  # 다시 루트로 돌아가기
+            cd ..  # 다시 루트로 돌아가기 좀
             
             docker compose down -v --remove-orphans
             docker system prune -af --volumes
             docker compose up -d --build --force-recreate
+            
