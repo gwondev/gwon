@@ -17,10 +17,10 @@ services:
     restart: unless-stopped
     ports:
       - "3306:3306"
-    image: mysql
+    image: mysql:latest
     environment:
       MYSQL_ROOT_PASSWORD: gwondb
-      MYSQL_USERNAME: gwon
+      MYSQL_USER: gwon
       MYSQL_DATABASE: gwondb
       MYSQL_PASSWORD: gwondb
     volumes:
