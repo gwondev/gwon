@@ -5,9 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class GwonApplication {
-
 	public static void main(String[] args) {
 		SpringApplication.run(GwonApplication.class, args);
 	}
-
 }
