@@ -1,4 +1,7 @@
-package my.gwon.text;
+package my.gwon.Controller;
+import my.gwon.entity.Text;
+
+import my.gwon.repository.TextRepo;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 

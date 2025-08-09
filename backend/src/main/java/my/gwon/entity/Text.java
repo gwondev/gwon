@@ -1,4 +1,4 @@
-package my.gwon.text;
+package my.gwon.entity;
 
 
 import jakarta.persistence.Entity;
