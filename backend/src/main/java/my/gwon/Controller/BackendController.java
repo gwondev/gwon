@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 
 public class BackendController {
-    @GetMapping("/backend")
+    @GetMapping("/")
     public String backend(){
         return "backend";
     }
