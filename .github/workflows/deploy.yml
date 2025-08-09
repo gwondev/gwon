@@ -27,7 +27,7 @@ jobs:
             ls -la build/libs/
             cd ..  # 다시 루트로 돌아가기 좀
             
-            docker compose build --no-cache backend
-            docker compose up -d backend
+            docker compose build --no-cache
+            docker compose up -d
 
             
