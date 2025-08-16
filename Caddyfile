@@ -1,0 +1,9 @@
+gwon.my {
+  # 프론트엔드 (루트 요청)
+  reverse_proxy frontend:3000
+
+  # 백엔드 (/backend/* → backend:8080)
+  handle_path /backend/* {
+    reverse_proxy backend:8080
+  }
+}
