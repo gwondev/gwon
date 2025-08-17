@@ -36,7 +36,7 @@ export default function MenuCard({ title, hint, items = [], to}) {
           backgroundImage:
             "radial-gradient(120% 180% at 10% -20%, rgba(91,140,255,.08), transparent 60%), radial-gradient(100% 140% at 90% 120%, rgba(57,230,181,.06), transparent 60%)",
 
-          height: { xs: 350, sm: 380, md: 420 },
+          height: { xs: 370, sm: 400, md: 440 },
           width: { xs: 360, sm: 480, md: 500 },
 
           transform: "translateY(0)",

@@ -5,17 +5,17 @@ import EmailIcon from "@mui/icons-material/Email";
 import GitHubIcon from "@mui/icons-material/GitHub";
 
 import theme from "./theme";
-
-
-import TechPages from "./MenuPages/TechPages";
-import ProjectPages from "./MenuPages/ProjectPages";
 import AwardsPages from "./MenuPages/AwardsPages";
 import CertificationPages from "./MenuPages/CertificationPages";
+import ExperiencePages from "./MenuPages/ExperiencePages";
+import TechPages from "./MenuPages/TechPages";
 
 
 
 
 import MenuCard from "./Components/MenuCard";
+
+
 
 function Home() {
   return (
@@ -52,13 +52,14 @@ function Home() {
 
       {/* 카드 그리드 */}
       <Container maxWidth="lg" sx={{ pb: { xs: 8, md: 12 } }}>
+
         <Grid container spacing={6} justifyContent="center" alignItems="stretch" sx={{ mt: { xs: 0, md: -8 } }}>
-          <Grid item>
+          <Grid>
             <MenuCard
               title="기술스택"
               hint="Tech Stack"
               items={[
-                { head: "DEP | Docker, Github Actions, Caddy, Nginx", detail: "컨테이너화, CI/CD, 리버스 프록시, SSL" },
+                { head: "DEP | Docker, Github Actions, Caddy", detail: "컨테이너화, CI/CD, 리버스 프록시, SSL" },
                 { head: "FN | React", detail: "컴포넌트 설계, 상태관리, 라우팅, SPA" },
                 { head: "BN | Spring Boot", detail: "REST API, JPA/ORM, 보안 설정" },
                 { head: "DB | MySQL", detail: "ERD 설계, 인덱스/정규화" },
@@ -68,20 +69,20 @@ function Home() {
             />
           </Grid>
 
-          <Grid item>
+          <Grid>
             <MenuCard
               title="프로젝트/활동/경력"
-              hint="Projects & Activities"
+              hint="Experiences"
               items={[
                 { head: "호남 ICT 팀빌딩 6기 [팀장]", detail: "2025.06~2025.11 호남개발자 지원사업" },
                 { head: "SOS Jump [멘토]", detail: "2024.09~2024.11 전공 파이썬 멘토" },
                 { head: "한국농산업인증원 [인턴]", detail: "2023.07~2023.09 사무업무 인턴" },
               ]}
-              to="/projects"
+              to="/experience"
             />
           </Grid>
 
-          <Grid item>
+          <Grid>
             <MenuCard
               title="수상이력"
               hint="Awards"
@@ -93,7 +94,7 @@ function Home() {
             />
           </Grid>
 
-          <Grid item>
+          <Grid>
             <MenuCard
               title="자격증"
               hint="Certifications"
@@ -107,10 +108,10 @@ function Home() {
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid>
             <Typography variant="body1" color="text.secondary" align="center">
               <EmailIcon fontSize="small" sx={{ mr: 1 }} />
-              gwondev0323@gmail.com &nbsp;&nbsp;|&nbsp;&nbsp;
+              gwondev0323@gmail.com <br />
               <GitHubIcon fontSize="small" sx={{ mr: 1 }} />
               https://github.com/gwondev
             </Typography>
@@ -122,14 +123,7 @@ function Home() {
 }
 
 export default function App() {
-  console.log({
-  AwardsPages: typeof AwardsPages,
-  CertificationsPages: typeof CertificationsPages,
-  ProjectPages: typeof ProjectPages,
-  TechPages: typeof TechPages,
-  MenuCard: typeof MenuCard,
-  Home: typeof Home,
-});
+
 
   return (
     <ThemeProvider theme={theme}>
@@ -138,7 +132,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/awards" element={<AwardsPages />} />
         <Route path="/certifications" element={<CertificationPages />} />
-        <Route path="/projects" element={<ProjectPages />} />
+        <Route path="/experience" element={<ExperiencePages />} />
         <Route path="/tech" element={<TechPages />} />
         <Route path="*" element={<Box sx={{ p: 4 }}>Not Found</Box>} />
       </Routes>
