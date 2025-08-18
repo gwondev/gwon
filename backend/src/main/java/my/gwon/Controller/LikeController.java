@@ -1,36 +1,31 @@
-package my.gwon.Controller;
+// src/main/java/.../LikeController.java
+package my.gwon.controller;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import my.gwon.entity.Like;
-import my.gwon.repository.LikeRepo;
 import org.springframework.web.bind.annotation.*;
 
-@Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/like")
 public class LikeController {
     private final LikeRepo repo;
 
-    // 새로운 하트 row 생성 (count=0)
-    @PostMapping("/new")
-    public Like create() {
-        return repo.save(new Like());
-    }
-    // 하트 클릭 → count++
-    @PostMapping("/{id}")
-    public int click(@PathVariable Long id) {
-        Like like = repo.findById(id).orElseThrow();
-        like.setCount(like.getCount() + 1);
-        repo.save(like);
-        log.info("❤️ Like {} -> {}", id, like.getCount());
-        return like.getCount(); // 증가된 값만 반환
+    @GetMapping("/")
+    public String ok() {
+        return "backend ok";
     }
 
-    // 현재 카운트 조회
-    @GetMapping("/{id}")
+    // 조회: 없으면 0
+    @GetMapping("/like/{id}")
     public int get(@PathVariable Long id) {
         return repo.findById(id).map(Like::getCount).orElse(0);
+    }
+
+    // 증가: 없으면 새로 만들고 +1
+    @PostMapping("/like/{id}")
+    public int click(@PathVariable Long id) {
+        Like like = repo.findById(id).orElseGet(() -> repo.save(new Like()));
+        like.setCount(like.getCount() + 1);
+        repo.save(like);
+        return like.getCount();
     }
 }
