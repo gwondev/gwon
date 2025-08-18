@@ -141,7 +141,6 @@ export default function App() {
         <Route path="/certifications" element={<CertificationPages />} />
         <Route path="/experience" element={<ExperiencePages />} />
         <Route path="/tech" element={<TechPages />} />
-        <Route path="*" element={<Box sx={{ p: 4 }}>Not Found</Box>} />
       </Routes>
     </ThemeProvider>
   );
