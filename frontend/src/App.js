@@ -1,6 +1,9 @@
 // src/App.js
 import { Routes, Route } from "react-router-dom";
 import { ThemeProvider, CssBaseline, Box, Container, Typography, Grid } from "@mui/material";
+import { Caption1 } from "./styles/typography";
+
+
 import EmailIcon from "@mui/icons-material/Email";
 import GitHubIcon from "@mui/icons-material/GitHub";
 
@@ -31,8 +34,9 @@ function Home() {
       >
         <Container maxWidth="sm">
           <Typography
-            variant="h3"
-            fontWeight={900}
+            variant="h4"
+            fontWeight={800}
+            lineHeight={1}
             letterSpacing={1}
             sx={{
               mb: 1,
@@ -44,9 +48,9 @@ function Home() {
           >
             이성권
           </Typography>
-          <Typography variant="h6" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
-            조선대학교 컴퓨터공학과
-          </Typography>
+          <Caption1 size={18} text="조선대학교 컴퓨터공학과" />
+         
+          
         </Container>
       </Box>
 
@@ -59,11 +63,12 @@ function Home() {
               title="기술스택"
               
               items={[
-                { head: "DEP | Docker, Github Actions, Caddy", detail: "컨테이너화, CI/CD, 리버스 프록시, SSL" },
-                { head: "WEB | React, Spring Boot", detail: "컴포넌트 설계, 상태관리, 라우팅, SPA, " },
-                { head: "BN | Spring Boot", detail: "REST API, JPA/ORM, 보안 설정" },
-                { head: "DB | MySQL", detail: "ERD 설계, 인덱스/정규화" },
-                { head: "CLOUD | AWS", detail: "EC2, SSH, 보안그룹" },
+                { head: "LANG |  C, C++, Js, JAVA, Python", detail: "Programming Language" },
+                { head: "DEPLOY | Docker, CI/CD, Caddy", detail: "컨테이너화, 배포, 리버스프록시" },
+                { head: "INFRA | AWS, Proxmox", detail: "EC2,보안그룹, 가상화" },
+                { head: "WEB | React, Spring Boot", detail: "컴포넌트설계, rest API" },
+                { head: "DB | MySQL", detail: "ERD 설계, 쿼리 최적화" },
+                
               ]}
               to="/tech"
             />
@@ -111,12 +116,15 @@ function Home() {
           
         </Grid>
       </Container>
-        <Typography variant="body1" color="text.secondary" align="center">
+
+
+        <Typography variant="body1" color="text.secondary" align="center" lineHeight={1}>
           <EmailIcon fontSize="small" sx={{ mr: 1 }} />
             gwondev0323@gmail.com <br />
             <GitHubIcon fontSize="small" sx={{ mr: 1 }} />
             https://github.com/gwondev
         </Typography>
+        <Box height= {100}></Box>
     </>
   );
 }
