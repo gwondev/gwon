@@ -7,6 +7,7 @@ import { Caption1 } from "./styles/typography";
 import EmailIcon from "@mui/icons-material/Email";
 import GitHubIcon from "@mui/icons-material/GitHub";
 
+
 import theme from "./theme";
 import AwardsPages from "./MenuPages/AwardsPages";
 import CertificationPages from "./MenuPages/CertificationPages";
@@ -16,8 +17,9 @@ import TechPages from "./MenuPages/TechPages";
 
 
 
+//import components
 import MenuCard from "./Components/MenuCard";
-
+import HeartLike from "./Components/HeartLike";
 
 
 function Home() {
@@ -49,10 +51,13 @@ function Home() {
             이성권
           </Typography>
           <Caption1 size={18} text="조선대학교 컴퓨터공학과" />
-         
+          
+          <HeartLike id={1} />
           
         </Container>
       </Box>
+
+      
 
       {/* 카드 그리드 */}
       <Container maxWidth="lg" sx={{ pb: { xs: 8, md: 12 } }}>
