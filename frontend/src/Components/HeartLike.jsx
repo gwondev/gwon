@@ -6,17 +6,32 @@ export default function HeartLike({ id }) {
   const [count, setCount] = React.useState(0);
   const url = `https://gwon.my/backend/like/${id}`;
 
+  // 안전 가드 적용 버전
   React.useEffect(() => {
-    fetch(url).then(r => r.json()).then(setCount).catch(() => {});
+    (async () => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) { setCount(0); return; }
+        const data = await r.json();
+        if (typeof data === "number") setCount(data);
+        else if (data && typeof data.count === "number") setCount(data.count);
+        else setCount(0);
+      } catch {
+        setCount(0);
+      }
+    })();
   }, [url]);
 
   const onClick = async () => {
     try {
       const r = await fetch(url, { method: "POST" });
-      const c = await r.json();
-      setCount(c);
+      if (!r.ok) return;               // 실패면 그대로 두기
+      const data = await r.json();
+      if (typeof data === "number") setCount(data);
+      else if (data && typeof data.count === "number") setCount(data.count);
     } catch {}
   };
+
 
   return (
     <Box sx={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
