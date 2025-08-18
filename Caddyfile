@@ -1,6 +1,6 @@
 gwon.my {
   # /backend 매칭
-  handle_path /backend {
+  handle_path /backend* {
     reverse_proxy backend:8080
   }
 
