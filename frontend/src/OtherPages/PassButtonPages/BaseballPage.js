@@ -1,4 +1,9 @@
 import { Box, Typography } from "@mui/material";
+import { Stack } from "@mui/system";
+
+import MenuButton from "../../styles/Button";
+
+
 
 export default function BaseballPage() {
   return (
@@ -13,12 +18,23 @@ export default function BaseballPage() {
         py: 6,
       }}
     >
-      <Typography variant="h4" fontWeight={900} sx={{ mt: 6, textAlign: "center", color: "#222" }}>
-        ⚾️ 야구 예매 페이지입니다.
-      </Typography>
-      <Typography variant="h6" sx={{ mt: 2, textAlign: "center", color: "text.secondary" }}>
-        곧 오픈합니다.
-      </Typography>
+      
+
+      <Stack spacing={4} sx={{ width: "100%", alignItems: "center",maxWidth:1000 }}>
+        <Typography variant="h2" fontWeight={900} sx={{ mt: 6, textAlign: "center", color: "#222" }}>
+        ⚾️ 구단 선택
+        </Typography>
+        <MenuButton to="kia" label="🐯 기아 타이거즈" />
+        <MenuButton to="doosan" label="🐻 두산 베어스" />
+        <MenuButton to="lotte" label="🕊️ 롯데 자이언츠" />
+        <MenuButton to="samsung" label="🦁 삼성 라이온즈" />
+        <MenuButton to="hanwha" label="🦅 한화 이글스" />
+        <MenuButton to="nc" label="🦕 NC 다이노스" />
+        <MenuButton to="ssg" label="🐶 SSG 랜더스" />
+        <MenuButton to="kt" label="🧙 KT 위즈" />
+        <MenuButton to="lg" label="👯 LG 트윈스" />
+        <MenuButton to="kiwoom" label="🦸 키움 히어로즈" />
+      </Stack>
     </Box>
   );
 }

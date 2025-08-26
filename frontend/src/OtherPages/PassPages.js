@@ -1,39 +1,9 @@
-import { Box, Typography, Stack, Button } from "@mui/material";
-import { Link, Outlet } from "react-router-dom";
+import { Box, Typography, Stack } from "@mui/material";
+import {  Outlet } from "react-router-dom";
+import MenuButton from "../styles/Button";
 
 
 
-// 공통 버튼
-function MenuButton({ to, label }) {
-  return (
-    <Button
-      variant="contained"
-      component={Link}
-      to={to}
-      disableElevation
-      sx={{
-        height: 100,
-        width: "100%",             // 가로폭 80%
-        mx: "auto",               // 가운데 정렬
-        bgcolor: "background.paper",
-        color: "text.primary",
-        fontSize: 35,
-        fontWeight: 700,
-        py: 2.5,
-        borderRadius: 3,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
-        "&:hover": {
-          bgcolor: "background.paper",
-          transform: "translateY(-2px)",
-          boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
-        },
-        transition: "all .15s ease",
-      }}
-    >
-      {label}
-    </Button>
-  );
-}
 
 
 
@@ -62,7 +32,7 @@ export default function PassPages() {
         PASS : 손쉬운예매
       </Typography>
 
-      <Stack spacing={3.5} sx={{ width: "100%", maxWidth: 550 }}>
+      <Stack spacing={4} sx={{ width: "100%", alignItems: "center" ,maxWidth:1000}}>
         {items.map((it) => (
           <MenuButton key={it.to} to={it.to} label={it.label} />
         ))}
