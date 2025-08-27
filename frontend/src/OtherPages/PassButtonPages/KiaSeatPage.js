@@ -1,9 +1,7 @@
 // src/OtherPages/PassButtonPages/KiaSeatPage.js
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, Typography, Button, Stack, Divider, ButtonGroup } from "@mui/material";
 import { Title1 } from "../../styles/typography";
-import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
 import MenuButton from "../../styles/Button"; // ✅ default export로 임포트
 
 const SECTION = { id: "A", label: "1루 A블록", price: 10000 };
@@ -41,8 +39,6 @@ export default function KiaSeatPage() {
   const seats = seatsAll.filter((s) => visibleRows.includes(s.row));
   const total = selected.length * SECTION.price;
 
-  const navigate = useNavigate();
-
   const toggleSeat = (seat) => {
     if (seat.sold) return;
     setSelected((prev) =>
@@ -50,13 +46,6 @@ export default function KiaSeatPage() {
         ? prev.filter((s) => s.id !== seat.id)
         : [...prev, seat]
     );
-  };
-
-  // ✅ 결제 버튼: 팝업 없이 바로 결제 화면으로 이동
-  const handleBook = () => {
-    navigate("/pass/baseball/kia/schedule/seat/pay", {
-      state: { seats: selected, amount: total, zone: ZONES[zone].label },
-    });
   };
 
   return (
@@ -159,16 +148,25 @@ export default function KiaSeatPage() {
           direction={{ xs: "column", sm: "row" }}
           spacing={2}
           justifyContent="space-between"
-          alignItems={{ xs: "stretch", sm: "center" }}
+          alignItems={{ xs: "center", sm: "center" }}
         >
           <Typography sx={{ fontWeight: 800, fontSize: "clamp(16px, 2.4vw, 18px)" }}>
             선택 좌석: {selected.length ? selected.map((s) => s.label).join(", ") : "없음"}
           </Typography>
-          <Stack direction="row" spacing={1.5}>
+
+          {/* 👉 버튼 묶음을 'column'으로 세로 쌓기 */}
+          <Stack
+          alignItems={{ xs: "center", sm: "center" }}
+            direction="column"
+            spacing={1.25}
+            sx={{ width: "100%", maxWidth: 500 }}
+          >
             <Button
               onClick={() => setSelected([])}
               variant="outlined"
               sx={{
+                width: "85%",           // MenuButton 폭(85%)과 통일
+                mx: "auto",
                 borderColor: "#222",
                 color: "#222",
                 px: 3,
@@ -180,11 +178,12 @@ export default function KiaSeatPage() {
             >
               초기화
             </Button>
-            <MenuButton
-  to={selected.length ? "pay" : "#"}      // ✅ 상대경로
-  label={`${total.toLocaleString()}원 결제하기`}
-/>
 
+            <MenuButton
+              size="clamp(18px, 3vw, 24px)"
+              to={selected.length ? "pay" : "#"}   // 상대경로 → /pass/baseball/kia/schedule/seat/pay
+              label={`${total.toLocaleString()}원 결제하기`}
+            />
           </Stack>
         </Stack>
       </Box>

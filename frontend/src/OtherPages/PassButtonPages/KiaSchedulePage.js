@@ -39,6 +39,7 @@ export default function KiaSchedulePage() {
           const label = `${g.date}  ${g.time}   KIA  vs  ${g.opp}   (${g.park})`;
           return (
             <MenuButton
+              size="clamp(16px, 3vw, 28px)"
               key={i}
               to="seat"
               label={label}

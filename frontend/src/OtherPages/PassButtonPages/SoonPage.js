@@ -18,7 +18,7 @@ function SoonPage() {
         PASS : 손쉬운예매
       </Typography>
       <Typography variant="h6" sx={{ mt: 2, textAlign: "center", color: "text.secondary" }}>
-        구현 예정 구단입니다.
+        구현 예정 페이지입니다.
       </Typography>
     </Box>
   );

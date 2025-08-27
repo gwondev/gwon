@@ -4,7 +4,13 @@ import { Button } from "@mui/material";
 
 
 // 공통 버튼
-export default function MenuButton({ to, label }) {
+export default function MenuButton({ to, label, size }) {
+    const fontSize =
+    size == null
+      ? "clamp(25px, 2.2vw, 35px)"
+      : typeof size === "number"
+      ? `${size}px`
+      : size;
   return (
     <Button
       variant="contained"
@@ -17,7 +23,7 @@ export default function MenuButton({ to, label }) {
         mx: "auto",               // 가운데 정렬
         bgcolor: "background.paper",
         color: "text.primary",
-        fontSize: "clamp(25px, 2.2vw, 35px)",
+        fontSize,
         fontWeight: 700,
         py: 2.5,
         borderRadius: 3,

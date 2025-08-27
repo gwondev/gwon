@@ -19,10 +19,11 @@ function KiaPage() {
         color: "#222",
       }}
     >
-      <Title1 size={35} text="🐯 기아 타이거즈 예매" color="#222" />
+      <Title1 size={35} text="🐯 기아 타이거즈 로그인" color="#222" />
 
       <Stack spacing={3} sx={{ mt: 6, width: "100%", maxWidth: 420, alignItems: "center" }}>
         <TextField
+        
           fullWidth
           label="이름"
           variant="outlined"
