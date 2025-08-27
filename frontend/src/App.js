@@ -22,7 +22,7 @@ import MoviePage from "./OtherPages/PassButtonPages/MoviePage";
 import PerformancePage from "./OtherPages/PassButtonPages/PerformancePage";
 import SoonPage from "./OtherPages/PassButtonPages/SoonPage";
 import KiaPage from "./OtherPages/PassButtonPages/KiaPage";
-import KiaSeatPage from "./OtherPages/PassButtonPages/KiaseatPage";
+import KiaSeatPage from "./OtherPages/PassButtonPages/KiaSeatPage";
 import KiaSchedulePage from "./OtherPages/PassButtonPages/KiaSchedulePage";
 import KiaPayPage from "./OtherPages/PassButtonPages/KiaPayPage";
 
