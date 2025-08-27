@@ -20,13 +20,28 @@ import BaseballPage from  "./OtherPages/PassButtonPages/BaseballPage";
 import SoccerPage from "./OtherPages/PassButtonPages/SoccerPage";
 import MoviePage from "./OtherPages/PassButtonPages/MoviePage";
 import PerformancePage from "./OtherPages/PassButtonPages/PerformancePage";
-
-
+import SoonPage from "./OtherPages/PassButtonPages/SoonPage";
+import KiaPage from "./OtherPages/PassButtonPages/KiaPage";
+import KiaSeatPage from "./OtherPages/PassButtonPages/KiaSeatPage";
+import KiaSchedulePage from "./OtherPages/PassButtonPages/KiaSchedulePage";
 
 //import components
 import MenuCard from "./Components/MenuCard";
 import HeartLike from "./Components/HeartLike";
 
+console.log("AwardsPages:", AwardsPages);
+console.log("CertificationPages:", CertificationPages);
+console.log("ExperiencePages:", ExperiencePages);
+console.log("TechPages:", TechPages);
+
+console.log("PassPages:", PassPages);
+console.log("BaseballPage:", BaseballPage);
+console.log("SoccerPage:", SoccerPage);
+console.log("MoviePage:", MoviePage);
+console.log("PerformancePage:", PerformancePage);
+
+console.log("SoonPage:", SoonPage);
+console.log("KiaPage:", KiaPage);
 
 function Home() {
   return (
@@ -160,7 +175,13 @@ export default function App() {
         <Route path="/pass/movie" element={<MoviePage />} />
         <Route path="/pass/performance" element={<PerformancePage />} />
 
-       
+        <Route path="/pass/baseball/soon" element={<SoonPage />} />
+        <Route path="/pass/baseball/kia" element={<KiaPage />} />
+
+        
+        <Route path="/pass/baseball/kia/schedule" element={<KiaSchedulePage />} />
+        <Route path="/pass/baseball/kia/schedule/seat" element={<KiaSeatPage />} />
+
       </Routes>
     </ThemeProvider>
   );

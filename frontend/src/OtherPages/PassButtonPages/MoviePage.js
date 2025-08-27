@@ -13,7 +13,7 @@ export default function MoviePage() {
         py: 6,
       }}
     >
-      <Typography variant="h4" fontWeight={900} sx={{ mt: 6, textAlign: "center", color: "#222" }}>
+      <Typography variant="h5" fontWeight={900} sx={{ mt: 6, textAlign: "center", color: "#222" }}>
         🎬 영화 예매 페이지입니다.
       </Typography>
       <Typography variant="h6" sx={{ mt: 2, textAlign: "center", color: "text.secondary" }}>

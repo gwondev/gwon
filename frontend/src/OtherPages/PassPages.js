@@ -1,8 +1,8 @@
-import { Box, Typography, Stack } from "@mui/material";
+import { Box,  Stack } from "@mui/material";
 import {  Outlet } from "react-router-dom";
 import MenuButton from "../styles/Button";
 
-
+import { Title1 } from "../styles/typography";
 
 
 
@@ -27,12 +27,10 @@ export default function PassPages() {
         py: 6,
       }}
     >
-      {/* 제목 강조 */}
-      <Typography variant="h3" fontWeight={900} sx={{ mb: 6, color: "#222" }}>
-        PASS : 손쉬운예매
-      </Typography>
+      <Title1 size={35} text= "PASS : 손쉬운예매" />
+      <Box height={50}></Box>
 
-      <Stack spacing={4} sx={{ width: "100%", alignItems: "center" ,maxWidth:1000}}>
+      <Stack spacing={3} sx={{ width: "100%", alignItems: "center" ,maxWidth:1000}}>
         {items.map((it) => (
           <MenuButton key={it.to} to={it.to} label={it.label} />
         ))}

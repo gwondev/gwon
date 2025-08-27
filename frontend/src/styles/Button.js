@@ -12,12 +12,12 @@ export default function MenuButton({ to, label }) {
       to={to}
       disableElevation
       sx={{
-        height: 100,
-        width: "65%",             // 가로폭 80%
+        height: { xs: 60, sm: 68, md: 76 },
+        width: "85%",             // 가로폭 80%
         mx: "auto",               // 가운데 정렬
         bgcolor: "background.paper",
         color: "text.primary",
-        fontSize: "2.5rem",
+        fontSize: "clamp(25px, 2.2vw, 35px)",
         fontWeight: 700,
         py: 2.5,
         borderRadius: 3,
