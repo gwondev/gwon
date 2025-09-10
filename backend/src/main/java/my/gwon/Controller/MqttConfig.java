@@ -16,7 +16,7 @@ public class MqttConfig {
 
     private final String brokerUrl = "tcp://gwon.my:1883";  // 브로커 주소
     private final String clientId = "spring-client";        // 클라이언트 ID
-    private final String topic = "move/gps/Chosun/1";       // 구독할 토픽
+    private final String topic = "move/gps/#";              // move/gps 하위 전부
 
     @Bean
     public DefaultMqttPahoClientFactory mqttClientFactory() {
