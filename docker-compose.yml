@@ -28,6 +28,19 @@ services:
       - "3000:3000"
     build: ./frontend
 
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"   # (옵션, WebSocket)
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+
+
   db:
     restart: unless-stopped
     ports:
