@@ -43,7 +43,7 @@ public class MqttConfig {
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public MessageHandler handler() {
         return message -> {
-            System.out.println("📡 MQTT 수신: " + message.getPayload());
+            System.out.println("📡 MQTT 수신 : " + message.getPayload());
         };
     }
 }
