@@ -29,6 +29,7 @@ dependencies {
 
 	//MQTT 통신 의존성
 	implementation 'org.springframework.integration:spring-integration-mqtt'
+	implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:+'
 
 	//WebSocket 통신 의존성
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
@@ -37,6 +38,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5' // or a more recent version
 
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
