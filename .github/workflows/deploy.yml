@@ -22,11 +22,14 @@ jobs:
             git fetch --all
             git reset --hard origin/main
 
+            docker compose down -v --remove-orphans
+            docker system prune -af --volumes
+
             cd backend
             chmod +x ./gradlew
             ./gradlew build -x test
             ls -la build/libs/
-            cd ..  # 다시 루트로 돌아가기 좀
+            cd ..  # 다시 루트로 돌아가기 좀ss
             
             docker compose down --remove-orphans
             docker compose build --no-cache
