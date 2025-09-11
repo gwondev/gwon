@@ -30,7 +30,7 @@ const MoveMainPages = () => {
   // ✅ STOMP WebSocket 연결 (절대 주소, HTTPS 환경이면 wss://)
   useEffect(() => {
     const client = new Client({
-      webSocketFactory: () => new SockJS("https://gwon.my/backend/ws"),
+      webSocketFactory: () => new SockJS("https://gwon.my/ws"),
       reconnectDelay: 5000, // 자동 재연결 (5초)
       onConnect: () => {
         console.log("✅ WebSocket 연결됨");

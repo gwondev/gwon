@@ -11,4 +11,8 @@ public class BackendController {
     public String backend(){
         return "backend";
     }
+    @GetMapping("/move")
+    public String testMove() {
+        return "move-test"; // 단순히 문자열을 반환하여 정상작동 확인
+    }
 }
