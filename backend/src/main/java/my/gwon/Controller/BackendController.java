@@ -1,19 +1,23 @@
 package my.gwon.controller;
 
-import org.springframework.stereotype.Controller;
+import my.gwon.handler.MqttMessageHandler;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 
-@Controller
+@RestController
 public class BackendController {
-    @GetMapping("/")
-    public String backend(){
-        return "backend";
+
+    private final MqttMessageHandler mqttMessageHandler;
+
+    public BackendController(MqttMessageHandler mqttMessageHandler) {
+        this.mqttMessageHandler = mqttMessageHandler;
     }
 
-    @RequestMapping("/movee")
-    public String move() { 
-        return "move"; // move.html 파일을 반환  s
+    // 루트(/)에서 MQTT 로그 출력 // ss
+    @GetMapping("/")
+    public List<String> backend() {
+        return mqttMessageHandler.getLogs();
     }
 }
