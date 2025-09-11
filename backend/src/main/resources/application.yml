@@ -1,8 +1,7 @@
 server:
   name: gwon
   port: 8080
-  servlet:
-    context-path: /backend
+  
 
 spring:
   thymeleaf:

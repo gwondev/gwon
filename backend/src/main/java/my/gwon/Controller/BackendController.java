@@ -13,6 +13,6 @@ public class BackendController {
 
     @GetMapping("/move")
     public String move() {
-        return "backend"; // move.html 파일을 반환
+        return "move"; // move.html 파일을 반환
     }
 }
