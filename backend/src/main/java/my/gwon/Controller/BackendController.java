@@ -12,7 +12,7 @@ public class BackendController {
         return "backend";
     }
 
-    @RequestMapping("/move")
+    @RequestMapping("/movee")
     public String move() { 
         return "move"; // move.html 파일을 반환  s
     }
