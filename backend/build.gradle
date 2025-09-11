@@ -30,6 +30,9 @@ dependencies {
 	//MQTT 통신 의존성
 	implementation 'org.springframework.integration:spring-integration-mqtt'
 
+	//WebSocket 통신 의존성
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'

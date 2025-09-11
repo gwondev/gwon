@@ -1,5 +1,6 @@
 package my.gwon.Controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -10,13 +11,17 @@ import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannel
 import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 @Configuration
 public class MqttConfig {
 
-    private final String brokerUrl = "tcp://gwon.my:1883";  // 브로커 주소
-    private final String clientId = "spring-client";        // 클라이언트 ID
-    private final String topic = "move/gps/#";              // move/gps 하위 전부
+    private final String brokerUrl = "tcp://gwon.my:1883";  // MQTT 브로커
+    private final String clientId = "spring-client";        // MQTT 클라이언트 ID
+    private final String topic = "move/gps/#";              // 구독할 토픽 (전부)
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;        // WebSocket 브로드캐스트용
 
     @Bean
     public DefaultMqttPahoClientFactory mqttClientFactory() {
@@ -43,7 +48,11 @@ public class MqttConfig {
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public MessageHandler handler() {
         return message -> {
-            System.out.println("📡 MQTT 수신 : " + message.getPayload());
+            String payload = message.getPayload().toString();
+            System.out.println("📡 MQTT 수신 : " + payload);
+
+            // 무조건 WebSocket 브로드캐스트
+            messagingTemplate.convertAndSend("/topic/gps", payload);
         };
     }
 }
