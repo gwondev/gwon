@@ -27,12 +27,11 @@ const MoveMainPages = () => {
     }
   }, []);
 
-  // ✅ STOMP WebSocket 연결 (절대 주소)
+  // ✅ STOMP WebSocket 연결 (절대 주소, HTTPS 환경이면 wss://)
   useEffect(() => {
     const client = new Client({
-      webSocketFactory: () =>
-        new SockJS("http://gwon.my/backend/ws"), // ⭐ 절대 주소
-      reconnectDelay: 5000,
+      webSocketFactory: () => new SockJS("https://gwon.my/backend/ws"),
+      reconnectDelay: 5000, // 자동 재연결 (5초)
       onConnect: () => {
         console.log("✅ WebSocket 연결됨");
         client.subscribe("/topic/gps", (message) => {
@@ -46,7 +45,7 @@ const MoveMainPages = () => {
               });
             }
           } catch (err) {
-            console.error("⚠️ JSON 파싱 실패입니다 . :", message.body);
+            console.error("⚠️ JSON 파싱 실패:", message.body);
           }
         });
       },
