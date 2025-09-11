@@ -14,6 +14,9 @@ import CertificationPages from "./MenuPages/CertificationPages";
 import ExperiencePages from "./MenuPages/ExperiencePages";
 import TechPages from "./MenuPages/TechPages";
 
+//MOVE
+import MovePages from "./MovePages/MoveMainPages"
+
 //sw중심대학창업아이디어공모전 페이지
 import PassPages from "./OtherPages/PassPages";
 import BaseballPage from  "./OtherPages/PassButtonPages/BaseballPage";
@@ -157,6 +160,10 @@ export default function App() {
         <Route path="/certifications" element={<CertificationPages />} />
         <Route path="/experience" element={<ExperiencePages />} />
         <Route path="/tech" element={<TechPages />} />
+        <Route path="/move" element={<MovePages />} />
+
+
+
 
          {/* 중첩 라우팅 */}
         <Route path="/pass" element={<PassPages />} />
