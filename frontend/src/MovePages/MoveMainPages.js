@@ -46,7 +46,7 @@ const MoveMainPages = () => {
               });
             }
           } catch (err) {
-            console.error("⚠️ JSON 파싱 실패:", message.body);
+            console.error("⚠️ JSON 파싱 실패입니다 . :", message.body);
           }
         });
       },
