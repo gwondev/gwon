@@ -20,7 +20,7 @@ public class MqttLogController {
 
     @GetMapping("/move")
     public List<String> getLogs() {
-        // 메시지 핸들러에서 로그를 가져와 반환
+        // 메시지 핸들러에서 로그를 가져와 반환  asdasdas   asdasd 
         return messageHandler.getLogs();
     }
 }
