@@ -19,7 +19,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           script: |
             set -e
-            chmod -R 777 ~/gwon
 
             # 1. 최신 코드 강제 반영 (서버 로컬 변경 무시)
             cd ~/gwon
