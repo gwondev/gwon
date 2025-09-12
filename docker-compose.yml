@@ -23,6 +23,7 @@ services:
       - db  # MySQL이 먼저 시작되도록
     environment:
       - DB_HOST=db
+      - MQTT_BROKER=tcp://mosquitto:1883
 
   frontend:
     restart: unless-stopped

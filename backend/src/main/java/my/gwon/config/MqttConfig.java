@@ -1,5 +1,6 @@
 package my.gwon.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -18,8 +19,11 @@ import java.util.UUID;
 @Configuration
 public class MqttConfig {
 
-    private final String brokerUrl = "tcp://gwon.my:1883";   // MQTT 브로커
-    private final String topic     = "move/gps/#";           // 구독 토픽
+    @Value("${mqtt.broker}")
+    private String brokerUrl;
+
+    @Value("${mqtt.topic}")
+    private String topic;
 
     private final SimpMessagingTemplate messagingTemplate;
 

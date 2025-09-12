@@ -2,6 +2,11 @@ server:
   name: gwon
   port: 8080
 
+mqtt:
+  broker: ${MQTT_BROKER:tcp://localhost:1883}
+  topic: move/gps/#
+
+
 spring:
   thymeleaf:
     cache: false
