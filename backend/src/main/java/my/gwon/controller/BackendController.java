@@ -20,4 +20,3 @@ public class BackendController {
         return "move"; // templates/move.html
     }
 }
-`

@@ -21,6 +21,8 @@ services:
     build: ./backend
     depends_on:
       - db  # MySQL이 먼저 시작되도록
+    environment:
+      - DB_HOST=db
 
   frontend:
     restart: unless-stopped

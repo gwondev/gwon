@@ -1,21 +1,18 @@
 server:
   name: gwon
   port: 8080
-  
 
 spring:
   thymeleaf:
     cache: false
 
   datasource:
-    password: gwondb
-    #url: jdbc:mysql://localhost:3306/gwondb
-    url: jdbc:mysql://db:3306/gwondb
+    url: jdbc:mysql://${DB_HOST:localhost}:3306/gwondb
     username: gwon
-  
+    password: gwondb
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
-
-
