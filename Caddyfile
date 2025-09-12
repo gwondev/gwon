@@ -1,6 +1,6 @@
 gwon.my {
-  # /backend 매칭
-  handle_path /backend* {
+  # /backend 경로부터는 그대로 Spring으로 전달
+  handle /backend* {
     reverse_proxy backend:8080
   }
 
@@ -9,3 +9,5 @@ gwon.my {
     reverse_proxy frontend:3000
   }
 }
+
+
