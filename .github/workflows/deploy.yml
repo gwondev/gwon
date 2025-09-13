@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH 접속 및 docker-compose up합니다!!!!!ss
+      - name: SSH 접속 및 docker-compose up합니다!!!!!
         uses: appleboy/ssh-action@v1.0.0
         
         with:
