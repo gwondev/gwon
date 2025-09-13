@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class BackendController {
 
     // /backend → backend.html
-    @GetMapping("/")
+    @GetMapping("")
     public String backendPage() {
         return "backend"; // templates/backend.html
     }
