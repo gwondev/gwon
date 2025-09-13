@@ -20,7 +20,7 @@ jobs:
           script: |
             
             # 1. 최신 코드 강제 반영 (서버 로컬 변경 무시)ss
-            cd /gwon
+            cd gwon
             git fetch --all
             git reset --hard origin/main
             git clean -fdx   # 추적 안되는 파일/폴더 싹 제거
