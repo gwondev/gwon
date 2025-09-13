@@ -36,7 +36,7 @@ jobs:
             cp build/libs/*.jar ../backend.jar
             cd ..
             
-            # 4. backend 서비스만 다시 빌드 & 실행
-            docker compose up -d --build backend
+            # 서비스 전부 실행
+            docker compose up -d --build
             
 
