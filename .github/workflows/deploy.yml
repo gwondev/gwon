@@ -19,7 +19,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           script: |
             
-            # 1. 최신 코드 강제 반영 (서버 로컬 변경 무시)s
+            # 1. 최신 코드 강제 반영 (서버 로컬 변경 무시)
             cd gwon
             git fetch --all
             git reset --hard origin/main
