@@ -4,6 +4,15 @@ gwon.my {
     reverse_proxy backend:8080
   }
 
+  # Spring Boot WebSocket
+    handle /ws* {
+      reverse_proxy backend:8080 {
+        transport http {
+          versions 1.1
+        }
+      }
+    }
+
   # 그 외는 프론트
   handle {
     reverse_proxy frontend:3000
