@@ -12,7 +12,7 @@
 
 <script>
     // SockJS + STOMP 연결
-    const socket = new SockJS('/backend/ws');
+    const socket = new SockJS('https://gwon.my/ws')
     const stompClient = Stomp.over(socket);
 
     stompClient.connect({}, () => {
