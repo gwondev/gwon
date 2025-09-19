@@ -53,8 +53,8 @@
 
         // 로그 한 줄 생성
         const logEntry =
-          `[#${data.gpsCount}] ${data.timeStamp}\n` +
-          `  status=${data.driveStatus}, lat=${lat.toFixed(6)}, lng=${lng.toFixed(6)}\n` +
+          `[#${data.gpsCount}] ${data.timeStamp}` +
+          `  status=${data.driveStatus}, lat=${lat.toFixed(6)}, lng=${lng.toFixed(6)}` +
           `  speed=${data.speed}, heading=${data.heading}`;
 
         // 로그 추가
@@ -62,7 +62,7 @@
 
         // 최근 40개만 표시
         const latestLogs = logs.slice(-40);
-        document.getElementById("log").textContent = latestLogs.join("\n\n");
+        document.getElementById("log").textContent = latestLogs.join("\n");
       });
     });
 </script>
