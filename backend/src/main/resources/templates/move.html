@@ -5,26 +5,58 @@
     <title>MOVE PAGE</title>
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        #map { width: 100%; height: 400px; margin-bottom: 10px; }
+        #log { height: 200px; overflow-y: auto; background: #f4f4f4; padding: 5px; font-size: 14px; }
+    </style>
 </head>
 <body>
 <h2>🚍 MOVE PAGE입니다.</h2>
+<div id="map"></div>
 <pre id="log"></pre>
 
 <script>
+    // Leaflet 지도 초기화 (광주 근처 중심)
+    const map = L.map('map').setView([35.1466, 126.9221], 15);
+
+    // OpenStreetMap 타일 레이어 추가
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // 마커 초기화
+    let marker = L.marker([35.1466, 126.9221]).addTo(map);
+
+    // 로그 배열 (최대 20개 유지)
+    let logs = [];
+
     // SockJS + STOMP 연결
-    const socket = new SockJS('https://gwon.my/ws')
+    const socket = new SockJS('https://gwon.my/ws');
     const stompClient = Stomp.over(socket);
 
     stompClient.connect({}, () => {
-        console.log("✅ WebSocket 연결 성공");
-        // /topic/gps 구독
-        stompClient.subscribe('/topic/gps', (message) => {
-            const logArea = document.getElementById("log");
-            logArea.textContent += message.body + "\n";
+      console.log("✅ WebSocket 연결 성공");
+      stompClient.subscribe('/topic/gps', (message) => {
+        const data = JSON.parse(message.body);
 
-            // 스크롤 자동 내리기
-            logArea.scrollTop = logArea.scrollHeight;
-        });
+        const lat = parseFloat(data.lat);
+        const lng = parseFloat(data.lng);
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+          // 마커 위치 갱신
+          marker.setLatLng([lat, lng]);
+          map.setView([lat, lng]);
+        }
+
+        // 로그 갱신 (20개 제한)
+        logs.push(`[${data.timeStamp}] (${lat.toFixed(6)}, ${lng.toFixed(6)}) status=${data.driveStatus}`);
+        if (logs.length > 20) logs.shift();
+
+        document.getElementById("log").textContent = logs.join("\n");
+      });
     });
 </script>
 </body>
