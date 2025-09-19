@@ -9,7 +9,7 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
         #map { width: 100%; height: 400px; margin-bottom: 10px; }
-        #log { height: 200px; overflow-y: auto; background: #f4f4f4; padding: 5px; font-size: 14px; }
+        #log { height: 300px; overflow-y: auto; background: #f4f4f4; padding: 5px; font-size: 13px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
@@ -30,7 +30,7 @@
     // 마커 초기화
     let marker = L.marker([35.1466, 126.9221]).addTo(map);
 
-    // 로그 배열 (최대 20개 유지)
+    // 전체 로그 저장
     let logs = [];
 
     // SockJS + STOMP 연결
@@ -51,11 +51,18 @@
           map.setView([lat, lng]);
         }
 
-        // 로그 갱신 (20개 제한)
-        logs.push(`[${data.timeStamp}] (${lat.toFixed(6)}, ${lng.toFixed(6)}) status=${data.driveStatus}`);
-        if (logs.length > 20) logs.shift();
+        // 로그 한 줄 생성
+        const logEntry =
+          `[#${data.gpsCount}] ${data.timeStamp}\n` +
+          `  status=${data.driveStatus}, lat=${lat.toFixed(6)}, lng=${lng.toFixed(6)}\n` +
+          `  speed=${data.speed}, heading=${data.heading}`;
 
-        document.getElementById("log").textContent = logs.join("\n");
+        // 로그 추가
+        logs.push(logEntry);
+
+        // 최근 40개만 표시
+        const latestLogs = logs.slice(-40);
+        document.getElementById("log").textContent = latestLogs.join("\n\n");
       });
     });
 </script>
