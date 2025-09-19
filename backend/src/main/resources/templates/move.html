@@ -12,7 +12,7 @@
 
 <script>
     // SockJS + STOMP 연결
-    const socket = new SockJS('/ws');
+    const socket = new SockJS('/backend/ws');
     const stompClient = Stomp.over(socket);
 
     stompClient.connect({}, () => {
