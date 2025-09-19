@@ -1,5 +1,31 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MOVE PAGE</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
 <body>
-MOVE PAGE입니다.
+<h2>🚍 MOVE PAGE입니다.</h2>
+<pre id="log"></pre>
+
+<script>
+    // SockJS + STOMP 연결
+    const socket = new SockJS('/ws');
+    const stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, () => {
+        console.log("✅ WebSocket 연결 성공");
+        // /topic/gps 구독
+        stompClient.subscribe('/topic/gps', (message) => {
+            const logArea = document.getElementById("log");
+            logArea.textContent += message.body + "\n";
+
+            // 스크롤 자동 내리기
+            logArea.scrollTop = logArea.scrollHeight;
+        });
+    });
+</script>
 </body>
 </html>
