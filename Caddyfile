@@ -1,3 +1,4 @@
+# gwon.my
 gwon.my {
   # /backend → Spring Boot
   handle /backend* {
@@ -21,23 +22,22 @@ gwon.my {
 
 # move.io.kr
 move.io.kr {
-  root * /move/frontend/dist
+  # React 빌드 산출물(dist) 서빙
+  root * /home/gwon/move/frontend/dist
   file_server
   encode zstd gzip
 
+  # Spring Boot API
   handle /backend* {
     reverse_proxy move-backend:8080
   }
 
+  # Spring Boot WebSocket
   handle /ws* {
     reverse_proxy move-backend:8080 {
       transport http {
         versions 1.1
       }
     }
-  }
-
-  handle {
-    reverse_proxy move-frontend:3000
   }
 }
