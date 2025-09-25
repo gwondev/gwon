@@ -1,22 +1,43 @@
 gwon.my {
-  # /backend 경로부터는 그대로 Spring으로 전달
+  # /backend → Spring Boot
   handle /backend* {
     reverse_proxy backend:8080
   }
 
   # Spring Boot WebSocket
-    handle /ws* {
-      reverse_proxy backend:8080 {
-        transport http {
-          versions 1.1
-        }
+  handle /ws* {
+    reverse_proxy backend:8080 {
+      transport http {
+        versions 1.1
       }
     }
+  }
 
-  # 그 외는 프론트
+  # 그 외 → 프론트엔드
   handle {
     reverse_proxy frontend:3000
   }
 }
 
+# move.io.kr
+move.io.kr {
+  root * /move/frontend/dist
+  file_server
+  encode zstd gzip
 
+  handle /backend* {
+    reverse_proxy move-backend:8080
+  }
+
+  handle /ws* {
+    reverse_proxy move-backend:8080 {
+      transport http {
+        versions 1.1
+      }
+    }
+  }
+
+  handle {
+    reverse_proxy move-frontend:3000
+  }
+}
