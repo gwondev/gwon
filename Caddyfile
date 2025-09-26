@@ -20,21 +20,17 @@ gwon.my {
   }
 }
 
-# move.io.kr
 move.io.kr {
-  # React 빌드 산출물(dist) 서빙
   root * /srv/move
   file_server
   encode zstd gzip
 
-  # Spring Boot API
   handle /backend* {
-    reverse_proxy localhost:8081  # 8080 → 8081로 변경
+    reverse_proxy move-backend:8080
   }
 
-  # Spring Boot WebSocket
   handle /ws* {
-    reverse_proxy localhost:8081 {  # 8080 → 8081로 변경
+    reverse_proxy move-backend:8080 {
       transport http {
         versions 1.1
       }
