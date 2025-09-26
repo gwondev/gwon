@@ -26,11 +26,11 @@ move.io.kr {
   encode zstd gzip
 
   handle /backend* {
-    reverse_proxy move-backend:8080
+    reverse_proxy localhost:8081
   }
 
   handle /ws* {
-    reverse_proxy move-backend:8080 {
+    reverse_proxy localhost:8081 {
       transport http {
         versions 1.1
       }
