@@ -13,8 +13,10 @@ services:
     depends_on:
       - frontend
       - backend
-
-
+    networks:
+      - default
+      - move_default
+      
   backend:
     restart: unless-stopped
     ports:
@@ -63,3 +65,7 @@ volumes:
   caddy_config:
 
   db_data:
+
+networks:
+  move_default:
+    external: true
