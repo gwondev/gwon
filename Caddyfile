@@ -1,39 +1,41 @@
-# gwon.my
+# gwon.my (절대 건드리지 않음)
 gwon.my {
-  # /backend → Spring Boot
   handle /backend* {
     reverse_proxy backend:8080
   }
 
-  # Spring Boot WebSocket
   handle /ws* {
     reverse_proxy backend:8080 {
       transport http {
         versions 1.1
       }
+      header_up Connection {>Connection}
+      header_up Upgrade {>Upgrade}
     }
   }
 
-  # 그 외 → 프론트엔드
   handle {
     reverse_proxy frontend:3000
   }
 }
 
+# move.io.kr
 move.io.kr {
   root * /srv/move
   file_server
   encode zstd gzip
 
   handle /backend* {
-    reverse_proxy localhost:8081
+    reverse_proxy backend:8080
   }
 
   handle /ws* {
-    reverse_proxy localhost:8081 {
+    reverse_proxy backend:8080 {
       transport http {
         versions 1.1
       }
+      header_up Connection {>Connection}
+      header_up Upgrade {>Upgrade}
     }
   }
 }
