@@ -21,12 +21,20 @@
           background: #f1f3f5; border-radius: 4px;
         }
         .device-item.active { background: #d0ebff; }
+        button {
+          width: 100%; padding: 6px; margin-bottom: 10px;
+          border: none; border-radius: 4px;
+          background: #74c0fc; color: #fff; cursor: pointer;
+          font-size: 14px;
+        }
+        button:hover { background: #4dabf7; }
     </style>
 </head>
 <body>
 <!-- 좌측 사이드바 -->
 <div id="sidebar">
     <h3>📡 디바이스 목록</h3>
+    <button onclick="showAllDevices()">🌍 전체 보기</button>
     <div id="deviceList">아직 데이터 없음</div>
     <h4>로그</h4>
     <pre id="log"></pre>
@@ -43,18 +51,19 @@
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // 디바이스 관리 객체 { topic: {marker, latestData} }
+    // 디바이스 관리 { topic: {marker, latestData, orgName, orgId} }
     const devices = {};
     let selectedTopic = null;
     let logs = [];
 
-    // UI 업데이트: 디바이스 리스트 갱신
+    // UI 업데이트
     function updateDeviceList() {
       const listDiv = document.getElementById("deviceList");
       listDiv.innerHTML = "";
       Object.keys(devices).forEach(topic => {
+        const { orgName, orgId } = devices[topic];
         const div = document.createElement("div");
-        div.textContent = topic;
+        div.textContent = `${orgName} (${orgId})`;
         div.className = "device-item" + (selectedTopic === topic ? " active" : "");
         div.onclick = () => {
           selectedTopic = topic;
@@ -70,6 +79,17 @@
       }
     }
 
+    // 🌍 전체 보기 버튼
+    function showAllDevices() {
+      const markers = Object.values(devices).map(d => d.marker);
+      if (markers.length > 0) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.2)); // 약간 여백
+        selectedTopic = null; // 특정 디바이스 선택 해제
+        updateDeviceList();
+      }
+    }
+
     // SockJS + STOMP 연결
     const socket = new SockJS('https://gwon.my/ws');
     const stompClient = Stomp.over(socket);
@@ -77,39 +97,43 @@
     stompClient.connect({}, () => {
       console.log("✅ WebSocket 연결 성공");
       stompClient.subscribe('/topic/gps', (message) => {
-        const data = JSON.parse(message.body);
+        const wrapper = JSON.parse(message.body); // { topic, payload }
+        const topic = wrapper.topic;
+        const data = typeof wrapper.payload === "string" ? JSON.parse(wrapper.payload) : wrapper.payload;
+
+        const parts = topic.split("/");
+        const orgName = parts[2] || "unknown";
+        const orgId = parts[3] || "0";
 
         const lat = parseFloat(data.lat);
         const lng = parseFloat(data.lng);
-        const topic = data.topic || "move/gps/default"; // 서버에서 토픽 제공 시 사용
 
         if (!isNaN(lat) && !isNaN(lng)) {
-          // 새 디바이스 등록
           if (!devices[topic]) {
-            const marker = L.marker([lat, lng]).addTo(map).bindPopup(`<b>${topic}</b>`);
-            devices[topic] = { marker, latestData: { lat, lng } };
+            const marker = L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup(`<b>${orgName} (${orgId})</b>`);
+            devices[topic] = { marker, latestData: { lat, lng }, orgName, orgId };
             if (!selectedTopic) selectedTopic = topic;
             updateDeviceList();
           } else {
-            // 기존 디바이스 업데이트
             devices[topic].marker.setLatLng([lat, lng]);
             devices[topic].latestData = { lat, lng };
           }
 
-          // 선택된 디바이스일 경우 지도 이동
           if (selectedTopic === topic) {
             map.setView([lat, lng]);
           }
         }
 
-        // 로그 추가
+        // 로그
         const logEntry =
-          `[${topic}] [#${data.gpsCount}] ${data.timeStamp}` +
+          `[${orgName}-${orgId}] [#${data.gpsCount}] ${data.timeStamp}` +
           ` status=${data.driveStatus}, lat=${lat.toFixed(6)}, lng=${lng.toFixed(6)}` +
           ` speed=${data.speed}, heading=${data.heading}`;
         logs.push(logEntry);
 
-        // 최근 40개만 표시
+        // 최근 40개만
         const latestLogs = logs.slice(-40);
         document.getElementById("log").textContent = latestLogs.join("\n");
       });
