@@ -4,16 +4,17 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const MoveMainPages = () => {
-  const mapContainerRef = useRef(null); // DOM 컨테이너
-  const mapRef = useRef(null);          // Leaflet 지도 객체
-  const markerRef = useRef(null);       // Leaflet 마커 객체
-  const [gps, setGps] = useState(null); // MQTT로 받은 GPS 값
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef({});        // 토픽별 마커 저장
+  const [devices, setDevices] = useState({}); // {topic: {lat, lng}}
+  const [selectedTopic, setSelectedTopic] = useState(null);
 
-  // ✅ Leaflet 지도 초기화 (처음 1회만 실행)
+  // ✅ Leaflet 지도 초기화
   useEffect(() => {
     if (!mapRef.current) {
       const map = L.map(mapContainerRef.current).setView(
-        [35.14389, 126.800003], // 초기 위치
+        [35.14389, 126.800003],
         16
       );
 
@@ -26,27 +27,23 @@ const MoveMainPages = () => {
     }
   }, []);
 
-  // ✅ MQTT 연결 (Mosquitto WebSocket)
+  // ✅ MQTT 연결
   useEffect(() => {
-    // ws:// 또는 wss:// (HTTPS 환경이면 wss://)
-    const client = mqtt.connect("ws://gwon.my:9001"); // Mosquitto.conf에서 연 WebSocket 포트
+    const client = mqtt.connect("ws://gwon.my:9001");
 
     client.on("connect", () => {
       console.log("✅ MQTT 브로커 연결됨");
-      // move/gps 하위 모든 토픽 구독
-      client.subscribe("move/gps/#");
+      client.subscribe("move/gps/#"); // 모든 토픽 구독
     });
 
     client.on("message", (topic, message) => {
       try {
         const data = JSON.parse(message.toString());
-        console.log("📡 수신된 토픽:", topic, "메시지:", data);
-
         if (data.lat && data.lng) {
-          setGps({
-            lat: parseFloat(data.lat),
-            lng: parseFloat(data.lng),
-          });
+          setDevices((prev) => ({
+            ...prev,
+            [topic]: { lat: parseFloat(data.lat), lng: parseFloat(data.lng) },
+          }));
         }
       } catch (err) {
         console.error("⚠️ JSON 파싱 실패:", message.toString());
@@ -56,26 +53,56 @@ const MoveMainPages = () => {
     return () => client.end();
   }, []);
 
-  // ✅ GPS 값 업데이트 시 마커 이동
+  // ✅ 마커 업데이트
   useEffect(() => {
-    if (gps && mapRef.current) {
-      if (!markerRef.current) {
-        // 첫 마커 생성
-        markerRef.current = L.marker([gps.lat, gps.lng]).addTo(mapRef.current);
+    if (!mapRef.current) return;
+
+    Object.entries(devices).forEach(([topic, { lat, lng }]) => {
+      if (!markersRef.current[topic]) {
+        markersRef.current[topic] = L.marker([lat, lng]).addTo(mapRef.current)
+          .bindPopup(`<b>${topic}</b>`);
       } else {
-        // 기존 마커 이동
-        markerRef.current.setLatLng([gps.lat, gps.lng]);
+        markersRef.current[topic].setLatLng([lat, lng]);
       }
-      mapRef.current.setView([gps.lat, gps.lng]);
+    });
+
+    // 선택된 토픽 마커로 지도 이동
+    if (selectedTopic && devices[selectedTopic]) {
+      const { lat, lng } = devices[selectedTopic];
+      mapRef.current.setView([lat, lng], 17);
+      markersRef.current[selectedTopic].openPopup();
     }
-  }, [gps]);
+  }, [devices, selectedTopic]);
 
   return (
-    <div style={{ width: "100%", height: "100vh" }}>
-      <h2 style={{ textAlign: "center" }}>MOVE 실시간 위치 서비스 (MQTT 직접 구독)</h2>
+    <div style={{ width: "100%", height: "100vh", display: "flex" }}>
+      {/* 왼쪽: 토픽 리스트 */}
+      <div style={{ width: "250px", borderRight: "1px solid #ccc", padding: "10px", overflowY: "auto" }}>
+        <h3>📡 수신된 디바이스</h3>
+        {Object.keys(devices).length === 0 && <p>아직 데이터 없음</p>}
+        <ul style={{ listStyle: "none", padding: 0 }}>
+          {Object.keys(devices).map((topic) => (
+            <li
+              key={topic}
+              style={{
+                cursor: "pointer",
+                padding: "5px",
+                margin: "3px 0",
+                background: selectedTopic === topic ? "#d0ebff" : "#f1f3f5",
+                borderRadius: "5px",
+              }}
+              onClick={() => setSelectedTopic(topic)}
+            >
+              {topic}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* 오른쪽: 지도 */}
       <div
         ref={mapContainerRef}
-        style={{ width: "100%", height: "90%", border: "1px solid #ccc" }}
+        style={{ flex: 1, height: "100%" }}
       />
     </div>
   );
