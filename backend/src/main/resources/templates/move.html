@@ -8,30 +8,67 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
-        #map { width: 100%; height: 400px; margin-bottom: 10px; }
-        #log { height: 300px; overflow-y: auto; background: #f4f4f4; padding: 5px; font-size: 13px; white-space: pre-wrap; }
+        body { margin: 0; display: flex; height: 100vh; font-family: Arial, sans-serif; }
+        #sidebar {
+          width: 250px; border-right: 1px solid #ccc; padding: 10px;
+          overflow-y: auto; background: #fafafa;
+        }
+        #map { flex: 1; height: 100%; }
+        #log { height: 200px; overflow-y: auto; background: #f4f4f4;
+               padding: 5px; font-size: 13px; white-space: pre-wrap; }
+        .device-item {
+          padding: 5px; margin: 3px 0; cursor: pointer;
+          background: #f1f3f5; border-radius: 4px;
+        }
+        .device-item.active { background: #d0ebff; }
     </style>
 </head>
 <body>
-<h2>🚍 MOVE PAGE입니다.</h2>
+<!-- 좌측 사이드바 -->
+<div id="sidebar">
+    <h3>📡 디바이스 목록</h3>
+    <div id="deviceList">아직 데이터 없음</div>
+    <h4>로그</h4>
+    <pre id="log"></pre>
+</div>
+
+<!-- 지도 -->
 <div id="map"></div>
-<pre id="log"></pre>
 
 <script>
-    // Leaflet 지도 초기화 (광주 근처 중심)
+    // Leaflet 지도 초기화
     const map = L.map('map').setView([35.1466, 126.9221], 15);
-
-    // OpenStreetMap 타일 레이어 추가
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // 마커 초기화
-    let marker = L.marker([35.1466, 126.9221]).addTo(map);
-
-    // 전체 로그 저장
+    // 디바이스 관리 객체 { topic: {marker, latestData} }
+    const devices = {};
+    let selectedTopic = null;
     let logs = [];
+
+    // UI 업데이트: 디바이스 리스트 갱신
+    function updateDeviceList() {
+      const listDiv = document.getElementById("deviceList");
+      listDiv.innerHTML = "";
+      Object.keys(devices).forEach(topic => {
+        const div = document.createElement("div");
+        div.textContent = topic;
+        div.className = "device-item" + (selectedTopic === topic ? " active" : "");
+        div.onclick = () => {
+          selectedTopic = topic;
+          updateDeviceList();
+          const { lat, lng } = devices[topic].latestData;
+          map.setView([lat, lng], 17);
+          devices[topic].marker.openPopup();
+        };
+        listDiv.appendChild(div);
+      });
+      if (Object.keys(devices).length === 0) {
+        listDiv.textContent = "아직 데이터 없음";
+      }
+    }
 
     // SockJS + STOMP 연결
     const socket = new SockJS('https://gwon.my/ws');
@@ -44,20 +81,32 @@
 
         const lat = parseFloat(data.lat);
         const lng = parseFloat(data.lng);
+        const topic = data.topic || "move/gps/default"; // 서버에서 토픽 제공 시 사용
 
         if (!isNaN(lat) && !isNaN(lng)) {
-          // 마커 위치 갱신
-          marker.setLatLng([lat, lng]);
-          map.setView([lat, lng]);
+          // 새 디바이스 등록
+          if (!devices[topic]) {
+            const marker = L.marker([lat, lng]).addTo(map).bindPopup(`<b>${topic}</b>`);
+            devices[topic] = { marker, latestData: { lat, lng } };
+            if (!selectedTopic) selectedTopic = topic;
+            updateDeviceList();
+          } else {
+            // 기존 디바이스 업데이트
+            devices[topic].marker.setLatLng([lat, lng]);
+            devices[topic].latestData = { lat, lng };
+          }
+
+          // 선택된 디바이스일 경우 지도 이동
+          if (selectedTopic === topic) {
+            map.setView([lat, lng]);
+          }
         }
 
-        // 로그 한 줄 생성
-        const logEntry =
-          `[#${data.gpsCount}] ${data.timeStamp}` +
-          `  status=${data.driveStatus}, lat=${lat.toFixed(6)}, lng=${lng.toFixed(6)}` +
-          `  speed=${data.speed}, heading=${data.heading}`;
-
         // 로그 추가
+        const logEntry =
+          `[${topic}] [#${data.gpsCount}] ${data.timeStamp}` +
+          ` status=${data.driveStatus}, lat=${lat.toFixed(6)}, lng=${lng.toFixed(6)}` +
+          ` speed=${data.speed}, heading=${data.heading}`;
         logs.push(logEntry);
 
         // 최근 40개만 표시
