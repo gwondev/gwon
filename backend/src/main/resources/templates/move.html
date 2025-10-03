@@ -67,6 +67,27 @@
     const devices = {};
     let selectedTopic = null;
 
+    // 마커 애니메이션 이동 함수
+    function animateMarkerMove(marker, newLat, newLng, duration = 1000) {
+      const startPos = marker.getLatLng();
+      const startLat = startPos.lat;
+      const startLng = startPos.lng;
+      const deltaLat = newLat - startLat;
+      const deltaLng = newLng - startLng;
+      let startTime;
+
+      function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const progress = (timestamp - startTime) / duration;
+        const t = Math.min(progress, 1);
+        const currentLat = startLat + deltaLat * t;
+        const currentLng = startLng + deltaLng * t;
+        marker.setLatLng([currentLat, currentLng]);
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
     // 디바이스 목록 갱신
     function updateDeviceList() {
       const listDiv = document.getElementById("deviceList");
@@ -165,11 +186,13 @@
             updateDeviceList();
             updateLogTabs();
           } else {
-            devices[topic].marker.setLatLng([lat, lng]);
+            // 마커를 부드럽게 이동
+            animateMarkerMove(devices[topic].marker, lat, lng, 1000);
+            devices[topic].latestData = { lat, lng };
+
             // Tooltip 갱신
             devices[topic].marker.bindTooltip(`${orgName} [${orgId}]`, { permanent: true, direction: "bottom", offset: [0, 10] });
             devices[topic].marker.bindTooltip(`상태: ${data.driveStatus}`, { permanent: true, direction: "right", offset: [20, 0] });
-            devices[topic].latestData = { lat, lng };
           }
         }
 
