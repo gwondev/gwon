@@ -15,8 +15,7 @@ services:
       - backend
     networks:
       - default
-      - move_default
-      - geon_default
+
       
   backend:
     restart: unless-stopped
@@ -67,8 +66,3 @@ volumes:
 
   db_data:
 
-networks:
-  geon_default:
-    external: true
-  move_default:
-    external: true
