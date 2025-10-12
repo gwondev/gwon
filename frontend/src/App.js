@@ -180,7 +180,7 @@ export default function App() {
         <Route path="/pass/baseball/kia/schedule/seat" element={<KiaSeatPage />} />
         <Route path="/pass/baseball/kia/schedule/seat/pay" element={<KiaPayPage />} />
 
-        <Route path="/pass/baseball/kia/schedule/seat/pay/soon" element={<SoonPage />} />
+
 
       </Routes>
     </ThemeProvider>
