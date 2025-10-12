@@ -15,8 +15,7 @@ services:
       - backend
     networks:
       - default
-      - move_default
-      - geon_default
+
 
       
   backend:
