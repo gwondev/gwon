@@ -40,14 +40,13 @@ move.io.kr {
   }
 }
 
-# leegeonyeong.site
 leegeonyeong.site {
   handle /backend* {
-    reverse_proxy backend:8082
+    reverse_proxy geon-backend-1:8080
   }
 
   handle /ws* {
-    reverse_proxy backend:8082 {
+    reverse_proxy geon-backend-1:8080 {
       transport http {
         versions 1.1
       }
@@ -57,6 +56,6 @@ leegeonyeong.site {
   }
 
   handle {
-    reverse_proxy frontend:3002
+    reverse_proxy geon-frontend-1:3000
   }
 }
