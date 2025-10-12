@@ -72,7 +72,9 @@ volumes:
   db_data:
 
 networks:
+  gwon_default:
+    name: gwon_default
   move_default:
-    external: true
+    name: move_default
   geon_default:
-    external: true
+    name: geon_default
