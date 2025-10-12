@@ -14,7 +14,7 @@ services:
       - frontend
       - backend
     networks:
-      - gwon_default
+      - default
       - move_default
       - geon_default
 
@@ -72,8 +72,6 @@ volumes:
   db_data:
 
 networks:
-  gwon_default:
-    external: true
   move_default:
     external: true
   geon_default:
