@@ -39,4 +39,11 @@ jobs:
             # 서비스 전부 실행
             docker compose up -d --build
             
+            # ✅ 4. Caddy가 gwon 프로젝트를 인식하도록 네트워크 연결
+            docker network connect gwon_default gwon-caddy-1 || true
+
+            # (선택) Caddy 리로드
+            docker restart gwon-caddy-1
+
+            
 
