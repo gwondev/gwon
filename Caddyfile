@@ -38,13 +38,9 @@ move.io.kr {
     reverse_proxy move-backend-1:8080
   }
 
-  # ✅ 3️⃣ 정적 파일 (Vite build 결과)
-    handle {
-      root * /srv/move
-      file_server
-      rewrite * /index.html
-   }
-
+  handle {
+      reverse_proxy move-frontend-1:5173  # ✅ 변경!
+    }
 
 }
 
