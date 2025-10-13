@@ -39,7 +39,9 @@ move.io.kr {
   }
 
   handle {
-      reverse_proxy move-frontend-1:5173  # ✅ 변경!
+      reverse_proxy move-frontend-1:5173 {
+        header_up Host localhost:5173  # ✅ Host 헤더 변경
+      }
     }
 
 }
