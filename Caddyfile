@@ -21,7 +21,7 @@ gwon.my {
 
 # move.io.kr
 move.io.kr {
-
+  encode zstd gzip
   # ✅ 1️⃣ WebSocket → Spring Boot 백엔드로
   handle /ws* {
     reverse_proxy move-backend-1:8080 {
@@ -38,13 +38,14 @@ move.io.kr {
     reverse_proxy move-backend-1:8080
   }
 
-  # ✅ 3️⃣ 정적 파일 (React build 결과물)
-  root * /srv/move
-  file_server
-  encode zstd gzip
+  # ✅ 3️⃣ 정적 파일 (Vite build 결과)
+    handle {
+      root * /srv/move
+      file_server
+      rewrite * /index.html
+   }
 
-  # ✅ 4️⃣ React SPA 라우팅 fallback
-  try_files {path} /index.html
+
 }
 
 # leegeonyeong.sites
