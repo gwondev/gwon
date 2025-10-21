@@ -24,7 +24,7 @@ services:
       - "8080:8080"
     build: ./backend
     depends_on:
-      - db  # MySQL이 먼저 시작되도록
+      - db  # MySQL이 먼저 시작되도록 한다.
     environment:
       - DB_HOST=db
       - MQTT_BROKER=tcp://mosquitto:1883
