@@ -62,7 +62,7 @@ public class MqttConfig {
 
             //System.out.println("📡 MQTT 수신: topic=" + topic + ", payload=" + payload);
 
-            // 토픽 + payload 함께 내려주기 (JSON)
+            // 토픽 + payload 함께 내려주기 (JSON)s
             String json = "{ \"topic\": \"" + topic + "\", \"payload\": " + payload + " }";
             messagingTemplate.convertAndSend("/topic/gps", json);
         };
