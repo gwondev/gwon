@@ -1,0 +1,23 @@
+server:
+  name: gwon
+  port: 8080
+
+mqtt:
+  broker: ${MQTT_BROKER:tcp://localhost:1883}
+  topic: move/gps/#
+
+
+spring:
+  thymeleaf:
+    cache: false
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:3306/gwondb
+    username: gwon
+    password: gwondb
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true

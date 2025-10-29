@@ -1,0 +1,56 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 SSH 접속 및 CRA 빌드 + 배포 (완전강제)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd gwon
+
+            echo "=== 🔄 최신 코드 강제 병합 ==="
+            git fetch --all
+            git reset --hard origin/main || true
+            git clean -fdx || true
+
+            echo "=== ⚙️ Backend 빌드 ==="
+            cd backend
+            chmod +x ./gradlew || true
+            ./gradlew clean bootJar -x test || true
+            cp build/libs/*.jar ../backend.jar || true
+            cd ..
+
+            echo "=== 🧹 React 캐시 완전 삭제 ==="s
+            cd frontend
+            rm -rf node_modules build .cache || true
+            npm cache clean --force || true
+
+            echo "📦 React 환경변수 주입 (.env 생성)"s
+            rm -f .env
+            echo "REACT_APP_GPT_API=${{ secrets.GPT_API }}" >> .env
+            echo "✅ .env 파일 생성 완료 ↓"
+            cat .env
+            cd ..
+
+            echo "=== 🐳 Docker Compose 재시작 ==="
+            docker compose down --remove-orphans
+            docker compose build --no-cache frontend
+            docker compose up -d --build
+
+            echo "=== 🌐 Caddy 리로드 ==="
+            docker restart gwon-caddy-1
+
+            echo "✅ CRA 클린 빌드 및 .env 주입 완료!"

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MOVE PAGE</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body { margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: Arial, sans-serif; }
+        #main { flex: 1; display: flex; }
+        #sidebar {
+          width: 250px; border-right: 1px solid #ccc; padding: 10px;
+          overflow-y: auto; background: #fafafa;
+        }
+        #map { flex: 1; height: 100%; }
+        #logsContainer {
+          height: 200px; overflow-y: auto; background: #f4f4f4;
+          padding: 5px; font-size: 13px; white-space: pre-wrap;
+          border-top: 1px solid #ccc;
+        }
+        .device-item {
+          padding: 5px; margin: 3px 0; cursor: pointer;
+          background: #f1f3f5; border-radius: 4px;
+        }
+        .device-item.active { background: #d0ebff; }
+        button {
+          width: 100%; padding: 6px; margin-bottom: 10px;
+          border: none; border-radius: 4px;
+          background: #74c0fc; color: #fff; cursor: pointer;
+          font-size: 14px;
+        }
+        button:hover { background: #4dabf7; }
+        .log-tab { margin-right: 10px; font-weight: bold; cursor: pointer; }
+        .log-tab.active { color: #1c7ed6; }
+    </style>
+</head>
+<body>
+<div id="main">
+    <!-- 좌측 사이드바 -->
+    <div id="sidebar">
+        <h3>📡 디바이스 목록</h3>
+        <button onclick="showAllDevices()">🌍 전체 보기</button>
+        <div id="deviceList">아직 데이터 없음</div>
+    </div>
+
+    <!-- 지도 -->
+    <div id="map"></div>
+</div>
+
+<!-- 하단 로그 -->
+<div id="logsContainer">
+    <div id="logTabs"></div>
+    <pre id="logContent"></pre>
+</div>
+
+<script>
+    // Leaflet 지도 초기화
+    const map = L.map('map').setView([35.1466, 126.9221], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // 디바이스 관리 { topic: {marker, latestData, orgName, orgId, logs: []} }
+    const devices = {};
+    let selectedTopic = null;
+
+    // 마커 애니메이션 이동 함수
+    function animateMarkerMove(marker, newLat, newLng, duration = 1000) {
+      const startPos = marker.getLatLng();
+      const startLat = startPos.lat;
+      const startLng = startPos.lng;
+      const deltaLat = newLat - startLat;
+      const deltaLng = newLng - startLng;
+      let startTime;
+
+      function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const progress = (timestamp - startTime) / duration;
+        const t = Math.min(progress, 1);
+        const currentLat = startLat + deltaLat * t;
+        const currentLng = startLng + deltaLng * t;
+        marker.setLatLng([currentLat, currentLng]);
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    // 디바이스 목록 갱신
+    function updateDeviceList() {
+      const listDiv = document.getElementById("deviceList");
+      listDiv.innerHTML = "";
+      Object.keys(devices).forEach(topic => {
+        const { orgName, orgId } = devices[topic];
+        const div = document.createElement("div");
+        div.textContent = `${orgName} (${orgId})`;
+        div.className = "device-item" + (selectedTopic === topic ? " active" : "");
+        div.onclick = () => {
+          selectedTopic = topic;
+          updateDeviceList();
+          updateLogTabs();
+          const { lat, lng } = devices[topic].latestData;
+          map.setView([lat, lng], 17);
+          devices[topic].marker.openPopup();
+        };
+        listDiv.appendChild(div);
+      });
+      if (Object.keys(devices).length === 0) listDiv.textContent = "아직 데이터 없음";
+    }
+
+    // 로그 탭 갱신
+    function updateLogTabs() {
+      const tabsDiv = document.getElementById("logTabs");
+      tabsDiv.innerHTML = "";
+      Object.keys(devices).forEach(topic => {
+        const { orgName, orgId } = devices[topic];
+        const tab = document.createElement("span");
+        tab.textContent = `${orgName}-${orgId}`;
+        tab.className = "log-tab" + (selectedTopic === topic ? " active" : "");
+        tab.onclick = () => {
+          selectedTopic = topic;
+          updateDeviceList();
+          updateLogTabs();
+          renderLogs();
+        };
+        tabsDiv.appendChild(tab);
+      });
+      renderLogs();
+    }
+
+    // 로그 출력
+    function renderLogs() {
+      const logBox = document.getElementById("logContent");
+      if (!selectedTopic || !devices[selectedTopic]) {
+        logBox.textContent = "디바이스 로그 선택 없음";
+        return;
+      }
+      const logs = devices[selectedTopic].logs || [];
+      logBox.textContent = logs.slice(-40).join("\n");
+    }
+
+    // 전체 보기 버튼
+    function showAllDevices() {
+      const markers = Object.values(devices).map(d => d.marker);
+      if (markers.length > 0) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.2));
+        selectedTopic = null;
+        updateDeviceList();
+        updateLogTabs();
+      }
+    }
+
+    // SockJS + STOMP 연결
+    const socket = new SockJS('https://gwon.my/ws');
+    const stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, () => {
+      console.log("✅ WebSocket 연결 성공");
+      stompClient.subscribe('/topic/gps', (message) => {
+        const wrapper = JSON.parse(message.body);
+        const topic = wrapper.topic;
+        const data = typeof wrapper.payload === "string" ? JSON.parse(wrapper.payload) : wrapper.payload;
+
+        const parts = topic.split("/");
+        const orgName = parts[2] || "unknown";
+        const orgId = parts[3] || "0";
+
+        const lat = parseFloat(data.lat);
+        const lng = parseFloat(data.lng);
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+          if (!devices[topic]) {
+            const marker = L.marker([lat, lng]).addTo(map);
+
+            // 마커 아래: operatorName [operatorId]
+            marker.bindTooltip(`${orgName} [${orgId}]`, { permanent: true, direction: "bottom", offset: [0, 10] });
+
+            // 마커 오른쪽: driveStatus
+            marker.bindTooltip(`상태: ${data.driveStatus}`, { permanent: true, direction: "right", offset: [20, 0] });
+
+            devices[topic] = { marker, latestData: { lat, lng }, orgName, orgId, logs: [] };
+            if (!selectedTopic) selectedTopic = topic;
+            updateDeviceList();
+            updateLogTabs();
+          } else {
+            // 마커를 부드럽게 이동
+            animateMarkerMove(devices[topic].marker, lat, lng, 1000);
+            devices[topic].latestData = { lat, lng };
+
+            // Tooltip 갱신
+            devices[topic].marker.bindTooltip(`${orgName} [${orgId}]`, { permanent: true, direction: "bottom", offset: [0, 10] });
+            devices[topic].marker.bindTooltip(`상태: ${data.driveStatus}`, { permanent: true, direction: "right", offset: [20, 0] });
+          }
+        }
+
+        // 로그 추가
+        const logEntry = `[${orgName}-${orgId}] [#${data.gpsCount}] ${data.timeStamp} | status=${data.driveStatus}, lat=${lat.toFixed(6)}, lng=${lng.toFixed(6)}, speed=${data.speed}, heading=${data.heading}`;
+        devices[topic].logs.push(logEntry);
+
+        renderLogs();
+      });
+    });
+</script>
+</body>
+</html>

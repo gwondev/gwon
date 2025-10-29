@@ -1,0 +1,68 @@
+# gwon.my (절대 건드리지 않음)
+gwon.my {
+  handle /backend* {
+    reverse_proxy gwon-backend-1:8080
+  }
+
+  handle /ws* {
+    reverse_proxy gwon-backend-1:8080 {
+      transport http {
+        versions 1.1
+      }
+      header_up Connection {>Connection}
+      header_up Upgrade {>Upgrade}
+    }
+  }
+
+  handle {
+    reverse_proxy gwon-frontend-1:3000
+  }
+}
+
+# move.io.kr
+move.io.kr {
+  encode zstd gzip
+  # ✅ 1️⃣ WebSocket → Spring Boot 백엔드로
+  handle /ws* {
+    reverse_proxy move-backend-1:8080 {
+      transport http {
+        versions 1.1
+      }
+      header_up Connection {>Connection}
+      header_up Upgrade {>Upgrade}
+    }
+  }
+
+  # ✅ 2️⃣ API 요청 → Spring Boot 백엔드로
+  handle /backend* {
+    reverse_proxy move-backend-1:8080
+  }
+
+  handle {
+      reverse_proxy move-frontend-1:5173 {
+        header_up Host localhost:5173  # ✅ Host 헤더 변경
+      }
+    }
+
+}
+
+# leegeonyeong.sites
+leegeonyeong.site {
+  handle /backend* {
+    reverse_proxy geon-backend-1:8080
+  }
+
+  handle /ws* {
+    reverse_proxy geon-backend-1:8080 {
+      transport http {
+        versions 1.1
+      }
+      header_up Connection {>Connection}
+      header_up Upgrade {>Upgrade}
+    }
+  }
+
+  handle {
+    reverse_proxy geon-frontend-1:3000
+  }
+}

@@ -1,0 +1,3 @@
+yaml파일 들여쓰기 정리 = ctrl + Shift + F
+
+//2025-08-16 Actions에서 SERVER_HOST -> DNS로 설정s
