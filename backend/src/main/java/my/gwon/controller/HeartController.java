@@ -3,7 +3,9 @@ package my.gwon.controller;
 import lombok.RequiredArgsConstructor;
 import my.gwon.entity.Heart;
 import my.gwon.repository.HeartRepository;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/backend/like")
@@ -14,23 +16,25 @@ public class HeartController {
     private final HeartRepository heartRepository;
 
     @GetMapping("/{id}")
-    public Long getHeartCount(@PathVariable String id) {
-        return heartRepository.findById(id)
+    public ResponseEntity<Map<String, Long>> getHeartCount(@PathVariable String id) {
+        Long count = heartRepository.findById(id)
                 .map(Heart::getCount)
                 .orElse(0L);
+        return ResponseEntity.ok(Map.of("count", count));
     }
 
     @PostMapping("/{id}")
-    public Long incrementHeart(@PathVariable String id) {
+    public ResponseEntity<Map<String, Long>> incrementHeart(@PathVariable String id) {
         Heart heart = heartRepository.findById(id)
                 .orElseGet(() -> {
                     Heart newHeart = new Heart();
                     newHeart.setId(id);
+                    newHeart.setCount(0L);
                     return newHeart;
                 });
         
         heart.setCount(heart.getCount() + 1);
         heartRepository.save(heart);
-        return heart.getCount();
+        return ResponseEntity.ok(Map.of("count", heart.getCount()));
     }
 }
