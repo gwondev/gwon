@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/backend/like")
+@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class HeartController {
 
