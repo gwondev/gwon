@@ -10,8 +10,12 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - frontend
-      - backend
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+    networks:
+      - gwon_network
 
 
 
@@ -20,22 +24,33 @@ services:
 
   backend:
     restart: unless-stopped
-    ports:
-      - "8080:8080"
     build: ./backend
     depends_on:
-      - db  # MySQL이 먼저 시작되도록 한다.
-      - mosquitto  # ✅ Mosquitto 먼저 시작
+      db:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
     environment:
       - DB_HOST=db
       - MQTT_BROKER=tcp://mosquitto:1883
+      - SPRING_PROFILES_ACTIVE=prod
+    networks:
+      - gwon_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 
   frontend:
     restart: unless-stopped
+    build: ./frontend
     ports:
       - "3000:3000"
-    build: ./frontend
+    networks:
+      - gwon_network
 
   mosquitto:
     image: eclipse-mosquitto:2
@@ -51,17 +66,29 @@ services:
 
 
   db:
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
     image: mysql:latest
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: gwondb
       MYSQL_USER: gwon
       MYSQL_DATABASE: gwondb
       MYSQL_PASSWORD: gwondb
+      TZ: Asia/Seoul
+    command: 
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_allowed_packet=128M
+      - --innodb_buffer_pool_size=1G
     volumes:
-      - db_data:/var/lib/mysql # ✅ 들여쓰기 맞게 수정
+      - db_data:/var/lib/mysql
+    networks:
+      - gwon_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "gwon", "-pgwondb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   caddy_data:

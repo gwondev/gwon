@@ -8,8 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/backend/like")
-@CrossOrigin(origins = "*")
+@RequestMapping("/backend/like")  // Caddy가 전체 경로를 전달하므로 /backend도 포함
 @RequiredArgsConstructor
 public class HeartController {
 
