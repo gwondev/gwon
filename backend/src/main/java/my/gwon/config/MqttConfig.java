@@ -60,7 +60,7 @@ public class MqttConfig {
             String topic = (String) message.getHeaders().get("mqtt_receivedTopic");
             String payload = message.getPayload().toString();
 
-            System.out.println("📡 MQTT 수신: topic=" + topic + ", payload=" + payload);
+            //System.out.println("📡 MQTT 수신: topic=" + topic + ", payload=" + payload);
 
             // 토픽 + payload 함께 내려주기 (JSON)
             String json = "{ \"topic\": \"" + topic + "\", \"payload\": " + payload + " }";
