@@ -13,7 +13,7 @@ export default function ChatBox() {
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("");
-  const [history, setHistory] = useState([]); // Q&A 스택형 저장합니다.s
+  const [history, setHistory] = useState([]); // Q&A 스택형 저장합니다.s`
 
   const API_KEY = process.env.REACT_APP_GPT_API;
   
