@@ -55,6 +55,5 @@ volumes:
 
 # 🌍 글로벌 네트워크 (다른 프로젝트와 공유)
 networks:
-  default:
+  global_network:
     external: true
-    name : global_network
