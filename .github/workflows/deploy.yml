@@ -1,4 +1,4 @@
-name: Deploy
+name: 🚀 배포 (SSH로 서버에서 빌드하고 docker compose 실행)
 
 on:
   push:
@@ -6,11 +6,16 @@ on:
       - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚀 SSH 접속 및 CRA 빌드 + 배포 (완전강제)
+      # 1️⃣ 레포지토리 체크아웃 (Actions 러너 내부)
+      - name: 📦 레포지토리 체크아웃
+        uses: actions/checkout@v4
+
+      # 2️⃣ SSH로 서버 접속 → 레포 클론/리셋, 백엔드 빌드, docker compose 실행
+      - name: 🌐 SSH → 서버에서 클론/리셋/빌드/배포
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -18,39 +23,49 @@ jobs:
           key: ${{ secrets.SERVER_KEY }}
           port: 22
           script: |
-            set -e
-            cd gwon
+            set -euo pipefail
 
-            echo "=== 🔄 최신 코드 강제 병합 ==="
-            git fetch --all
-            git reset --hard origin/main || true
+            echo "=== 서버 배포 시작 ==="
+            # 레포지토리 URL을 명시 (시크릿 없이 HTTPS로 클론)
+            REPO="https://github.com/gwondev/gwon.git"
+            PROJECT_DIR="$HOME/gwon"
+
+            # 레포지토리가 없으면 클론
+            if [ ! -d "$PROJECT_DIR" ]; then
+              echo "레포지토리 클론: ${REPO} → ${PROJECT_DIR}"
+              git clone "$REPO" "$PROJECT_DIR"
+            fi
+
+            cd "$PROJECT_DIR"
+            echo "원격 변경사항 강제 동기화 (origin/main으로 리셋)"
+            git fetch --all --prune
+            git reset --hard origin/main
             git clean -fdx || true
 
-            echo "=== ⚙️ Backend 빌드 ==="
-            cd backend
-            chmod +x ./gradlew || true
-            ./gradlew clean bootJar -x test || true
-            cp build/libs/*.jar ../backend.jar || true
-            cd ..
+            # 백엔드가 존재하면 빌드 수행 (서버에 JDK 필요)
+            if [ -d backend ]; then
+              echo "백엔드 빌드 시작: ./gradlew clean bootJar -x test"
+              cd backend
+              chmod +x ./gradlew || true
+              ./gradlew clean bootJar -x test
+              cd -
+            else
+              echo "백엔드 디렉토리 없음 — 빌드 건너뜀"
+            fi
 
-            echo "=== 🧹 React 캐시 완전 삭제 ==="s
-            cd frontend
-            rm -rf node_modules build .cache || true
-            npm cache clean --force || true
+            # 필요 시 외부 네트워크 생성 (idempotent)
+            echo "docker 네트워크 'global_network' 확인/생성"
+            docker network create global_network || true
 
-            echo "📦 React 환경변수 주입 (.env 생성)"s
-            rm -f .env
-            echo "REACT_APP_GPT_API=${{ secrets.GPT_API }}" >> .env
-            echo "✅ .env 파일 생성 완료 ↓"
-            cat .env
-            cd ..
+            # 기존 스택 중지 및 최신 이미지로 재시작
+            echo "기존 Docker Compose 스택 중지"
+            docker compose down || true
 
-            echo "=== 🐳 Docker Compose 재시작 ==="
-            docker compose down --remove-orphans
-            docker compose build --no-cache frontend
-            docker compose up -d --build
+            echo "Docker Compose: 이미지 빌드 및 서비스 시작"
+            docker compose build --pull --parallel || true
+            docker compose up -d
 
-            echo "=== 🌐 Caddy 리로드 ==="
-            docker restart gwon-caddy-1
+            echo "=== 배포 완료: 실행 중인 컨테이너 ==="
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 
-            echo "✅ CRA 클린 빌드 및 .env 주입 완료!"
+            echo "로그 확인: docker compose logs -f"
