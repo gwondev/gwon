@@ -14,7 +14,7 @@ jobs:
       - name: 📦 레포지토리 체크아웃
         uses: actions/checkout@v4
 
-      # 2️⃣ SSH로 서버 접속 → 레포 클론/리셋, 백엔드 빌드, docker compose 실행
+      # 2️⃣ SSH로 서버 접속 → 레포 클론/리셋, 백엔드 빌드, docker compose 실행s
       - name: 🌐 SSH → 서버에서 클론/리셋/빌드/배포
         uses: appleboy/ssh-action@v1.0.0
         with:
