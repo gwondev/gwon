@@ -59,7 +59,7 @@ jobs:
 
             # 프론트엔드용 환경변수 파일 생성 (React는 REACT_APP_ 접두사 사용)
             echo "프론트엔드 .env 파일 생성/갱신 (frontend/.env)"
-            echo "REACT_APP_GPT_API=${{ secrets.GPI_API }}" > frontend/.env
+            echo "REACT_APP_GPT_API=${{ secrets.GPT_API }}" > frontend/.env
 
             # 기존 스택 중지 및 최신 이미지로 재시작
             echo "기존 Docker Compose 스택 중지"
