@@ -1,11 +1,11 @@
 # gwon.my (절대 건드리지 않음)
 gwon.my {
   handle /backend* {
-    reverse_proxy gwon-backend-1:8080
+    reverse_proxy gwon-backend:8080
   }
 
   handle /ws* {
-    reverse_proxy gwon-backend-1:8080 {
+    reverse_proxy gwon-backend:8080 {
       transport http {
         versions 1.1
       }
@@ -15,7 +15,7 @@ gwon.my {
   }
 
   handle {
-    reverse_proxy gwon-frontend-1:3000
+    reverse_proxy gwon-frontend:3000
   }
 }
 

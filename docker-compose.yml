@@ -1,6 +1,10 @@
 services:
   caddy:
     image: caddy:alpine
+    container_name : gwon-caddy
+    ports:
+      - "80:80"       # ✅ HTTP
+      - "443:443"     # ✅ HTTPS
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -9,6 +13,7 @@ services:
       - global_network
 
   backend:
+    container_name : gwon-backend
     build: ./backend
     environment:
       - DB_HOST=db
@@ -18,9 +23,13 @@ services:
 
 
   frontend:
+    container_name : gwon-frontend
     build: ./frontend
+    networks:
+      - global_network
 
   mosquitto:
+    container_name : gwon-mosquitto
     image: eclipse-mosquitto:2
     ports:
       - "1883:1883"
@@ -35,6 +44,7 @@ services:
 
 
   db:
+    container_name : gwon-mysql
     image: mysql:latest
     environment:
       MYSQL_ROOT_PASSWORD: gwon
@@ -49,7 +59,6 @@ services:
 volumes:
   caddy_data:
   caddy_config:
-
   db_data:
 
 
