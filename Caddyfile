@@ -22,7 +22,7 @@ gwon.my {
 # move.io.kr
 move.io.kr {
   encode zstd gzip
-  # ✅ 1️⃣ WebSocket → Spring Boot 백엔드로이동
+  # ✅ 1️⃣ WebSocket → Spring Boot 백엔드로이
   handle /ws* {
     reverse_proxy move-backend-1:8080 {
       transport http {
