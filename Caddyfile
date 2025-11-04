@@ -24,7 +24,7 @@ move.io.kr {
   encode zstd gzip
   # ✅ 1️⃣ WebSocket → Spring Boot 백엔드로
   handle /ws* {
-    reverse_proxy move-backend-1:8080 {
+    reverse_proxy move-backend:8080 {
       transport http {
         versions 1.1
       }
@@ -35,11 +35,11 @@ move.io.kr {
 
   # ✅ 2️⃣ API 요청 → Spring Boot 백엔드로
   handle /backend* {
-    reverse_proxy move-backend-1:8080
+    reverse_proxy move-backend:8080
   }
 
   handle {
-      reverse_proxy move-frontend-1:5173 {
+      reverse_proxy move-frontend:5173 {
         header_up Host localhost:5173  # ✅ Host 헤더 변경
       }
     }
