@@ -1,45 +1,27 @@
 services:
   caddy:
     image: caddy:alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on:
-      - frontend
-      - backend
-
-
-
-
-
+    networks:
+      - global_network
 
   backend:
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
     build: ./backend
-    depends_on:
-      - db  # MySQL이 먼저 시작되도록 한다.
-      - mosquitto  # ✅ Mosquitto 먼저 시작
     environment:
       - DB_HOST=db
       - MQTT_BROKER=tcp://mosquitto:1883
+    networks:
+      - global_network
 
 
   frontend:
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
     build: ./frontend
 
   mosquitto:
     image: eclipse-mosquitto:2
-    restart: unless-stopped
     ports:
       - "1883:1883"
       - "9001:9001"   # (옵션, WebSocket)
@@ -47,21 +29,22 @@ services:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
+    networks:
+      - global_network
 
 
 
   db:
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
     image: mysql:latest
     environment:
-      MYSQL_ROOT_PASSWORD: gwondb
+      MYSQL_ROOT_PASSWORD: gwon
       MYSQL_USER: gwon
       MYSQL_DATABASE: gwondb
-      MYSQL_PASSWORD: gwondb
+      MYSQL_PASSWORD: gwon
     volumes:
       - db_data:/var/lib/mysql # ✅ 들여쓰기 맞게 수정
+    networks:
+      - global_network
 
 volumes:
   caddy_data:
@@ -70,3 +53,8 @@ volumes:
   db_data:
 
 
+# 🌍 글로벌 네트워크 (다른 프로젝트와 공유)
+networks:
+  default:
+    external: true
+    name : global_network
