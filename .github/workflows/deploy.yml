@@ -27,7 +27,7 @@ jobs:
 
             echo "=== 서버 배포 시작 ==="
             # 레포지토리 URL을 명시 (시크릿 없이 HTTPS로 클론)
-            REPO="https://github.com/gwondev/gwon.git"
+            REPO="https://github.com/gwondev/gwon.git" 
             PROJECT_DIR="$HOME/gwon"
 
             # 레포지토리가 없으면 클론
