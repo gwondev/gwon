@@ -1,10 +1,9 @@
 package my.gwon.entity;
-
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-public class ChatMessage {
+public class ChatAi {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,9 +17,9 @@ public class ChatMessage {
 
     private LocalDateTime createdAt;
 
-    public ChatMessage() {}
+    public ChatAi() {}
 
-    public ChatMessage(String question, String answer) {
+    public ChatAi(String question, String answer) {
         this.question = question;
         this.answer = answer;
     }
