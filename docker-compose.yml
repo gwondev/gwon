@@ -1,5 +1,6 @@
 services:
   caddy:
+    restart: always # ✅ 죽으면 다시 살리기
     image: caddy:alpine
     container_name : gwon-caddy
     ports:
@@ -13,6 +14,7 @@ services:
       - global_network
 
   backend:
+    restart: always # ✅ 죽으면 다시 살리기
     container_name : gwon-backend
     build: ./backend
     environment:
@@ -23,12 +25,14 @@ services:
 
 
   frontend:
+    restart: always # ✅ 죽으면 다시 살리기
     container_name : gwon-frontend
     build: ./frontend
     networks:
       - global_network
 
   mosquitto:
+    restart: always # ✅ 죽으면 다시 살리기
     container_name : gwon-mosquitto
     image: eclipse-mosquitto:2
     ports:
@@ -44,6 +48,7 @@ services:
 
 
   db:
+    restart: always # ✅ 죽으면 다시 살리기
     container_name : gwon-mysql
     image: mysql:latest
     environment:

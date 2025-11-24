@@ -7,7 +7,7 @@ import { Stomp } from "@stomp/stompjs";
 export default function HeartLike({ id }) {
   const [count, setCount] = React.useState(0);
   // 백엔드 엔드포인트와 STOMP 구독 토픽을 맞춤
-  const url = `https://gwon.my/backend/like/${id}`;
+  const url = `https://gwon.my/api/like/${id}`;
 
   // 안전 가드 적용 버전
   React.useEffect(() => {
