@@ -1,11 +1,11 @@
 services:
   caddy:
-    restart: always # ✅ 죽으면 다시 살리기
+    restart: always
     image: caddy:alpine
     container_name : gwon-caddy
     ports:
-      - "80:80"       # ✅ HTTP
-      - "443:443"     # ✅ HTTPS
+      - "80:80"
+      - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -14,30 +14,35 @@ services:
       - global_network
 
   backend:
-    restart: always # ✅ 죽으면 다시 살리기
+    restart: always
     container_name : gwon-backend
     build: ./backend
+    # ✅ [핵심 1] 실행 순서 설정 (DB랑 모기(MQTT)가 켜져야 나도 켜진다)
+    depends_on:
+      - db
+      - mosquitto
     environment:
-      - DB_HOST=db
-      - MQTT_BROKER=tcp://mosquitto:1883
+      - DB_HOST=gwon-mysql
+      - MQTT_BROKER=tcp://gwon-mosquitto:1883
+      # ✅ [핵심 2] 아까 그 Access Denied 해결하는 치트키 (강제 주입)
+      - SPRING_DATASOURCE_URL=jdbc:mysql://gwon-mysql:3306/gwon?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     networks:
       - global_network
 
-
   frontend:
-    restart: always # ✅ 죽으면 다시 살리기
+    restart: always
     container_name : gwon-frontend
     build: ./frontend
     networks:
       - global_network
 
   mosquitto:
-    restart: always # ✅ 죽으면 다시 살리기
+    restart: always
     container_name : gwon-mosquitto
     image: eclipse-mosquitto:2
     ports:
       - "1883:1883"
-      - "9001:9001"   # (옵션, WebSocket)
+      - "9001:9001"
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - ./mosquitto/data:/mosquitto/data
@@ -45,10 +50,8 @@ services:
     networks:
       - global_network
 
-
-
   db:
-    restart: always # ✅ 죽으면 다시 살리기
+    restart: always
     container_name : gwon-mysql
     image: mysql:latest
     environment:
@@ -57,7 +60,7 @@ services:
       MYSQL_DATABASE: gwon
       MYSQL_PASSWORD: gwon
     volumes:
-      - db_data:/var/lib/mysql # ✅ 들여쓰기 맞게 수정
+      - db_data:/var/lib/mysql
     networks:
       - global_network
 
@@ -66,8 +69,6 @@ volumes:
   caddy_config:
   db_data:
 
-
-# 🌍 글로벌 네트워크 (다른 프로젝트와 공유)
 networks:
   global_network:
     external: true
