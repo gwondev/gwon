@@ -93,7 +93,7 @@ export default function ChatBox() {
 
       // 3. 서버에 질문/응답 저장 요청 (비동기, 실패시 무시)
       try {
-        fetch('/api/chat',{
+        fetch('https://gwon.my/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question: userQuestion, answer: msg })
