@@ -12,14 +12,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")   // WebSocket 연결 엔드포인트
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
+        registry.addEndpoint("/ws")   // Caddy가 /ws로 보내주는 거 받음
+                .setAllowedOriginPatterns("*") // ✅ 핵심: 누구나 접속 가능 (테스트용)
+                .withSockJS();                 // SockJS 사용
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.setApplicationDestinationPrefixes("/app"); // 클라이언트 → 서버 전송 prefix
-        registry.enableSimpleBroker("/topic");              // 서버 → 클라이언트 broadcast prefix
+        registry.setApplicationDestinationPrefixes("/app");
+        registry.enableSimpleBroker("/topic");
     }
 }

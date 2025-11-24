@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/backend/like")
+@RequestMapping("/api/like")
 public class HeartController {
 
     private final HeartRepository heartRepository;

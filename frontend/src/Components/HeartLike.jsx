@@ -4,7 +4,7 @@ import { Box, ButtonBase, Typography } from "@mui/material";
 
 export default function HeartLike({ id }) {
   const [count, setCount] = React.useState(0);
-  const url = `https://gwon.my/backend/like/${id}`;
+  const url = `https://gwon.my/api/like/${id}`;
 
   // 안전 가드 적용 버전
   React.useEffect(() => {

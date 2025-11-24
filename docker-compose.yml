@@ -49,7 +49,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: gwon
       MYSQL_USER: gwon
-      MYSQL_DATABASE: gwondb
+      MYSQL_DATABASE: gwon
       MYSQL_PASSWORD: gwon
     volumes:
       - db_data:/var/lib/mysql # ✅ 들여쓰기 맞게 수정
