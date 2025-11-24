@@ -1,5 +1,70 @@
+<!doctype html>
 <html>
+<head>
+	<meta charset="utf-8" />
+	<title>Admin - Gwon</title>
+	<style>
+		body{font-family:Arial,Helvetica,sans-serif;margin:20px}
+		h1{font-size:20px}
+		.col{display:inline-block;vertical-align:top;width:48%;margin-right:2%}
+		.card{border:1px solid #ddd;padding:10px;border-radius:6px;margin-bottom:12px}
+		pre{white-space:pre-wrap}
+		.item{padding:6px;border-bottom:1px solid #f0f0f0}
+	</style>
+	<script>
+		async function loadData(){
+			try{
+				const r = await fetch('/backend/admin/list');
+				const j = await r.json();
+				const hearts = j.hearts || [];
+				const chats = j.chats || [];
+
+				const heartsEl = document.getElementById('hearts');
+				heartsEl.innerHTML = '';
+				hearts.forEach(h => {
+					const el = document.createElement('div');
+					el.className = 'item';
+					el.innerHTML = `<strong>id:</strong> ${h.id} &nbsp; <strong>count:</strong> ${h.count}`;
+					heartsEl.appendChild(el);
+				});
+
+				const chatsEl = document.getElementById('chats');
+				chatsEl.innerHTML = '';
+				chats.forEach(c => {
+					const el = document.createElement('div');
+					el.className = 'item';
+					const time = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+					el.innerHTML = `<div><strong>${time}</strong></div><div><strong>Q:</strong> ${escapeHtml(c.question)}</div><div><strong>A:</strong> ${escapeHtml(c.answer)}</div>`;
+					chatsEl.appendChild(el);
+				});
+
+			}catch(e){
+				document.getElementById('root').innerText = '데이터 로드 실패: '+e;
+			}
+		}
+
+		function escapeHtml(s){
+			if(!s) return '';
+			return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+		}
+
+		window.addEventListener('load', loadData);
+	</script>
+</head>
 <body>
-BACKEND PAGE
+	<h1>관리자 패널</h1>
+	<div class="col">
+		<div class="card">
+			<h2>Hearts</h2>
+			<div id="hearts">로딩중...</div>
+		</div>
+	</div>
+
+	<div class="col">
+		<div class="card">
+			<h2>Chat AI (최근 20개)</h2>
+			<div id="chats">로딩중...</div>
+		</div>
+	</div>
 </body>
 </html>

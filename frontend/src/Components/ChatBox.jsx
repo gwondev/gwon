@@ -91,6 +91,15 @@ export default function ChatBox() {
       // 2. AI 응답을 히스토리에 추가 (AI Bubble)
       setHistory((prev) => [...prev, { role: "ai", text: msg }]);
 
+      // 3. 서버에 질문/응답 저장 요청 (비동기, 실패시 무시)
+      try {
+        fetch('/backend/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: userQuestion, answer: msg })
+        }).catch(()=>{});
+      } catch (e) { /* ignore */ }
+
     } catch (err) {
       console.error("❌ OpenAI API 호출 오류:", err);
       setHistory((prev) => [...prev, { role: "ai", text: "⚠️ 오류 발생 (API 연결 실패)" }]);
@@ -100,7 +109,7 @@ export default function ChatBox() {
   };
 
   // 추천 질문
-  const chips = ["이름이 뭐에요?", "기술 스택", "연락처", "프로젝트 경험"];
+  const chips = ["이름이 뭐에요?","여자친구 있어요?","취미가 뭐에요?"];
 
   return (
     <Paper
@@ -136,7 +145,7 @@ export default function ChatBox() {
           display: "inline-block",
         }}
       >
-        AI에게 질문하기
+        저에 대해 질문해주세요!
       </Typography>
 
       {/* 💬 채팅 영역 (스크롤 가능) */}
