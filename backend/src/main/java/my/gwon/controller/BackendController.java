@@ -5,16 +5,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
-@RequestMapping("/backend")
+@RequestMapping("/admin")
 public class BackendController {
 
-    // /backend → backend.html
+    
     @GetMapping("")
-    public String backendPage() {
-        return "backend"; // templates/backend.html
+    public String adminPage() {
+        return "admin"; // templates/admin.html
     }
 
-    // /backend/move → move.html
     @GetMapping("/move")
     public String movePage() {
         return "move"; // templates/move.html
