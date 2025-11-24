@@ -56,32 +56,51 @@ export default function ChatBox() {
 
     setInput("");
     setAnswer("");
+    setLoading(true);
+
+    // 1. 사용자 질문을 히스토리에 추가 (User Bubble)
+    setHistory((prev) => [...prev, { role: "user", text: userQuestion }]);
+
     try {
-      // 서버에 질문을 보내면 서버가 OpenAI 호출 + 저장 + 응답을 처리
-      const resp = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: userQuestion })
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            // 이전 대화 맥락 포함 (최근 4개)
+            ...history.slice(-4).map(h => ({
+              role: h.role === 'user' ? 'user' : 'assistant',
+              content: h.text
+            })),
+            { role: "user", content: userQuestion },
+          ],
+          max_tokens: 150,
+          temperature: 0.8,
+        }),
       });
 
-      if (!resp.ok) {
-        const text = await resp.text().catch(() => '');
-        throw new Error('Server error: ' + resp.status + ' ' + resp.statusText + ' ' + text);
-      }
-
-      const data = await resp.json();
-      const msg = data.answer || data.message || '(응답 없음)';
+      const data = await response.json();
+      const msg = data.choices?.[0]?.message?.content?.trim() || "응답이 없습니다.";
       setAnswer(msg);
 
-      // AI 응답을 히스토리에 추가
-      setHistory((prev) => [...prev, { role: 'ai', text: msg }] );
+      // 2. AI 응답을 히스토리에 추가 (AI Bubble)
+      setHistory((prev) => [...prev, { role: "ai", text: msg }]);
+
+      // 3. 서버에 질문/응답 저장 요청 (비동기, 실패시 무시)
+      try {
+        fetch('/api/chat',{
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: userQuestion, answer: msg })
+        }).catch(()=>{});
+      } catch (e) { /* ignore */ }
 
     } catch (err) {
-      console.error('❌ Chat API 호출 오류:', err);
-      setHistory((prev) => [...prev, { role: 'ai', text: '⚠️ 오류 발생 (서버 호출 실패)' }]);
-    } finally {
-      setLoading(false);
-    }
       console.error("❌ OpenAI API 호출 오류:", err);
       setHistory((prev) => [...prev, { role: "ai", text: "⚠️ 오류 발생 (API 연결 실패)" }]);
     } finally {
