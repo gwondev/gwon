@@ -1,10 +1,13 @@
 // src/components/HeartLike.jsx
 import * as React from "react";
 import { Box, ButtonBase, Typography } from "@mui/material";
+import SockJS from "sockjs-client";
+import { Stomp } from "@stomp/stompjs";
 
 export default function HeartLike({ id }) {
   const [count, setCount] = React.useState(0);
-  const url = `https://gwon.my/api/like/${id}`;
+  // 백엔드 엔드포인트와 STOMP 구독 토픽을 맞춤
+  const url = `https://gwon.my/backend/like/${id}`;
 
   // 안전 가드 적용 버전
   React.useEffect(() => {
@@ -21,6 +24,31 @@ export default function HeartLike({ id }) {
       }
     })();
   }, [url]);
+
+  // STOMP 구독: 다른 사용자가 하트를 누르면 실시간으로 count 갱신
+  React.useEffect(() => {
+    let client = null;
+    try {
+      const socket = new SockJS('https://gwon.my/ws');
+      client = Stomp.over(socket);
+      client.connect({}, () => {
+        client.subscribe(`/topic/like/${id}`, (message) => {
+          try {
+            const body = JSON.parse(message.body);
+            const newCount = body && typeof body.count === 'number' ? body.count : null;
+            if (newCount !== null) setCount(newCount);
+          } catch (e) {
+            // ignore parse errors
+          }
+        });
+      });
+    } catch (e) {
+      // 연결 실패 시 무시
+    }
+    return () => {
+      try { if (client) client.disconnect(); } catch (e) {}
+    };
+  }, [id]);
 
   const onClick = async () => {
     try {
