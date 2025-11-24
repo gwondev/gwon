@@ -14,7 +14,7 @@
 	<script>
 		async function loadData(){
 			try{
-				const r = await fetch('/backend/admin/list');
+				const r = await fetch('/admin/list');
 				const j = await r.json();
 				const hearts = j.hearts || [];
 				const chats = j.chats || [];
