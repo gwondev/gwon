@@ -15,31 +15,41 @@
 		async function loadData(){
 			try{
 				const r = await fetch('/admin/list');
+				if(!r.ok) throw new Error('HTTP '+r.status+' '+r.statusText);
 				const j = await r.json();
 				const hearts = j.hearts || [];
 				const chats = j.chats || [];
 
 				const heartsEl = document.getElementById('hearts');
-				heartsEl.innerHTML = '';
-				hearts.forEach(h => {
-					const el = document.createElement('div');
-					el.className = 'item';
-					el.innerHTML = `<strong>id:</strong> ${h.id} &nbsp; <strong>count:</strong> ${h.count}`;
-					heartsEl.appendChild(el);
-				});
+				if(heartsEl){
+					heartsEl.innerHTML = '';
+					hearts.forEach(h => {
+						const el = document.createElement('div');
+						el.className = 'item';
+						el.innerHTML = `<strong>id:</strong> ${h.id} &nbsp; <strong>count:</strong> ${h.count}`;
+						heartsEl.appendChild(el);
+					});
+				}
 
 				const chatsEl = document.getElementById('chats');
-				chatsEl.innerHTML = '';
-				chats.forEach(c => {
-					const el = document.createElement('div');
-					el.className = 'item';
-					const time = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
-					el.innerHTML = `<div><strong>${time}</strong></div><div><strong>Q:</strong> ${escapeHtml(c.question)}</div><div><strong>A:</strong> ${escapeHtml(c.answer)}</div>`;
-					chatsEl.appendChild(el);
-				});
+				if(chatsEl){
+					chatsEl.innerHTML = '';
+					chats.forEach(c => {
+						const el = document.createElement('div');
+						el.className = 'item';
+						const time = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+						el.innerHTML = `<div><strong>${time}</strong></div><div><strong>Q:</strong> ${escapeHtml(c.question)}</div><div><strong>A:</strong> ${escapeHtml(c.answer)}</div>`;
+						chatsEl.appendChild(el);
+					});
+				}
 
 			}catch(e){
-				document.getElementById('root').innerText = '데이터 로드 실패: '+e;
+				console.error('Admin data load failed', e);
+				const heartsEl = document.getElementById('hearts');
+				const chatsEl = document.getElementById('chats');
+				const msg = '데이터 로드 실패: '+(e && e.message ? e.message : e);
+				if(heartsEl) heartsEl.innerText = msg;
+				if(chatsEl) chatsEl.innerText = msg;
 			}
 		}
 
