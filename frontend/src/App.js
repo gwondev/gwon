@@ -15,8 +15,11 @@ import ExperiencePages from "./MenuPages/ExperiencePages";
 import TechPages from "./MenuPages/TechPages";
 
 //MOVE
-import MovePages from "./MovePages/MoveMainPages"
+import MovePages from "./MovePages/MoveMainPages";
 
+
+//TRESS PAGE
+import TressPages from "./OtherPages/TressPages";
 
 //Chat Ai Route Pages
 
@@ -172,6 +175,7 @@ export default function App() {
         <Route path="/experience" element={<ExperiencePages />} />
         <Route path="/tech" element={<TechPages />} />
         <Route path="/move" element={<MovePages />} />
+        <Route path="/TRESS" element={<TressPages />} />
 
 
          {/* 중첩 라우팅 */}
