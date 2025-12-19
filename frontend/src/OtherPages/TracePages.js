@@ -252,7 +252,7 @@ export default function TracePage() {
            </MapContainer>
         </Box>
 
-        {/* 2. 게이지 영역 (Right) */}
+        {/* 2. 게이지 영역 (Rights) */}
         <Box sx={{ flex: 4, bgcolor: "#080808", p: 4, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
            <BigGauge data={currentSelectedData} />
         </Box>
