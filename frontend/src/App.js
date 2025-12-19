@@ -21,6 +21,9 @@ import MovePages from "./MovePages/MoveMainPages";
 //TRESS PAGE
 import TressPages from "./OtherPages/TressPages";
 
+//TRACE PAGE
+import TracePages from "./OtherPages/TracePages";
+
 //Chat Ai Route Pages
 
 
@@ -176,7 +179,7 @@ export default function App() {
         <Route path="/tech" element={<TechPages />} />
         <Route path="/move" element={<MovePages />} />
         <Route path="/TRESS" element={<TressPages />} />
-
+        <Route path="/TRACE" element={<TracePages />} />
 
          {/* 중첩 라우팅 */}
         <Route path="/pass" element={<PassPages />} />
