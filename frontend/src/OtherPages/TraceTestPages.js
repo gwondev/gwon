@@ -8,7 +8,7 @@ import "leaflet/dist/leaflet.css";
 // ----------------------------------------------------
 // ⚙️ MQTT 설정 (브로커 직구독)
 // ----------------------------------------------------
-const MQTT_BROKER_URL = "ws://gwon.my:9001";
+const MQTT_BROKER_URL = "wss://gwon.my/mqtt";
 const TOPIC_SUBSCRIBE = "TRACE/#";
 
 // ----------------------------------------------------
