@@ -4,7 +4,7 @@ server:
 
 mqtt:
   broker: ${MQTT_BROKER:tcp://localhost:1883}
-  topic: #
+  topic: "#"
 
 
 spring:
