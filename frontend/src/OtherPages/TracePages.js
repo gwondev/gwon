@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
+import React, { useState, useEffect, useRef } from "react";
+import mqtt from "mqtt"; // npm install mqtt
 import { Box, Stack, Typography, Paper, Chip } from "@mui/material";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+// ----------------------------------------------------
+// ⚙️ MQTT 설정 (브라우저용 웹소켓 접속)
+// ----------------------------------------------------
+// ⚠️ 중요: 브라우저는 tcp://(1883) 접속 불가. ws://(9001) 사용 필수.
+const MQTT_BROKER_URL = "ws://gwon.my:9001"; 
+const TOPIC_SUBSCRIBE = "TRACE/#"; // TRACE 밑의 모든 것 구독 (chosun, move 등 기관 상관없음)
 
 // ----------------------------------------------------
 // 🎨 스타일 & 아이콘 설정
@@ -45,13 +51,12 @@ const selectedIcon = new L.Icon({
 });
 
 // ----------------------------------------------------
-// 🗺️ 지도 카메라 자동 이동 컴포넌트
+// 🗺️ 지도 카메라 자동 이동
 // ----------------------------------------------------
 function MapUpdater({ center }) {
   const map = useMap();
   useEffect(() => {
     if (center && center[0] !== 0) {
-      // 데이터가 들어오면 해당 위치로 부드럽게 이동
       map.flyTo(center, 18, { duration: 1.5 });
     }
   }, [center, map]);
@@ -59,7 +64,7 @@ function MapUpdater({ center }) {
 }
 
 // ----------------------------------------------------
-// 🛢️ 대형 게이지 컴포넌트 (높이 시각화)
+// 🛢️ 대형 게이지 컴포넌트
 // ----------------------------------------------------
 const BigGauge = ({ data }) => {
   if (!data) return (
@@ -68,16 +73,20 @@ const BigGauge = ({ data }) => {
     </Typography>
   );
 
-  const maxDepth = 100; // 쓰레기통 깊이 설정 (cm)
-  
-  // 데이터가 튀는 것을 방지하기 위해 0~100 사이로 제한
-  let rawPercent = ((maxDepth - data.height) / maxDepth) * 100;
-  let fillPercent = Math.max(0, Math.min(100, rawPercent));
+  // 아두이노에서 height(거리)를 보냄. 
+  // 거리가 가까울수록(0에 가까울수록) 꽉 찬 것.
+  const MAX_DEPTH = 100.0; // 통 깊이 100cm 가정
+  const currentHeight = parseFloat(data.height);
 
-  // 상태별 색상 지정
-  let color = "#00E676"; // 녹색 (여유)
-  if (fillPercent > 50) color = "#FFEA00"; // 노랑 (중간)
-  if (fillPercent > 80) color = "#FF3D00"; // 빨강 (가득 참)
+  // 퍼센트 계산: 100 - (현재거리 / 최대깊이 * 100)
+  let fillPercent = 0;
+  if (currentHeight <= 5) fillPercent = 100; // 5cm 이내면 꽉 참
+  else if (currentHeight >= MAX_DEPTH) fillPercent = 0;
+  else fillPercent = Math.max(0, Math.min(100, 100 - ((currentHeight / MAX_DEPTH) * 100)));
+
+  let color = "#00E676"; // 안참 (초록)
+  if (fillPercent > 50) color = "#FFEA00"; // 반참 (노랑)
+  if (fillPercent > 80) color = "#FF3D00"; // 꽉참 (빨강)
 
   return (
     <Box sx={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
@@ -89,10 +98,10 @@ const BigGauge = ({ data }) => {
           FILL LEVEL
         </Typography>
         <Typography variant="body2" sx={{ color: "#888", mt: 1 }}>
-            DISTANCE: {data.height.toFixed(2)} cm
+            SENSOR DIST: {currentHeight.toFixed(2)} cm
         </Typography>
         <Typography variant="caption" sx={{ color: "#666", mt: 0.5 }}>
-            LAT: {data.lat.toFixed(5)} / LNG: {data.lng.toFixed(5)}
+            LAT: {data.lat.toFixed(6)} / LNG: {data.lng.toFixed(6)}
         </Typography>
       </Stack>
       
@@ -101,7 +110,6 @@ const BigGauge = ({ data }) => {
         <Box sx={{ position: "absolute", bottom: 0, left: "50%", width: "300%", height: `${fillPercent}%`, bgcolor: color, opacity: 0.8, transition: "height 0.5s ease", transform: "translateX(-50%)", "&::before": { content: '""', position: "absolute", top: "-20px", left: 0, width: "100%", height: "40px", bgcolor: color, borderRadius: "40%", opacity: 0.6, animation: "liquid-move 3s linear infinite" }}} />
       </Box>
 
-      {/* 하단 정보창 */}
       <Paper elevation={0} sx={{ mt: 4, p: 2, width: "90%", bgcolor: "rgba(255,255,255,0.05)", border: "1px solid #333", textAlign: "center" }}>
         <Typography variant="subtitle1" sx={{ color: "#FFF", fontWeight: "bold" }}>
           {data.operatorName.toUpperCase()}
@@ -115,105 +123,108 @@ const BigGauge = ({ data }) => {
 };
 
 // ----------------------------------------------------
-// 🚀 메인 페이지 (SockJS + STOMP)
+// 🚀 메인 컴포넌트 (로그인 없음, MQTT 직결)
 // ----------------------------------------------------
-export default function TracePage() {
-  const [bins, setBins] = useState([]); // 수신된 기기 목록
-  const [selectedBinId, setSelectedBinId] = useState(null); // 현재 보고 있는 기기 ID
-  const [connectionStatus, setConnectionStatus] = useState("DISCONNECTED"); // 연결 상태
+export default function TraceTestPages() {
+  const [bins, setBins] = useState([]); 
+  const [selectedBinId, setSelectedBinId] = useState(null); // operatorId 기준
+  const [connectionStatus, setConnectionStatus] = useState("DISCONNECTED");
+  const clientRef = useRef(null);
 
   useEffect(() => {
-    // 1. STOMP 클라이언트 생성
-    const client = new Client({
-      // 💡 백엔드 Spring Boot (gwon.my/ws) 로 연결
-      webSocketFactory: () => new SockJS("https://gwon.my/ws"),
+    // 1. MQTT 연결 시작
+    console.log(`Connecting to Broker: ${MQTT_BROKER_URL}`);
+    
+    const client = mqtt.connect(MQTT_BROKER_URL, {
+        clean: true,
+        connectTimeout: 4000,
+        reconnectPeriod: 2000,
+        clientId: 'trace_web_' + Math.random().toString(16).substr(2, 8)
+    });
+    clientRef.current = client;
 
-      reconnectDelay: 5000,    // 끊기면 5초 뒤 재연결
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+    // 2. 연결 성공 시
+    client.on("connect", () => {
+      console.log("✅ MQTT Connected!");
+      setConnectionStatus("CONNECTED");
+      
+      // 3. 토픽 구독 (TRACE/# : TRACE 밑의 모든 것)
+      client.subscribe(TOPIC_SUBSCRIBE, (err) => {
+        if (!err) console.log(`📡 Subscribed to: ${TOPIC_SUBSCRIBE}`);
+        else console.error("Subscribe Error:", err);
+      });
+    });
 
-      // ✅ 연결 성공 시
-      onConnect: () => {
-        console.log("✅ WebSocket Connected!");
-        setConnectionStatus("CONNECTED");
+    // 4. 메시지 수신 처리
+    client.on("message", (topic, message) => {
+      try {
+        const payload = JSON.parse(message.toString());
+        // 아두이노 데이터 포맷: 
+        // { "operatorName": "chosun", "operatorId": 0, "height": 12.34, "lat": 35.xxx, "lng": 126.xxx }
+        
+        console.log(`[MSG] ${topic}:`, payload);
 
-        // 2. 구독 (백엔드에서 MQTT 데이터를 이 경로로 보내줘야 함)
-        client.subscribe("/topic/public", (message) => {
-          try {
-            const payload = JSON.parse(message.body);
-            
-            // 필수 데이터 확인
-            if (!payload.operatorName) return;
+        setBins((prevBins) => {
+          // 동일한 기기(이름+ID)가 있는지 확인
+          const index = prevBins.findIndex(
+            (bin) => bin.operatorId === payload.operatorId && bin.operatorName === payload.operatorName
+          );
 
-            setBins((prevBins) => {
-              // 이미 목록에 있는 기기인지 확인
-              const index = prevBins.findIndex(
-                (bin) => bin.operatorId === payload.operatorId && bin.operatorName === payload.operatorName
-              );
-
-              if (index !== -1) {
-                // A. 기존 기기 -> 정보 업데이트 (불변성 유지)
-                const newBins = [...prevBins];
-                newBins[index] = { ...newBins[index], ...payload };
-                return newBins;
-              } else {
-                // B. 새로운 기기 -> 목록에 추가
-                // 첫 데이터라면 화면에 자동 선택
-                if (prevBins.length === 0) setSelectedBinId(payload.operatorId);
-                return [...prevBins, payload];
-              }
-            });
-          } catch (e) {
-            console.error("❌ Data Parsing Error:", e);
+          if (index !== -1) {
+            // [업데이트] 기존 데이터 갱신
+            const newBins = [...prevBins];
+            newBins[index] = { ...newBins[index], ...payload };
+            return newBins;
+          } else {
+            // [신규 추가] 처음 발견된 기기
+            // 데이터가 처음 들어오면 자동으로 선택해줌 (UX)
+            if (prevBins.length === 0) setSelectedBinId(payload.operatorId);
+            return [...prevBins, payload];
           }
         });
-      },
 
-      onStompError: (frame) => {
-        console.error("❌ Broker Error:", frame.headers["message"]);
-      },
-      onWebSocketClose: () => {
-        console.log("⚠️ Disconnected");
-        setConnectionStatus("DISCONNECTED");
+      } catch (e) {
+        console.error("JSON Parsing Error:", e);
       }
     });
 
-    // 3. 연결 시작
-    client.activate();
+    client.on("offline", () => setConnectionStatus("OFFLINE"));
+    client.on("reconnect", () => setConnectionStatus("RECONNECTING"));
 
-    // 4. 컴포넌트 종료 시 연결 해제
+    // 컴포넌트 종료 시 연결 해제
     return () => {
-      client.deactivate();
+      if (client) client.end();
     };
   }, []);
 
-  // 현재 선택된 기기의 데이터 추출
+  // 현재 선택된 기기의 데이터 찾기
+  // (같은 ID라도 기관명이 다를 수 있으나, 여기선 ID 우선 매칭 후 첫번째 것 선택)
   const currentSelectedData = bins.find(b => b.operatorId === selectedBinId) || bins[0] || null;
 
   return (
-    <Box sx={{ width: "100%", height: "100vh", bgcolor: "#000000", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ width: "100%", height: "100vh", bgcolor: "#000000", fontFamily: "'Roboto', sans-serif", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <GlobalStyles />
       
       {/* --- Header --- */}
       <Box sx={{ height: "80px", borderBottom: "1px solid #222", bgcolor: "#050505", display: "flex", alignItems: "center", px: 4, justifyContent: "space-between", zIndex: 10 }}>
         <Stack>
-          <Typography variant="h3" sx={{ fontWeight: 900, letterSpacing: "6px", fontFamily: "sans-serif", background: "linear-gradient(45deg, #FFF, #888)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <Typography variant="h3" sx={{ fontWeight: 900, letterSpacing: "6px", background: "linear-gradient(45deg, #FFF, #888)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             TRACE
           </Typography>
         </Stack>
         <Stack direction="row" spacing={3} alignItems="center">
            <Chip 
-              label={connectionStatus} 
-              size="small"
-              sx={{ 
-                bgcolor: connectionStatus === "CONNECTED" ? "rgba(0, 230, 118, 0.1)" : "rgba(255, 61, 0, 0.1)", 
-                color: connectionStatus === "CONNECTED" ? "#00E676" : "#FF3D00",
-                border: `1px solid ${connectionStatus === "CONNECTED" ? "#00E676" : "#FF3D00"}`,
-                fontWeight: "bold"
-              }} 
+             label={connectionStatus} 
+             size="small"
+             sx={{ 
+               bgcolor: connectionStatus === "CONNECTED" ? "rgba(0, 230, 118, 0.1)" : "rgba(255, 61, 0, 0.1)", 
+               color: connectionStatus === "CONNECTED" ? "#00E676" : "#FF3D00",
+               border: `1px solid ${connectionStatus === "CONNECTED" ? "#00E676" : "#FF3D00"}`,
+               fontWeight: "bold"
+             }} 
            />
            <Box sx={{ textAlign: "right" }}>
-             <Typography variant="caption" sx={{ color: "#666" }}>NODES</Typography>
+             <Typography variant="caption" sx={{ color: "#666" }}>ACTIVE NODES</Typography>
              <Typography variant="body2" sx={{ color: "#FFF", fontWeight: "bold" }}>{bins.length} UNITS</Typography>
            </Box>
         </Stack>
@@ -222,37 +233,33 @@ export default function TracePage() {
       {/* --- Main Content --- */}
       <Stack direction="row" sx={{ flex: 1, height: "calc(100vh - 80px)" }}>
         
-        {/* 1. 지도 영역 (Left) */}
+        {/* 1. 지도 (왼쪽) */}
         <Box sx={{ flex: 6, position: "relative", borderRight: "1px solid #222" }}>
-           {/* 초기 중심 좌표: 조선대학교 인근 */}
            <MapContainer center={[35.1408, 126.9300]} zoom={14} style={{ width: "100%", height: "100%", background: "#111" }}>
              <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
              
-             {/* 데이터 수신 시 해당 위치로 카메라 이동 */}
+             {/* 데이터 들어오면 카메라 이동 */}
              {currentSelectedData && <MapUpdater center={[currentSelectedData.lat, currentSelectedData.lng]} />}
              
-             {/* 기기별 마커 표시 */}
              {bins.map((bin) => (
-               bin.lat && bin.lng ? (
-                 <Marker 
-                   key={`${bin.operatorName}-${bin.operatorId}`}
-                   position={[bin.lat, bin.lng]} 
-                   icon={selectedBinId === bin.operatorId ? selectedIcon : defaultIcon}
-                   eventHandlers={{ click: () => setSelectedBinId(bin.operatorId) }}
-                 >
-                   <Popup>
-                     <div style={{ textAlign: "center" }}>
-                       <b>{bin.operatorName}</b> (ID: {bin.operatorId})<br/>
-                       Height: {bin.height.toFixed(1)}cm
-                     </div>
-                   </Popup>
-                 </Marker>
-               ) : null
+               <Marker 
+                 key={`${bin.operatorName}-${bin.operatorId}`}
+                 position={[bin.lat, bin.lng]} 
+                 icon={selectedBinId === bin.operatorId ? selectedIcon : defaultIcon}
+                 eventHandlers={{ click: () => setSelectedBinId(bin.operatorId) }}
+               >
+                 <Popup>
+                   <div style={{ textAlign: "center" }}>
+                     <b>{bin.operatorName}</b> (ID: {bin.operatorId})<br/>
+                     Dist: {bin.height}cm
+                   </div>
+                 </Popup>
+               </Marker>
              ))}
            </MapContainer>
         </Box>
 
-        {/* 2. 게이지 영역 (Rights) */}
+        {/* 2. 게이지 (오른쪽) */}
         <Box sx={{ flex: 4, bgcolor: "#080808", p: 4, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
            <BigGauge data={currentSelectedData} />
         </Box>
