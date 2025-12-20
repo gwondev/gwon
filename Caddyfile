@@ -1,6 +1,7 @@
 
 gwon.my {
   handle /mqtt* {
+    uri strip_prefix /mqtt
     reverse_proxy gwon-mosquitto:9001 {
       transport http {
         versions 1.1
