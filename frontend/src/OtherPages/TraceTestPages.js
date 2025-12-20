@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
-import mqtt from "mqtt";
+// mqtt 제거하고 stompjs, sockjs-client 사용
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 import { Box, Stack, Typography, Paper, Chip } from "@mui/material";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 // ----------------------------------------------------
-// ⚙️ MQTT 설정 (브로커 직구독)
+// ⚙️ 설정: Spring Boot 웹소켓 주소
 // ----------------------------------------------------
-const MQTT_BROKER_URL = "wss://gwon.my/mqtt";
-const TOPIC_SUBSCRIBE = "TRACE/#";
+// Caddy에서 /ws를 Spring Boot 8080으로 연결해두었으므로 이 주소 사용
+const SOCKET_URL = "https://gwon.my/ws"; 
+const TOPIC_SUBSCRIBE = "/topic/public"; // Spring Boot가 보내주는 경로
 
 // ----------------------------------------------------
-// 🎨 글로벌 스타일
+// 🎨 글로벌 스타일 (그대로 유지)
 // ----------------------------------------------------
 const GlobalStyles = () => (
   <style>{`
@@ -33,7 +36,7 @@ const GlobalStyles = () => (
 );
 
 // ----------------------------------------------------
-// 📍 마커 아이콘
+// 📍 마커 아이콘 (그대로 유지)
 // ----------------------------------------------------
 const defaultIcon = new L.Icon({
   iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
@@ -42,14 +45,13 @@ const defaultIcon = new L.Icon({
 });
 
 const selectedIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
 });
 
 // ----------------------------------------------------
-// 🗺️ 지도 자동 이동
+// 🗺️ 지도 자동 이동 (그대로 유지)
 // ----------------------------------------------------
 function MapUpdater({ center }) {
   const map = useMap();
@@ -62,7 +64,7 @@ function MapUpdater({ center }) {
 }
 
 // ----------------------------------------------------
-// 🛢️ 게이지 컴포넌트
+// 🛢️ 게이지 컴포넌트 (그대로 유지)
 // ----------------------------------------------------
 const BigGauge = ({ data }) => {
   if (!data)
@@ -90,39 +92,24 @@ const BigGauge = ({ data }) => {
         {fillPercent.toFixed(1)}%
       </Typography>
 
-      <Typography sx={{ color }}>{`DIST ${currentHeight.toFixed(
-        2
-      )} cm`}</Typography>
+      <Typography sx={{ color }}>{`DIST ${currentHeight.toFixed(2)} cm`}</Typography>
 
       <Box
         sx={{
-          mt: 3,
-          mx: "auto",
-          width: 180,
-          height: 300,
-          border: `4px solid ${color}`,
-          borderRadius: 100,
-          position: "relative",
-          overflow: "hidden",
+          mt: 3, mx: "auto", width: 180, height: 300,
+          border: `4px solid ${color}`, borderRadius: 100,
+          position: "relative", overflow: "hidden",
         }}
       >
         <Box
           sx={{
-            position: "absolute",
-            bottom: 0,
-            width: "100%",
-            height: `${fillPercent}%`,
-            bgcolor: color,
+            position: "absolute", bottom: 0, width: "100%",
+            height: `${fillPercent}%`, bgcolor: color,
             transition: "height 0.5s",
             "&::before": {
-              content: '""',
-              position: "absolute",
-              top: -20,
-              width: "100%",
-              height: 40,
-              borderRadius: "50%",
-              bgcolor: color,
-              opacity: 0.6,
+              content: '""', position: "absolute", top: -20,
+              width: "100%", height: 40, borderRadius: "50%",
+              bgcolor: color, opacity: 0.6,
               animation: "liquid-move 3s infinite",
             },
           }}
@@ -131,9 +118,7 @@ const BigGauge = ({ data }) => {
 
       <Paper
         sx={{
-          mt: 3,
-          p: 2,
-          bgcolor: "rgba(255,255,255,0.05)",
+          mt: 3, p: 2, bgcolor: "rgba(255,255,255,0.05)",
           border: "1px solid #333",
         }}
       >
@@ -155,54 +140,72 @@ export default function TraceTestPages() {
   const [bins, setBins] = useState([]);
   const [selectedBinId, setSelectedBinId] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("DISCONNECTED");
-  const clientRef = useRef(null);
+  const stompClientRef = useRef(null);
 
   useEffect(() => {
-    const client = mqtt.connect(MQTT_BROKER_URL, {
-      protocol: "ws",          // 🔥 중요: 브로커 직구독 명시
-      keepalive: 30,
-      clean: true,
-      reconnectPeriod: 2000,
-      connectTimeout: 5000,
-      clientId:
-        "trace_web_" + Math.random().toString(16).slice(2),
-    });
+    // 1. STOMP 클라이언트 생성
+    const stompClient = new Client({
+      // SockJS를 통해 연결 (http -> ws 업그레이드)
+      webSocketFactory: () => new SockJS(SOCKET_URL),
+      reconnectDelay: 5000, // 끊어지면 5초 뒤 재연결
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      
+      onConnect: () => {
+        setConnectionStatus("CONNECTED");
+        console.log(">>> STOMP Connected!");
 
-    clientRef.current = client;
+        // 2. 구독 설정 (/topic/public)
+        stompClient.subscribe(TOPIC_SUBSCRIBE, (message) => {
+          try {
+            // Spring이 보낸 body 문자열을 JSON 파싱
+            const payload = JSON.parse(message.body);
+            console.log("Received:", payload);
 
-    client.on("connect", () => {
-      setConnectionStatus("CONNECTED");
-      client.subscribe(TOPIC_SUBSCRIBE, { qos: 0 });
-    });
+            setBins((prev) => {
+              const idx = prev.findIndex(
+                (b) =>
+                  b.operatorId === payload.operatorId &&
+                  b.operatorName === payload.operatorName
+              );
 
-    client.on("reconnect", () => setConnectionStatus("RECONNECTING"));
-    client.on("offline", () => setConnectionStatus("OFFLINE"));
-    client.on("error", () => setConnectionStatus("ERROR"));
+              if (idx !== -1) {
+                const copy = [...prev];
+                copy[idx] = { ...copy[idx], ...payload };
+                return copy;
+              }
 
-    client.on("message", (topic, message) => {
-      try {
-        const payload = JSON.parse(message.toString());
-
-        setBins((prev) => {
-          const idx = prev.findIndex(
-            (b) =>
-              b.operatorId === payload.operatorId &&
-              b.operatorName === payload.operatorName
-          );
-
-          if (idx !== -1) {
-            const copy = [...prev];
-            copy[idx] = { ...copy[idx], ...payload };
-            return copy;
+              if (prev.length === 0) setSelectedBinId(payload.operatorId);
+              return [...prev, payload];
+            });
+          } catch (err) {
+            console.error("JSON Parse Error:", err);
           }
-
-          if (prev.length === 0) setSelectedBinId(payload.operatorId);
-          return [...prev, payload];
         });
-      } catch {}
+      },
+
+      onStompError: (frame) => {
+        console.error("Broker reported error: " + frame.headers["message"]);
+        console.error("Additional details: " + frame.body);
+        setConnectionStatus("ERROR");
+      },
+
+      onWebSocketClose: () => {
+        console.log("WebSocket Disconnected");
+        setConnectionStatus("DISCONNECTED");
+      },
     });
 
-    return () => client.end();
+    // 3. 연결 시작
+    stompClient.activate();
+    stompClientRef.current = stompClient;
+
+    // 4. 컴포넌트 언마운트 시 연결 종료
+    return () => {
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+      }
+    };
   }, []);
 
   const current = bins.find((b) => b.operatorId === selectedBinId) || bins[0];
@@ -214,22 +217,16 @@ export default function TraceTestPages() {
       {/* Header */}
       <Box
         sx={{
-          height: 80,
-          px: 4,
-          borderBottom: "1px solid #222",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          height: 80, px: 4, borderBottom: "1px solid #222",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
         }}
       >
         <Typography
           variant="h3"
           sx={{
-            fontWeight: 900,
-            letterSpacing: 6,
+            fontWeight: 900, letterSpacing: 6,
             background: "linear-gradient(45deg,#fff,#777)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
           }}
         >
           TRACE
@@ -264,17 +261,14 @@ export default function TraceTestPages() {
                 key={`${bin.operatorName}-${bin.operatorId}`}
                 position={[bin.lat, bin.lng]}
                 icon={
-                  selectedBinId === bin.operatorId
-                    ? selectedIcon
-                    : defaultIcon
+                  selectedBinId === bin.operatorId ? selectedIcon : defaultIcon
                 }
                 eventHandlers={{
                   click: () => setSelectedBinId(bin.operatorId),
                 }}
               >
                 <Popup>
-                  <b>{bin.operatorName}</b>
-                  <br />
+                  <b>{bin.operatorName}</b><br />
                   Dist: {bin.height}cm
                 </Popup>
               </Marker>
@@ -285,11 +279,8 @@ export default function TraceTestPages() {
         {/* Gauge */}
         <Box
           sx={{
-            flex: 4,
-            bgcolor: "#080808",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            flex: 4, bgcolor: "#080808",
+            display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
           <BigGauge data={current} />
