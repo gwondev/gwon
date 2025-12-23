@@ -227,7 +227,7 @@ export default function TraceTestPages() {
 
       const OSRM_URL = "https://gwon.my/osrm";
 
-      const url = `${OSRM_URL}/trip/v1/driving/${coordinates}?source=first&roundtrip=false&overview=full&geometries=geojson`;
+      const url = `${OSRM_URL}/trip/v1/driving/${coordinates}?source=first&destination=last&roundtrip=false&overview=full&geometries=geojson`;
 
       const response = await axios.get(url);
 
