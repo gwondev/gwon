@@ -1,5 +1,12 @@
 
 gwon.my {
+  handle /osrm/* {
+  uri strip_prefix /osrm
+  reverse_proxy osrm:5000 {
+    header_up Host {host}
+  }
+}
+  
   handle /mqtt* {
     uri strip_prefix /mqtt
     reverse_proxy gwon-mosquitto:9001 {
