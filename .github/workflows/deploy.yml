@@ -40,7 +40,7 @@ jobs:
             echo "원격 변경사항 강제 동기화 (origin/main으로 리셋)"
             git fetch --all --prune
             git reset --hard origin/main
-            git clean -fdx || true
+            
 
             # 백엔드가 존재하면 빌드 수행 (서버에 JDK 필요)
             if [ -d backend ]; then
