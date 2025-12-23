@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
-import { Box, Stack, Typography, Paper, Chip, Button, CircularProgress } from "@mui/material";
+import { Box, Stack, Typography, Paper, Chip, Button, CircularProgress, useMediaQuery, useTheme } from "@mui/material";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -31,7 +31,6 @@ const GlobalStyles = () => (
     .leaflet-popup-tip {
       background: rgba(0,0,0,0.8) !important;
     }
-    /* 숫자 마커 스타일 */
     .number-icon {
       background-color: #00E676;
       border: 2px solid #fff;
@@ -40,11 +39,11 @@ const GlobalStyles = () => (
       font-weight: bold;
       font-size: 14px;
       text-align: center;
-      line-height: 24px; /* height와 같게 */
+      line-height: 24px;
       box-shadow: 0 0 10px rgba(0,230,118, 0.6);
     }
     .number-icon.start-point {
-      background-color: #FF3D00 !important; /* 시작점은 붉은색 */
+      background-color: #FF3D00 !important;
       color: white !important;
       z-index: 1000 !important;
     }
@@ -88,8 +87,8 @@ function MapClickFlyTo({ targetPosition, trigger }) {
 // ----------------------------------------------------
 // 🛢️ 게이지 컴포넌트
 // ----------------------------------------------------
-const BigGauge = ({ data }) => {
-  if (!data) return <Typography sx={{ color: "#555", mt: 10 }}>WAITING...</Typography>;
+const BigGauge = ({ data, isMobile }) => {
+  if (!data) return <Typography sx={{ color: "#555", mt: 4 }}>WAITING...</Typography>;
 
   const MAX_DEPTH = 100.0;
   const currentHeight = Number(data.height);
@@ -100,15 +99,58 @@ const BigGauge = ({ data }) => {
   if (fillPercent > 80) color = "#FF3D00";
 
   return (
-    <Box sx={{ width: "100%", textAlign: "center" }}>
-      <Typography variant="h3" sx={{ fontWeight: 900, color: "#fff" }}>{fillPercent.toFixed(1)}%</Typography>
-      <Typography sx={{ color }}>{`DIST ${currentHeight.toFixed(2)} cm`}</Typography>
-      <Box sx={{ mt: 3, mx: "auto", width: 180, height: 300, border: `4px solid ${color}`, borderRadius: 100, position: "relative", overflow: "hidden" }}>
-        <Box sx={{ position: "absolute", bottom: 0, width: "100%", height: `${fillPercent}%`, bgcolor: color, transition: "height 0.5s", "&::before": { content: '""', position: "absolute", top: -20, width: "100%", height: 40, borderRadius: "50%", bgcolor: color, opacity: 0.6, animation: "liquid-move 3s infinite" }}} />
+    <Box sx={{ width: "100%", textAlign: "center", py: isMobile ? 2 : 0 }}>
+      <Typography 
+        variant={isMobile ? "h4" : "h3"} 
+        sx={{ fontWeight: 900, color: "#fff" }}
+      >
+        {fillPercent.toFixed(1)}%
+      </Typography>
+      <Typography sx={{ color, fontSize: isMobile ? 14 : 16 }}>
+        {`DIST ${currentHeight.toFixed(2)} cm`}
+      </Typography>
+      <Box sx={{ 
+        mt: isMobile ? 2 : 3, 
+        mx: "auto", 
+        width: isMobile ? 120 : 180, 
+        height: isMobile ? 180 : 300, 
+        border: `4px solid ${color}`, 
+        borderRadius: 100, 
+        position: "relative", 
+        overflow: "hidden" 
+      }}>
+        <Box sx={{ 
+          position: "absolute", 
+          bottom: 0, 
+          width: "100%", 
+          height: `${fillPercent}%`, 
+          bgcolor: color, 
+          transition: "height 0.5s", 
+          "&::before": { 
+            content: '""', 
+            position: "absolute", 
+            top: -20, 
+            width: "100%", 
+            height: 40, 
+            borderRadius: "50%", 
+            bgcolor: color, 
+            opacity: 0.6, 
+            animation: "liquid-move 3s infinite" 
+          }
+        }} />
       </Box>
-      <Paper sx={{ mt: 3, p: 2, bgcolor: "rgba(255,255,255,0.05)", border: "1px solid #333" }}>
-        <Typography sx={{ color: "#fff", fontWeight: "bold" }}>{data.operatorName}</Typography>
-        <Typography variant="caption" sx={{ color: "#777" }}>ID {data.operatorId}</Typography>
+      <Paper sx={{ 
+        mt: isMobile ? 2 : 3, 
+        p: isMobile ? 1.5 : 2, 
+        bgcolor: "rgba(255,255,255,0.05)", 
+        border: "1px solid #333" 
+      }}>
+        <Typography sx={{ color: "#fff", fontWeight: "bold", fontSize: isMobile ? 14 : 16 }}>
+          {data.operatorName}
+        </Typography>
+        <Typography variant="caption" sx={{ color: "#777" }}>
+          ID {data.operatorId}
+        </Typography>
       </Paper>
     </Box>
   );
@@ -118,8 +160,11 @@ const BigGauge = ({ data }) => {
 // 🚀 메인 컴포넌트
 // ----------------------------------------------------
 export default function TraceTestPages() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   const [bins, setBins] = useState([]);
-  const [selectedBinId, setSelectedBinId] = useState(null); // 초기값 null
+  const [selectedBinId, setSelectedBinId] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("DISCONNECTED");
   
   const [routePath, setRoutePath] = useState([]); 
@@ -160,11 +205,7 @@ export default function TraceTestPages() {
     return () => { if (stompClientRef.current) stompClientRef.current.deactivate(); };
   }, []);
 
-  // ------------------------------------------------------
-  // 🛣️ 경로 계산 (Fix: ID가 0일 때도 동작하도록 수정)
-  // ------------------------------------------------------
   const handleCalculateRoute = async () => {
-    // 🛠️ FIX: !selectedBinId 라고 쓰면 0일 때 false가 되므로 === null로 체크
     if (selectedBinId === null) {
       alert("먼저 시작점이 될 쓰레기통(내 위치)을 지도에서 클릭해주세요!");
       return;
@@ -184,9 +225,9 @@ export default function TraceTestPages() {
 
       const coordinates = sortedBins.map((bin) => `${bin.lng},${bin.lat}`).join(";");
 
-      const OSRM_URL = import.meta.env.VITE_OSRM_URL || 'https://gwon.my/osrm';
+      const OSRM_URL = process.env.REACT_APP_OSRM_URL || 'https://gwon.my/osrm';
 
-const url = `${OSRM_URL}/trip/v1/driving/${coordinates}?source=first&roundtrip=false&overview=full&geometries=geojson`;
+      const url = `${OSRM_URL}/trip/v1/driving/${coordinates}?source=first&roundtrip=false&overview=full&geometries=geojson`;
 
       const response = await axios.get(url);
 
@@ -212,6 +253,7 @@ const url = `${OSRM_URL}/trip/v1/driving/${coordinates}?source=first&roundtrip=f
       }
     } catch (error) {
       console.error("TSP Error:", error);
+      console.error("Response:", error.response?.data);
       alert("경로 계산 실패. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsCalculating(false);
@@ -224,45 +266,83 @@ const url = `${OSRM_URL}/trip/v1/driving/${coordinates}?source=first&roundtrip=f
     setZoomTrigger(Date.now());
   };
 
-  // 선택된 것이 없으면 0번째가 아니라 그냥 null일 수도 있음 (보여줄 때는 예외처리 필요)
   const current = bins.find((b) => b.operatorId === selectedBinId) || bins[0];
 
+  // 버튼 텍스트
+  const getButtonText = () => {
+    if (isCalculating) {
+      return isMobile ? "계산중..." : "계산중...";
+    }
+    if (selectedBinId !== null) {
+      return isMobile ? "TSP 경로 계산" : "이 위치 기준 최적 경로 (TSP)";
+    }
+    return isMobile ? "시작점 선택" : "먼저 시작점을 선택하세요";
+  };
+
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#000" }}>
+    <Box sx={{ height: "100vh", bgcolor: "#000", overflow: "hidden" }}>
       <GlobalStyles />
 
       {/* Header */}
-      <Box sx={{ height: 80, px: 4, borderBottom: "1px solid #222", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="h3" sx={{ fontWeight: 900, letterSpacing: 6, background: "linear-gradient(45deg,#fff,#777)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+      <Box sx={{ 
+        height: isMobile ? 60 : 80, 
+        px: isMobile ? 2 : 4, 
+        borderBottom: "1px solid #222", 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "space-between" 
+      }}>
+        <Typography 
+          variant={isMobile ? "h5" : "h3"} 
+          sx={{ 
+            fontWeight: 900, 
+            letterSpacing: isMobile ? 3 : 6, 
+            background: "linear-gradient(45deg,#fff,#777)", 
+            WebkitBackgroundClip: "text", 
+            WebkitTextFillColor: "transparent" 
+          }}
+        >
           TRACE
         </Typography>
 
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack direction="row" spacing={isMobile ? 1 : 2} alignItems="center">
           <Button 
             variant="contained" 
             onClick={handleCalculateRoute}
             disabled={isCalculating || bins.length < 2}
+            size={isMobile ? "small" : "medium"}
             sx={{ 
               bgcolor: isCalculating ? "#333" : "#2979FF",
-              color: "white", fontWeight: "bold",
+              color: "white", 
+              fontWeight: "bold",
+              fontSize: isMobile ? 12 : 14,
+              px: isMobile ? 1.5 : 2,
+              whiteSpace: "nowrap",
               "&:hover": { bgcolor: "#1565C0" }
             }}
           >
-            {isCalculating ? (
-              <> <CircularProgress size={20} sx={{ color: "white", mr: 1 }} /> 계산중... </>
-            ) : (
-              // 🛠️ FIX: selectedBinId가 0일 때도 텍스트가 뜨도록 !== null 체크
-              selectedBinId !== null ? "이 위치 기준 최적 경로 (TSP)" : "먼저 시작점을 선택하세요"
-            )}
+            {isCalculating && <CircularProgress size={isMobile ? 14 : 20} sx={{ color: "white", mr: 1 }} />}
+            {getButtonText()}
           </Button>
-          <Chip label={connectionStatus} sx={{ color: connectionStatus === "CONNECTED" ? "#00E676" : "#FF3D00", border: "1px solid" }} />
+          <Chip 
+            label={isMobile ? (connectionStatus === "CONNECTED" ? "ON" : "OFF") : connectionStatus} 
+            size={isMobile ? "small" : "medium"}
+            sx={{ 
+              color: connectionStatus === "CONNECTED" ? "#00E676" : "#FF3D00", 
+              border: "1px solid",
+              fontSize: isMobile ? 10 : 12
+            }} 
+          />
         </Stack>
       </Box>
 
       {/* Body */}
-      <Stack direction="row" sx={{ height: "calc(100vh - 80px)" }}>
+      <Stack 
+        direction={isMobile ? "column" : "row"} 
+        sx={{ height: isMobile ? "calc(100vh - 60px)" : "calc(100vh - 80px)" }}
+      >
         {/* Map */}
-        <Box sx={{ flex: 6 }}>
+        <Box sx={{ flex: isMobile ? "none" : 6, height: isMobile ? "55%" : "100%" }}>
           <MapContainer center={[35.1408, 126.93]} zoom={13} style={{ height: "100%", background: "#111" }}>
             <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
             
@@ -301,8 +381,15 @@ const url = `${OSRM_URL}/trip/v1/driving/${coordinates}?source=first&roundtrip=f
         </Box>
 
         {/* Gauge */}
-        <Box sx={{ flex: 4, bgcolor: "#080808", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <BigGauge data={current} />
+        <Box sx={{ 
+          flex: isMobile ? "none" : 4, 
+          height: isMobile ? "45%" : "100%",
+          bgcolor: "#080808", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center" 
+        }}>
+          <BigGauge data={current} isMobile={isMobile} />
         </Box>
       </Stack>
     </Box>
