@@ -184,7 +184,9 @@ export default function TraceTestPages() {
 
       const coordinates = sortedBins.map((bin) => `${bin.lng},${bin.lat}`).join(";");
 
-      const url = `https://router.project-osrm.org/trip/v1/driving/${coordinates}?source=first&roundtrip=false&overview=full&geometries=geojson`;
+      const OSRM_URL = import.meta.env.VITE_OSRM_URL || 'https://gwon.my/osrm';
+
+const url = `${OSRM_URL}/trip/v1/driving/${coordinates}?source=first&roundtrip=false&overview=full&geometries=geojson`;
 
       const response = await axios.get(url);
 

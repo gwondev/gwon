@@ -1,4 +1,14 @@
 services:
+  osrm:
+    image: osrm/osrm-backend
+    container_name: gwon-osrm
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./osrm-data:/data
+    command: osrm-routed --algorithm mld /data/south-korea-latest.osrm
+    networks:
+      - global_network
   caddy:
     restart: always
     image: caddy:alpine
