@@ -5,7 +5,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - /home/gwon/osrm-data:/data
+      - /home/gwon/gwon/osrm-data:/data
     command: osrm-routed --algorithm mld /data/south-korea.osrm
     networks:
       - global_network
