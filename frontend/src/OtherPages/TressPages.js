@@ -30,7 +30,7 @@ import axios from "axios";
 // ----------------------------------------------------
 const SOCKET_URL = "https://gwon.my/ws";
 const TOPIC_SUBSCRIBE = "/topic/public";
-const MAX_DEPTH = 50.0; // 센서 기준 최대 깊이
+const MAX_DEPTH = 15.0; // 센서 기준 최대 깊이
 
 // ----------------------------------------------------
 // 🎨 스타일 및 아이콘
