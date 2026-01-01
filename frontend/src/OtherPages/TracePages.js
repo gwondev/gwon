@@ -421,7 +421,7 @@ const LoginScreen = ({ setScreen, input, setInput }) => (
 // ----------------------------------------------------
 // 🚀 메인 컴포넌트 (코드1 로직 그대로 + UI만 이식)
 // ----------------------------------------------------
-export default function TressPages() {
+export default function TracePages() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -672,7 +672,7 @@ export default function TressPages() {
             WebkitTextFillColor: "transparent",
           }}
         >
-          TRESS
+          TRACE
         </Typography>
 
         <Stack direction="row" spacing={1} alignItems="center">
