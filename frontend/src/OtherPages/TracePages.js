@@ -30,7 +30,7 @@ import axios from "axios";
 // ----------------------------------------------------
 const SOCKET_URL = "https://gwon.my/ws";
 const TOPIC_SUBSCRIBE = "/topic/public";
-const MAX_DEPTH = 15.0; // 센서 기준 최대 깊이
+const MAX_DEPTH = 50; // 센서 기준 최대 깊이
 
 // ----------------------------------------------------
 // 🎨 스타일 및 아이콘
@@ -127,7 +127,7 @@ function MapClickFlyTo({ targetPosition, trigger }) {
 }
 
 // ----------------------------------------------------
-// 🛢️ [UI 이식] 코드2(BigGauge) 스타일을 2개(CAN/PLASTIC)로 확장
+// 🛢️ 게이지(기존 PillGauge 재사용) - TRASH 1개만 쓸거임
 // ----------------------------------------------------
 const PillGauge = ({ label, percent, isMobile, labelColor }) => {
   const p = Number(percent ?? 0);
@@ -196,9 +196,9 @@ const PillGauge = ({ label, percent, isMobile, labelColor }) => {
 };
 
 // ----------------------------------------------------
-// 🏗️ [UI 이식] 선택된 쓰레기통 패널 (코드2 구조/배치 느낌)
+// 🏗️ 선택된 쓰레기통 패널: TRASH 1게이지만 표시
 // ----------------------------------------------------
-const SelectedBinPanel = ({ bin, isMobile }) => {
+const SelectedBinPanel = ({ bin, isMobile, toPercent }) => {
   if (!bin)
     return (
       <Box
@@ -252,7 +252,7 @@ const SelectedBinPanel = ({ bin, isMobile }) => {
             letterSpacing: "2px",
           }}
         >
-          {bin.operatorName.toUpperCase()}
+          {String(bin.operatorName || "").toUpperCase()}
         </Typography>
         <Typography
           variant="caption"
@@ -262,37 +262,33 @@ const SelectedBinPanel = ({ bin, isMobile }) => {
         </Typography>
       </Paper>
 
-      {/* CAN / PLASTIC 2개 게이지 */}
+      {/* ✅ TRASH 1게이지 */}
       <Stack
-        direction="row"
-        spacing={isMobile ? 2 : 5}
+        direction="column"
+        spacing={isMobile ? 1 : 2}
         alignItems="center"
         justifyContent="center"
         sx={{ width: "100%", maxWidth: 520 }}
       >
-        <Box sx={{ flex: 1 }}>
+        <Box sx={{ width: "100%" }}>
           <PillGauge
-            label="CAN"
-            percent={bin.cans}
+            label="TRASH"
+            percent={toPercent(bin.height)}
             isMobile={isMobile}
-            labelColor="#00B0FF"
+            labelColor="#00E676"
           />
         </Box>
-        <Box sx={{ flex: 1 }}>
-          <PillGauge
-            label="PLASTIC"
-            percent={bin.plastic}
-            isMobile={isMobile}
-            labelColor="#FF4081"
-          />
-        </Box>
+
+        <Typography sx={{ color: "#aaa", fontSize: isMobile ? 12 : 14 }}>
+          {`DIST ${Number(bin.height ?? 0).toFixed(2)} cm`}
+        </Typography>
       </Stack>
     </Box>
   );
 };
 
 // ----------------------------------------------------
-// 🔐 로그인 화면 (Code 1 디자인 유지)
+// 🔐 로그인 화면
 // ----------------------------------------------------
 const LoginScreen = ({ setScreen, input, setInput }) => (
   <Stack
@@ -419,7 +415,7 @@ const LoginScreen = ({ setScreen, input, setInput }) => (
 );
 
 // ----------------------------------------------------
-// 🚀 메인 컴포넌트 (코드1 로직 그대로 + UI만 이식)
+// 🚀 메인 컴포넌트
 // ----------------------------------------------------
 export default function TracePages() {
   const theme = useTheme();
@@ -433,10 +429,9 @@ export default function TracePages() {
       id: 0,
       operatorId: 0,
       operatorName: "chosun",
-      lat: 35.1402390,
+      lat: 35.140239,
       lng: 126.9341972,
-      cans: 0,
-      plastic: 0,
+      height: 0,
     },
     {
       id: 1,
@@ -444,8 +439,7 @@ export default function TracePages() {
       operatorName: "chosun",
       lat: 35.1485641,
       lng: 126.9360698,
-      cans: 0,
-      plastic: 0,
+      height: 0,
     },
     {
       id: 2,
@@ -453,8 +447,7 @@ export default function TracePages() {
       operatorName: "chosun",
       lat: 35.1389457,
       lng: 126.9265309,
-      cans: 0,
-      plastic: 0,
+      height: 0,
     },
   ];
 
@@ -492,15 +485,13 @@ export default function TracePages() {
 
             setBins((prev) => {
               const idx = prev.findIndex((b) => b.operatorId === payload.operatorId);
-              const percentVal = toPercent(payload.height);
 
+              // ✅ height만 쓰는 UI로 변경
               if (idx !== -1) {
                 const copy = [...prev];
                 const target = copy[idx];
 
-                if (payload.sortType === "can") target.cans = percentVal;
-                if (payload.sortType === "pla") target.plastic = percentVal;
-
+                target.height = payload.height;
                 target.lat = payload.lat;
                 target.lng = payload.lng;
 
@@ -515,8 +506,7 @@ export default function TracePages() {
                   operatorName: payload.operatorName,
                   lat: payload.lat,
                   lng: payload.lng,
-                  cans: payload.sortType === "can" ? percentVal : 0,
-                  plastic: payload.sortType === "pla" ? percentVal : 0,
+                  height: payload.height,
                 },
               ];
             });
@@ -623,7 +613,8 @@ export default function TracePages() {
 
   const getButtonText = () => {
     if (isCalculating) return "계산중...";
-    if (selectedBinId !== null) return isMobile ? "TSP 계산" : "이 위치 기준 최적 경로 (TSP)";
+    if (selectedBinId !== null)
+      return isMobile ? "TSP 계산" : "이 위치 기준 최적 경로 (TSP)";
     return isMobile ? "시작점 선택" : "먼저 시작점을 선택하세요";
   };
 
@@ -645,6 +636,12 @@ export default function TracePages() {
       </Box>
     );
   }
+
+  // ✅ 지도에 “1개만” 보이게
+  const visibleBins =
+    selectedBinId !== null
+      ? bins.filter((b) => b.operatorId === selectedBinId)
+      : bins.slice(0, 1);
 
   return (
     <Box sx={{ height: "100dvh", bgcolor: "#000", overflow: "hidden" }}>
@@ -770,10 +767,11 @@ export default function TracePages() {
 
             {bins.map((bin) => {
               const order = visitOrder[bin.operatorId];
-              let iconToUse;
-
-              if (order) iconToUse = createNumberIcon(order);
-              else iconToUse = selectedBinId === bin.operatorId ? selectedIcon : defaultIcon;
+              const iconToUse = order
+                ? createNumberIcon(order)
+                : selectedBinId === bin.operatorId
+                ? selectedIcon
+                : defaultIcon;
 
               return (
                 <Marker
@@ -790,8 +788,7 @@ export default function TracePages() {
                       {order ? `[${order}번]` : ""} {bin.operatorName}
                     </b>
                     <br />
-                    <span style={{ color: "blue" }}>CAN: {bin.cans}%</span> /{" "}
-                    <span style={{ color: "red" }}>PLA: {bin.plastic}%</span>
+                    높이: {Number(bin.height ?? 0).toFixed(2)}cm
                   </Popup>
                 </Marker>
               );
@@ -826,14 +823,13 @@ export default function TracePages() {
           )}
         </Box>
 
-        {/* Right Panel (코드2 배치감으로 이식) */}
+        {/* Right Panel */}
         <Box
           sx={{
             flex: isMobile ? "none" : 4,
             height: isMobile ? "40%" : "100%",
             bgcolor: "#080808",
             borderLeft: { md: "1px solid #222" },
-
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -841,7 +837,7 @@ export default function TracePages() {
             p: isMobile ? 1.5 : 3,
           }}
         >
-          <SelectedBinPanel bin={selectedBin} isMobile={isMobile} />
+          <SelectedBinPanel bin={selectedBin} isMobile={isMobile} toPercent={toPercent} />
         </Box>
       </Stack>
     </Box>
