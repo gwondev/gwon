@@ -15,6 +15,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws")   // Caddy가 /ws로 보내주는 거 받음
                 .setAllowedOriginPatterns("*") // ✅ 핵심: 누구나 접속 가능 (테스트용)
                 .withSockJS();                 // SockJS 사용
+
+        registry.addEndpoint("/ws-raw")
+                .setAllowedOriginPatterns("*");
     }
 
     @Override
