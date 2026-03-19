@@ -1,0 +1,35 @@
+services:
+  db: # DB 서비스
+    image: mysql:latest
+    container_name: db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD} # 환경변수의 루트 비밀번호를 사용
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    networks:
+      - global_network
+
+  
+  cloudflare: # 클라우드플레어 터널
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN} # 환경변수의 토큰을 사용
+    networks:
+      - global_network
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: infra-mosquitto
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+    networks:
+      - global_network
+
+
+networks:
+  global_network:
+    external: true
