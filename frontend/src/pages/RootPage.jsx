@@ -94,9 +94,9 @@ export default function RootPage() {
         <span className="overview-bar__center">
           <span className="overview-bar__title">
             <span className="overview-bar__star" aria-hidden>★</span>
-            한번에 보기
+            전체 포트폴리오 요약 & 기술스택
           </span>
-          <span className="overview-bar__sub">기술스택 · 소개 · 전체 요약</span>
+          <span className="overview-bar__sub">프로젝트 · 경력 · 스택 — 한 페이지에 펼치다</span>
         </span>
       </motion.button>
 

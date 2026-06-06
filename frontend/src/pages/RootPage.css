@@ -231,9 +231,9 @@
     gap: 10px;
   }
   .cat-card {
-    min-height: 114px;
-    gap: 0.45rem;
-    padding: 18px;
+    min-height: clamp(175px, 26vh, 255px);
+    gap: 0.5rem;
+    padding: clamp(18px, 3.8vw, 26px);
     border-radius: var(--radius-lg);
   }
   .cat-card__title {
@@ -270,8 +270,8 @@
     height: 40px;
   }
   .cat-card {
-    min-height: 99px;
-    padding: 17px;
+    min-height: clamp(168px, 25vh, 240px);
+    padding: clamp(17px, 3.6vw, 24px);
   }
   .cat-card__title {
     font-size: 0.9rem;
