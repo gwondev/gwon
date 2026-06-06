@@ -33,7 +33,7 @@ JWT_SECRET="$(read_val JWT_SECRET "$SRC")"
 ADMIN_EMAILS="$(read_val ADMIN_EMAILS_GWON "$SRC")"
 [[ -z "$ADMIN_EMAILS" ]] && ADMIN_EMAILS="$(read_val ADMIN_EMAILS "$SRC")"
 
-# ── 2) 폴백: 기존 .env / .env.production 의 값 ────────────────────────
+GEMINI_API_KEY="$(read_val GWON_GEMINI_API_KEY "$SRC")"
 CLOUDFLARE_TUNNEL_TOKEN="$(read_val CLOUDFLARE_TUNNEL_TOKEN "$SRC")"
 [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]] && CLOUDFLARE_TUNNEL_TOKEN="$(read_val CLOUDFLARE_TUNNEL_TOKEN "$OUT")"
 [[ -z "${DB_ROOT_PASSWORD}" ]] && DB_ROOT_PASSWORD="$(read_val DB_ROOT_PASSWORD "$OUT")"
@@ -56,6 +56,9 @@ fi
 if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
   echo "[prepare-env] 경고: CLOUDFLARE_TUNNEL_TOKEN 이 비어 있습니다." >&2
 fi
+if [[ -z "$GEMINI_API_KEY" ]]; then
+  echo "[prepare-env] 경고: GWON_GEMINI_API_KEY 를 찾지 못했습니다. AI 챗봇이 동작하지 않습니다." >&2
+fi
 
 # ── 4) .env 생성 ─────────────────────────────────────────────────────
 cat > "$OUT" <<EOF
@@ -64,6 +67,7 @@ DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
 GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
 JWT_SECRET=${JWT_SECRET}
 ADMIN_EMAILS=${ADMIN_EMAILS}
+GEMINI_API_KEY=${GEMINI_API_KEY}
 CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
 EOF
 
@@ -72,4 +76,5 @@ echo "  - DB_ROOT_PASSWORD      : (설정됨)"
 echo "  - GOOGLE_CLIENT_ID      : ${GOOGLE_CLIENT_ID:0:18}…"
 echo "  - JWT_SECRET            : (설정됨)"
 echo "  - ADMIN_EMAILS          : ${ADMIN_EMAILS:-(없음 — 관리자 자동승격 비활성)}"
+echo "  - GEMINI_API_KEY        : ${GEMINI_API_KEY:+ (설정됨)}${GEMINI_API_KEY:- (없음 — 챗봇 비활성)}"
 echo "  - CLOUDFLARE_TUNNEL_TOKEN: (${#CLOUDFLARE_TUNNEL_TOKEN} chars)"

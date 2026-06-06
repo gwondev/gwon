@@ -2,6 +2,8 @@ import { Router } from "express";
 import pool from "../db.js";
 import { requireAdmin } from "../auth-middleware.js";
 
+import { getSetting, setSetting } from "../lib/settings.js";
+
 const router = Router();
 const ROLES = ["GUEST", "ADMIN"];
 
@@ -84,6 +86,19 @@ router.put("/users/:id/role", requireAdmin, async (req, res) => {
     [targetId]
   );
   res.json({ item: rows[0] });
+});
+
+// GET /api/admin/chat-prompt — AI 추가 지침
+router.get("/chat-prompt", requireAdmin, async (_req, res) => {
+  const extraPrompt = await getSetting("chat_extra_prompt", "");
+  res.json({ extraPrompt });
+});
+
+// PUT /api/admin/chat-prompt — AI 추가 지침 저장
+router.put("/chat-prompt", requireAdmin, async (req, res) => {
+  const extraPrompt = String(req.body?.extraPrompt ?? "");
+  await setSetting("chat_extra_prompt", extraPrompt);
+  res.json({ extraPrompt });
 });
 
 export default router;

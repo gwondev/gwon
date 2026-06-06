@@ -32,6 +32,47 @@
   text-transform: uppercase;
 }
 
+.admin__prompt-desc {
+  margin: -0.4rem 0 1rem;
+  max-width: 56ch;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+.admin__prompt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 720px;
+}
+.admin__prompt-area {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 120px;
+}
+.admin__prompt-area:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+.admin__prompt-msg {
+  margin: 0;
+  font-size: 0.86rem;
+}
+.admin__prompt-msg.is-err {
+  color: #ff6b6b;
+}
+.admin__prompt-msg.is-ok {
+  color: var(--accent);
+}
+
 .admin__section {
   margin-bottom: clamp(36px, 6vh, 64px);
 }

@@ -5,6 +5,8 @@ import authRouter from "./routes/auth.js";
 import adminRouter from "./routes/admin.js";
 import { crudRouter } from "./routes/crud.js";
 
+import chatRouter from "./routes/chat.js";
+
 const app = express();
 const PORT = Number(process.env.PORT || 8080);
 
@@ -22,6 +24,7 @@ app.get("/api/health", async (_req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/chat", chatRouter);
 app.use("/api/projects", crudRouter("projects"));
 app.use("/api/activities", crudRouter("activities"));
 app.use("/api/certifications", crudRouter("certifications"));
