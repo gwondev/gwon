@@ -33,7 +33,7 @@ app.use("/api/careers", crudRouter("careers"));
 // 공통 에러 핸들러
 app.use((err, _req, res, _next) => {
   console.error("[error]", err);
-  res.status(500).json({ error: "서버 오류가 발생했습니다." });
+  res.status(500).json({ error: err.message || "서버 오류가 발생했습니다." });
 });
 
 initDb()

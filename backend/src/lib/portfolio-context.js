@@ -1,4 +1,4 @@
-import pool from "../db.js";
+import { listTable } from "./list-table.js";
 
 const ABOUT = {
   intro:
@@ -24,16 +24,10 @@ function lines(items, fmt) {
 }
 
 export async function buildPortfolioContext() {
-  const [projects] = await pool.query(
-    "SELECT * FROM projects ORDER BY sort_order ASC, id ASC"
-  );
-  const [activities] = await pool.query(
-    "SELECT * FROM activities ORDER BY sort_order ASC, id ASC"
-  );
-  const [certifications] = await pool.query(
-    "SELECT * FROM certifications ORDER BY sort_order ASC, id ASC"
-  );
-  const [careers] = await pool.query("SELECT * FROM careers ORDER BY sort_order ASC, id ASC");
+  const projects = await listTable("projects");
+  const activities = await listTable("activities");
+  const certifications = await listTable("certifications");
+  const careers = await listTable("careers");
 
   const tech = TECH_STACK.map((g) => `  [${g.group}] ${g.items.join(", ")}`).join("\n");
 
