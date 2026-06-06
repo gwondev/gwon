@@ -1,8 +1,11 @@
-const MODELS = [
-  process.env.GEMINI_MODEL,
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-].filter(Boolean);
+// 2026-06 기준: 2.0/1.5 flash 계열 종료 → 3.5/2.5 사용
+const FALLBACK_MODELS = [
+  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+];
+
+const MODELS = [process.env.GEMINI_MODEL, ...FALLBACK_MODELS].filter(Boolean);
 
 function normalizeHistory(history) {
   const out = [];
@@ -22,10 +25,13 @@ function normalizeHistory(history) {
 
 async function callModel(model, apiKey, system, contents) {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents,
@@ -55,6 +61,10 @@ async function callModel(model, apiKey, system, contents) {
   return text;
 }
 
+export function getGeminiModels() {
+  return [...new Set(MODELS)];
+}
+
 export async function askGemini({ system, history, message }) {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new Error("GEMINI API 키가 설정되지 않았습니다.");
@@ -63,14 +73,15 @@ export async function askGemini({ system, history, message }) {
   contents.push({ role: "user", parts: [{ text: message.trim() }] });
 
   let lastErr;
-  for (const model of [...new Set(MODELS)]) {
+  for (const model of getGeminiModels()) {
     try {
-      return await callModel(model, apiKey, system, contents);
+      const reply = await callModel(model, apiKey, system, contents);
+      console.log(`[gemini] ok: ${model}`);
+      return reply;
     } catch (err) {
       lastErr = err;
       console.warn(`[gemini] ${model} failed:`, err.message);
-      // 모델 없음/권한 문제면 다음 모델 시도
-      if (err.status === 404 || /not found/i.test(err.message)) continue;
+      if (err.status === 404 || /not found|not supported/i.test(err.message)) continue;
       throw err;
     }
   }

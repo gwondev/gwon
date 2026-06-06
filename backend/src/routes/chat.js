@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { buildPortfolioContext } from "../lib/portfolio-context.js";
-import { askGemini } from "../lib/gemini.js";
+import { askGemini, getGeminiModels } from "../lib/gemini.js";
 import { getSetting } from "../lib/settings.js";
 
 const router = Router();
@@ -14,7 +14,7 @@ const BASE_SYSTEM = `당신은 이성권의 포트폴리오 웹사이트 AI 어�
 router.get("/status", (_req, res) => {
   res.json({
     ready: Boolean(process.env.GEMINI_API_KEY?.trim()),
-    model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+    models: getGeminiModels(),
   });
 });
 
