@@ -38,5 +38,14 @@ export function useResource(resource) {
     [resource, token]
   );
 
-  return { items, loading, error, create, remove, reload: load };
+  const update = useCallback(
+    async (id, body) => {
+      const data = await api(`/${resource}/${id}`, { method: "PUT", body, token });
+      setItems((prev) => prev.map((it) => (it.id === id ? data.item : it)));
+      return data.item;
+    },
+    [resource, token]
+  );
+
+  return { items, loading, error, create, update, remove, reload: load };
 }

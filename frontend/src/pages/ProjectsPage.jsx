@@ -1,6 +1,6 @@
-import { motion } from "framer-motion";
 import SectionLayout from "../components/SectionLayout";
 import Adder from "../components/Adder";
+import RecordItem from "../components/RecordItem";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
 import { PROJECT_CATEGORIES } from "../lib/sections";
@@ -17,7 +17,7 @@ const FIELDS = [
 ];
 
 export default function ProjectsPage() {
-  const { items, loading, error, create, remove } = useResource("projects");
+  const { items, loading, error, create, update, remove } = useResource("projects");
   const { isAdmin } = useAuth();
 
   return (
@@ -38,19 +38,16 @@ export default function ProjectsPage() {
       ) : (
         <div className="records">
           {items.map((p, i) => (
-            <motion.article
+            <RecordItem
               key={p.id}
-              className="record"
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }}
+              item={p}
+              fields={FIELDS}
+              index={i}
+              isAdmin={isAdmin}
+              onUpdate={update}
+              onRemove={remove}
             >
-              {isAdmin && (
-                <button className="record__del" onClick={() => remove(p.id)} aria-label="삭제">
-                  ✕
-                </button>
-              )}
-              <div className="record__row">
+              <div className="record__head">
                 <span className="record__title">{p.title}</span>
                 {p.category && <span className="record__tag">{p.category}</span>}
               </div>
@@ -62,7 +59,7 @@ export default function ProjectsPage() {
                 {p.period && <span><b>기간</b>{p.period}</span>}
               </div>
               {p.description && <p className="record__desc">{p.description}</p>}
-            </motion.article>
+            </RecordItem>
           ))}
         </div>
       )}
