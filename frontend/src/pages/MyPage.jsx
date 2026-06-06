@@ -41,6 +41,12 @@ export default function MyPage() {
 
   return (
     <PageTransition className="page mypage">
+      <div className="mypage__top">
+        <button type="button" className="mypage__home" onClick={() => navigate("/")}>
+          메인 화면
+        </button>
+      </div>
+
       <motion.header
         className="mypage__head"
         initial={{ opacity: 0, y: 18 }}

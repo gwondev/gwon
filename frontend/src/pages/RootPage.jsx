@@ -19,7 +19,7 @@ const PREVIEW = {
   projects: (it) =>
     (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
   activities: (it) => it.title,
-  certifications: (it) => it.title,
+  certifications: (it) => it.title + (it.score ? ` (${it.score})` : ""),
   career: (it) => {
     const span = formatCareerPeriodPreview(it.period);
     return it.title + (span ? ` (${span})` : "");
