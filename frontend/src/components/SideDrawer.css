@@ -145,10 +145,10 @@
   font-size: 0.9rem;
 }
 
-.drawer__link--admin .drawer__link-no {
-  color: var(--accent);
-}
-.drawer__link--admin .drawer__link-title {
+.drawer__link--admin .drawer__link-no,
+.drawer__link--admin .drawer__link-title,
+.drawer__link--mypage .drawer__link-no,
+.drawer__link--mypage .drawer__link-title {
   color: var(--accent);
 }
 

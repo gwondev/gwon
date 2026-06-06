@@ -21,9 +21,10 @@
 .hero__lead {
   max-width: none;
   margin: 0 auto;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.01em;
-  background: linear-gradient(180deg, #cfcbc3 0%, #9a958c 60%, #6f6a62 100%);
+  opacity: 0.5;
+  background: linear-gradient(180deg, #9a958c 0%, #6f6a62 70%, #514d47 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

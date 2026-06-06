@@ -9,6 +9,7 @@ import CertificationsPage from "./pages/CertificationsPage";
 import CareerPage from "./pages/CareerPage";
 import OverviewPage from "./pages/OverviewPage";
 import NicknameSetupPage from "./pages/NicknameSetupPage";
+import MyPage from "./pages/MyPage";
 import AdminPage from "./pages/AdminPage";
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/career" element={<CareerPage />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/setup-nickname" element={<NicknameSetupPage />} />
+          <Route path="/mypage" element={<MyPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<RootPage />} />
         </Routes>

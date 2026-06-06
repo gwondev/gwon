@@ -79,6 +79,17 @@ export default function SideDrawer({ open, onClose }) {
                   <span className="drawer__link-arrow">→</span>
                 </motion.button>
               ))}
+              {isAuthed && !localMode && (
+                <motion.button
+                  variants={item}
+                  className="drawer__link drawer__link--mypage"
+                  onClick={() => go("/mypage")}
+                >
+                  <span className="drawer__link-no">♦</span>
+                  <span className="drawer__link-title">마이페이지</span>
+                  <span className="drawer__link-arrow">→</span>
+                </motion.button>
+              )}
               {isAdmin && (
                 <motion.button
                   variants={item}
