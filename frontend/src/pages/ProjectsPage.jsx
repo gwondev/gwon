@@ -12,7 +12,7 @@ const FIELDS = [
   { name: "team_name", label: "팀명", placeholder: "예: 팀 GWON" },
   { name: "members", label: "팀원", span: true, placeholder: "예: 이성권, 홍길동, 김철수" },
   { name: "award", label: "수상 / 결과", placeholder: "예: 대상 (1위)" },
-  { name: "period", label: "기간", placeholder: "예: 2025.03 – 2025.06" },
+  { name: "period", label: "기간", type: "period" },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "프로젝트 개요, 역할, 기술 스택 등" },
 ];
 

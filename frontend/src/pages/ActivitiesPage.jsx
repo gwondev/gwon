@@ -8,7 +8,7 @@ const FIELDS = [
   { name: "title", label: "활동명", required: true, placeholder: "예: 멋쟁이사자처럼 13기" },
   { name: "organization", label: "기관 / 단체", placeholder: "예: 멋쟁이사자처럼" },
   { name: "role", label: "역할", placeholder: "예: 백엔드 리드" },
-  { name: "period", label: "기간", placeholder: "예: 2024.09 – 2025.02" },
+  { name: "period", label: "기간", type: "period" },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "활동 내용, 성과 등" },
 ];
 

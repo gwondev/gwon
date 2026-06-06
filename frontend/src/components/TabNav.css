@@ -39,16 +39,25 @@
   position: relative;
   z-index: 1;
 }
+.tabnav__tab--special:not(.is-active) .tabnav__label {
+  color: var(--accent);
+}
 
-@media (max-width: 560px) {
+@media (max-width: 760px) {
   .tabnav {
     width: 100%;
-    justify-content: space-between;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabnav::-webkit-scrollbar {
+    display: none;
   }
   .tabnav__tab {
-    flex: 1;
-    text-align: center;
-    padding: 0.65rem 0.4rem;
-    font-size: 0.86rem;
+    flex: 0 0 auto;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.85rem;
   }
 }

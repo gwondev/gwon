@@ -4,6 +4,19 @@ import PageTransition from "../components/PageTransition";
 import { SECTIONS } from "../lib/sections";
 import "./RootPage.css";
 
+// 한번에 보기 + 4개 섹션 = 가로 5개 카드
+const CARDS = [
+  {
+    key: "overview",
+    path: "/overview",
+    no: "00",
+    title: "한번에 보기",
+    sub: "Overview",
+    desc: "기술스택·소개·전체 요약.",
+  },
+  ...SECTIONS,
+];
+
 const heroStagger = {
   show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
 };
@@ -26,25 +39,20 @@ export default function RootPage() {
   return (
     <PageTransition className="page root">
       <motion.section className="hero" variants={heroStagger} initial="hidden" animate="show">
-        <motion.span className="eyebrow" variants={rise}>
-          PORTFOLIO · 이성권
-        </motion.span>
         <motion.h1 className="display hero__name" variants={rise}>
-          이 성 권
+          이성권
         </motion.h1>
         <motion.p className="lead hero__lead" variants={rise}>
-          만드는 사람. 프로젝트와 공모전, 활동, 자격증, 그리고 경력까지 —
-          <br className="hero__br" />
-          하나씩 천천히 기록해 둔 공간입니다.
+          저의 스펙을 보여드리는 웹사이트입니다.
         </motion.p>
       </motion.section>
 
       <motion.div className="root__grid" variants={gridStagger} initial="hidden" animate="show">
-        {SECTIONS.map((s) => (
+        {CARDS.map((s) => (
           <motion.button
             key={s.key}
             variants={cardRise}
-            className="cat-card"
+            className={`cat-card ${s.key === "overview" ? "cat-card--overview" : ""}`}
             onClick={() => navigate(s.path)}
             whileHover={{ y: -14 }}
             whileTap={{ scale: 0.98 }}

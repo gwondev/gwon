@@ -196,6 +196,27 @@ body::after {
   font-family: inherit;
   transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
 }
+/* 날짜(월) 입력 — 다크 테마에 맞춘 캘린더 아이콘 */
+.field input[type="month"],
+.field input[type="date"] {
+  color-scheme: dark;
+}
+.field input[type="month"]::-webkit-calendar-picker-indicator,
+.field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+  cursor: pointer;
+}
+
+/* 기간 입력 (시작 ~ 종료) */
+.period-input {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.period-input__sep {
+  color: var(--text-faint);
+  flex: none;
+}
 .field textarea {
   resize: vertical;
   min-height: 96px;

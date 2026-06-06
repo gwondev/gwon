@@ -6,6 +6,35 @@ function blank(fields) {
   return fields.reduce((acc, f) => ({ ...acc, [f.name]: "" }), {});
 }
 
+// "2025.03" <-> "2025-03" (month input 포맷) 변환
+const toInput = (m) => (m ? m.trim().replace(/\./g, "-") : "");
+const toMonth = (v) => (v ? v.replace(/-/g, ".") : "");
+
+// 기간 입력 (시작 ~ 종료 월 선택)
+function PeriodInput({ id, value, onChange }) {
+  const [startRaw = "", endRaw = ""] = (value || "").split("~").map((s) => s.trim());
+  const combine = (s, e) => {
+    if (!s && !e) return onChange("");
+    onChange(`${s} ~ ${e}`.trim());
+  };
+  return (
+    <div className="period-input">
+      <input
+        id={id}
+        type="month"
+        value={toInput(startRaw)}
+        onChange={(e) => combine(toMonth(e.target.value), toMonth(toInput(endRaw)))}
+      />
+      <span className="period-input__sep">~</span>
+      <input
+        type="month"
+        value={toInput(endRaw)}
+        onChange={(e) => combine(toMonth(toInput(startRaw)), toMonth(e.target.value))}
+      />
+    </div>
+  );
+}
+
 export default function Adder({ label, fields, onCreate }) {
   const { isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
@@ -53,7 +82,20 @@ export default function Adder({ label, fields, onCreate }) {
                     className={`field ${f.span ? "span-2" : ""}`}
                   >
                     <label htmlFor={f.name}>{f.label}</label>
-                    {f.type === "textarea" ? (
+                    {f.type === "period" ? (
+                      <PeriodInput
+                        id={f.name}
+                        value={form[f.name]}
+                        onChange={(v) => set(f.name, v)}
+                      />
+                    ) : f.type === "month" ? (
+                      <input
+                        id={f.name}
+                        type="month"
+                        value={toInput(form[f.name])}
+                        onChange={(e) => set(f.name, toMonth(e.target.value))}
+                      />
+                    ) : f.type === "textarea" ? (
                       <textarea
                         id={f.name}
                         value={form[f.name]}
