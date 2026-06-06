@@ -1,6 +1,6 @@
 .site-footer {
   margin-top: auto;
-  padding: clamp(28px, 5vh, 48px) clamp(20px, 5vw, 48px);
+  padding: clamp(18px, 3vh, 30px) clamp(20px, 5vw, 48px);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -9,13 +9,15 @@
 }
 .site-footer__email {
   margin: 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--text-dim);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-faint);
+  opacity: 0.7;
 }
 .site-footer__made {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.74rem;
   letter-spacing: 0.06em;
   color: var(--text-faint);
+  opacity: 0.7;
 }

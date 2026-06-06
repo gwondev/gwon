@@ -30,7 +30,7 @@ export default function RootPage() {
           이성권
         </motion.h1>
         <motion.p className="lead hero__lead" variants={rise}>
-          Portfolio of Lee Seong-gwon.
+          PORTFOLIO OF LEE SEONG-GWON.
         </motion.p>
       </motion.section>
 
