@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 const FIELDS = [
   { name: "title", label: "자격증명", required: true, placeholder: "예: 정보처리기사" },
   { name: "issuer", label: "발급기관", placeholder: "예: 한국산업인력공단" },
-  { name: "acquired", label: "취득일", type: "month" },
+  { name: "acquired", label: "취득일", type: "ymd" },
   { name: "score", label: "등급 / 점수", placeholder: "예: 합격 / 920점" },
   { name: "description", label: "비고", type: "textarea", span: true, placeholder: "관련 내용" },
 ];

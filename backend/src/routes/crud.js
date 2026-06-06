@@ -7,7 +7,7 @@ const RESOURCES = {
   projects: ["title", "category", "host", "team_name", "members", "award", "period", "description"],
   activities: ["title", "organization", "role", "period", "description"],
   certifications: ["title", "issuer", "acquired", "score", "description"],
-  careers: ["title", "position", "period", "description"],
+  careers: ["title", "category", "position", "period", "description"],
 };
 
 // 하나의 리소스에 대한 CRUD 라우터 생성

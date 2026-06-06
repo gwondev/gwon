@@ -6,7 +6,8 @@ import { useAuth } from "../context/AuthContext";
 
 const FIELDS = [
   { name: "title", label: "회사 / 소속", required: true, placeholder: "예: (주)그원" },
-  { name: "position", label: "직무 / 직책", placeholder: "예: 백엔드 엔지니어 인턴" },
+  { name: "category", label: "구분", type: "select-other", options: ["인턴", "계약직", "정규직"] },
+  { name: "position", label: "직무 / 직책", placeholder: "예: 백엔드 엔지니어" },
   { name: "period", label: "기간", type: "period" },
   { name: "description", label: "주요 업무", type: "textarea", span: true, placeholder: "담당 업무, 성과 등" },
 ];
@@ -42,9 +43,10 @@ export default function CareerPage() {
               )}
               <div className="record__row">
                 <span className="record__title">{c.title}</span>
-                {c.position && <span className="record__tag">{c.position}</span>}
+                {c.category && <span className="record__tag">{c.category}</span>}
               </div>
               <div className="record__meta">
+                {c.position && <span><b>직무</b>{c.position}</span>}
                 {c.period && <span><b>기간</b>{c.period}</span>}
               </div>
               {c.description && <p className="record__desc">{c.description}</p>}

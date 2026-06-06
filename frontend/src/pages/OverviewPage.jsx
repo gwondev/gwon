@@ -37,6 +37,7 @@ const TABLE_COLUMNS = {
   ],
   career: [
     { field: "title", label: "회사 / 소속" },
+    { field: "category", label: "구분" },
     { field: "position", label: "직무" },
     { field: "period", label: "기간" },
   ],

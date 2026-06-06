@@ -59,6 +59,7 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS careers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
+    category VARCHAR(64),
     position VARCHAR(255),
     period VARCHAR(128),
     description TEXT,
@@ -70,6 +71,7 @@ const SCHEMA = [
 async function runMigrations(conn) {
   const migrations = [
     "ALTER TABLE users ADD COLUMN role ENUM('GUEST','ADMIN') NOT NULL DEFAULT 'GUEST'",
+    "ALTER TABLE careers ADD COLUMN category VARCHAR(64) AFTER title",
   ];
   for (const sql of migrations) {
     try {
