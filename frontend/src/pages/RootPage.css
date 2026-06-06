@@ -250,7 +250,7 @@
 }
 @media (max-width: 480px) {
   .hero__lead {
-    font-size: 0.14rem;
+    font-size: 0.112rem;
     letter-spacing: 0.14em;
     white-space: normal;
   }

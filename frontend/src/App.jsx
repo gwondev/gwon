@@ -12,12 +12,14 @@ import NicknameSetupPage from "./pages/NicknameSetupPage";
 import MyPage from "./pages/MyPage";
 import AdminPage from "./pages/AdminPage";
 import ChatAdminPage from "./pages/ChatAdminPage";
+import ScrollToTop from "./components/ScrollToTop";
 
 export default function App() {
   const location = useLocation();
 
   return (
     <div className="app-shell">
+      <ScrollToTop />
       <TopBar />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
