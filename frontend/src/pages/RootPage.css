@@ -21,29 +21,97 @@
 .hero__lead {
   max-width: none;
   margin: 0 auto;
-  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #cfcbc3 0%, #9a958c 60%, #6f6a62 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
-/* ---- 1 × 5 grid of big rounded buttons ---- */
+/* ---- 한번에 보기: 가로 full-width 바 ---- */
+.overview-bar {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+  text-align: left;
+  padding: clamp(18px, 2.4vw, 30px) clamp(20px, 2.6vw, 34px);
+  margin-bottom: clamp(12px, 1.4vw, 20px);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--accent-line);
+  background:
+    radial-gradient(120% 240% at 0% 0%, rgba(216, 193, 154, 0.18), transparent 55%),
+    linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
+  color: var(--text);
+  transition: box-shadow 0.5s var(--ease), background 0.5s var(--ease);
+}
+.overview-bar:hover {
+  box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft) inset;
+}
+.overview-bar__sheen {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.1) 48%, transparent 66%);
+  transform: translateX(-120%);
+  transition: transform 0.9s var(--ease);
+}
+.overview-bar:hover .overview-bar__sheen {
+  transform: translateX(120%);
+}
+.overview-bar__left {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+}
+.overview-bar__no {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+}
+.overview-bar__title {
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.overview-bar__sub {
+  font-size: 0.84rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.overview-bar__arrow {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--accent-line);
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  color: var(--accent);
+  transition: transform 0.5s var(--ease), background 0.4s var(--ease),
+    color 0.4s var(--ease), border-color 0.4s var(--ease);
+}
+.overview-bar:hover .overview-bar__arrow {
+  transform: translate(4px, -4px);
+  background: linear-gradient(180deg, #f3e9d4, var(--accent));
+  color: #1a1408;
+  border-color: transparent;
+}
+
+/* ---- 4개 섹션: 4열(데스크탑) / 2열(모바일). 1열은 사용 안 함 ---- */
 .root__grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: clamp(12px, 1.2vw, 18px);
-}
-
-/* 한번에 보기 카드 강조 */
-.cat-card--overview {
-  border-color: var(--accent-line);
-  background:
-    radial-gradient(140% 120% at 50% -20%, rgba(216, 193, 154, 0.2), transparent 55%),
-    linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
-}
-.cat-card--overview .cat-card__no {
-  color: var(--accent);
-}
-.cat-card--overview .cat-card__arrow {
-  border-color: var(--accent-line);
-  color: var(--accent);
 }
 
 .cat-card {
@@ -146,33 +214,54 @@
   border-color: transparent;
 }
 
-/* ---------- responsive: keep type sizes, reflow layout ---------- */
-@media (max-width: 1180px) {
-  .root__grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .cat-card {
-    min-height: 240px;
-  }
-}
-@media (max-width: 760px) {
+/* ---------- responsive: 4열 → 2열(2x2), 1열 없음 + 모바일 컴팩트 ---------- */
+@media (max-width: 820px) {
   .root__grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
   .cat-card {
-    min-height: 210px;
+    min-height: 168px;
+    gap: 0.9rem;
+    padding: 18px;
+    border-radius: var(--radius-lg);
+  }
+  .cat-card__title {
+    font-size: 1.12rem;
+  }
+  .cat-card__sub {
+    font-size: 0.72rem;
+  }
+  .cat-card__desc {
+    font-size: 0.76rem;
+  }
+  .cat-card__arrow {
+    width: 34px;
+    height: 34px;
   }
 }
 @media (max-width: 480px) {
   .hero__lead {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     white-space: normal;
   }
-  .root__grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .overview-bar {
+    padding: 16px 18px;
+  }
+  .overview-bar__arrow {
+    width: 40px;
+    height: 40px;
   }
   .cat-card {
-    min-height: 168px;
+    min-height: 138px;
+    padding: 15px;
+  }
+  .cat-card__title {
+    font-size: 1rem;
+    line-height: 1.1;
+  }
+  .cat-card__desc {
+    font-size: 0.72rem;
+    max-width: 100%;
   }
 }

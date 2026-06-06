@@ -20,6 +20,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   white-space: nowrap;
+  text-align: center;
   transition: color 0.35s var(--ease);
 }
 .tabnav__tab:hover {
@@ -45,19 +46,11 @@
 
 @media (max-width: 760px) {
   .tabnav {
-    width: 100%;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .tabnav::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   .tabnav__tab {
-    flex: 0 0 auto;
-    padding: 0.6rem 0.9rem;
-    font-size: 0.85rem;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.82rem;
   }
 }

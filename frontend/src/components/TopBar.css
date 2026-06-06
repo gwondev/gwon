@@ -9,8 +9,7 @@
   padding: clamp(14px, 2.4vw, 24px) clamp(20px, 5vw, 48px);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  background: linear-gradient(180deg, rgba(6, 6, 6, 0.88), rgba(6, 6, 6, 0.72));
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(6, 6, 6, 0.88), rgba(6, 6, 6, 0));
 }
 
 .topbar__greet {

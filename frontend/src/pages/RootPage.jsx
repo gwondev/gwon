@@ -4,19 +4,6 @@ import PageTransition from "../components/PageTransition";
 import { SECTIONS } from "../lib/sections";
 import "./RootPage.css";
 
-// 한번에 보기 + 4개 섹션 = 가로 5개 카드
-const CARDS = [
-  {
-    key: "overview",
-    path: "/overview",
-    no: "00",
-    title: "한번에 보기",
-    sub: "Overview",
-    desc: "기술스택·소개·전체 요약.",
-  },
-  ...SECTIONS,
-];
-
 const heroStagger = {
   show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
 };
@@ -43,18 +30,36 @@ export default function RootPage() {
           이성권
         </motion.h1>
         <motion.p className="lead hero__lead" variants={rise}>
-          저의 스펙을 보여드리는 웹사이트입니다.
+          Portfolio of Lee Seong-gwon.
         </motion.p>
       </motion.section>
 
+      <motion.button
+        className="overview-bar"
+        onClick={() => navigate("/overview")}
+        initial={{ opacity: 0, y: 28 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
+        whileHover={{ y: -6 }}
+        whileTap={{ scale: 0.99 }}
+      >
+        <span className="overview-bar__sheen" aria-hidden />
+        <span className="overview-bar__left">
+          <span className="overview-bar__no">00</span>
+          <span className="overview-bar__title">한번에 보기</span>
+          <span className="overview-bar__sub">기술스택 · 소개 · 전체 요약</span>
+        </span>
+        <span className="overview-bar__arrow">→</span>
+      </motion.button>
+
       <motion.div className="root__grid" variants={gridStagger} initial="hidden" animate="show">
-        {CARDS.map((s) => (
+        {SECTIONS.map((s) => (
           <motion.button
             key={s.key}
             variants={cardRise}
-            className={`cat-card ${s.key === "overview" ? "cat-card--overview" : ""}`}
+            className="cat-card"
             onClick={() => navigate(s.path)}
-            whileHover={{ y: -14 }}
+            whileHover={{ y: -12 }}
             whileTap={{ scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 26 }}
           >

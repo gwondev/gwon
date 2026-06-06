@@ -113,92 +113,81 @@
   color: var(--accent);
 }
 
-/* 전체 요약 카드 */
-.overview__summary {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+/* 전체 요약 — DB 표 */
+.db-table {
+  margin-top: clamp(20px, 3vh, 32px);
 }
-.summary-card {
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  padding: clamp(18px, 2.2vw, 26px);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line);
-  background: var(--bg-soft);
-  color: var(--text);
-  transition: border-color 0.4s var(--ease), transform 0.4s var(--ease),
-    background 0.4s var(--ease);
-}
-.summary-card:hover {
-  border-color: var(--accent-line);
-  transform: translateY(-4px);
-  background: var(--bg-elev);
-}
-.summary-card__top {
+.db-table__head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: 0.7rem;
+  margin-bottom: 0.8rem;
 }
-.summary-card__title {
-  font-size: 1.15rem;
-  font-weight: 800;
+.db-table__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
-.summary-card__count {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--accent);
-  line-height: 1;
-}
-.summary-card__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.4rem;
-  flex: 1;
-}
-.summary-card__list li {
-  font-size: 0.92rem;
-  color: var(--text-dim);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding-left: 0.9rem;
-  position: relative;
-}
-.summary-card__list li::before {
-  content: "–";
-  position: absolute;
-  left: 0;
-  color: var(--text-faint);
-}
-.summary-card__empty {
-  color: var(--text-faint) !important;
-}
-.summary-card__empty::before {
-  content: "" !important;
-}
-.summary-card__more {
+.db-table__count {
   font-size: 0.84rem;
   font-weight: 700;
-  color: var(--text-faint);
-  transition: color 0.3s var(--ease);
-}
-.summary-card:hover .summary-card__more {
   color: var(--accent);
+}
+.db-table__empty {
+  padding: 1.2rem 1.1rem;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--line);
+  color: var(--text-faint);
+  font-size: 0.92rem;
+}
+.db-table__scroll {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  -webkit-overflow-scrolling: touch;
+}
+.db-table__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  min-width: 520px;
+}
+.db-table__table th,
+.db-table__table td {
+  text-align: left;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.db-table__table th {
+  background: var(--bg-soft);
+  color: var(--text-faint);
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.db-table__table tbody tr:last-child td {
+  border-bottom: none;
+}
+.db-table__table tbody tr {
+  transition: background 0.25s var(--ease);
+}
+.db-table__table tbody tr:hover {
+  background: var(--bg-soft);
+}
+.db-table__table td:first-child {
+  font-weight: 600;
+  color: var(--text);
+}
+.db-table__table td {
+  color: var(--text-dim);
 }
 
 @media (max-width: 680px) {
   .stack-group {
     grid-template-columns: 1fr;
     gap: 0.6rem;
-  }
-  .overview__summary {
-    grid-template-columns: 1fr;
   }
 }
