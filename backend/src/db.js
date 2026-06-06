@@ -67,10 +67,21 @@ const SCHEMA = [
     period VARCHAR(128),
     description TEXT,
     sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 const CONTENT_TABLES = ["projects", "activities", "certifications", "careers"];
+
+async function hasColumn(conn, table, column) {
+  const [rows] = await conn.query(
+    `SELECT 1 FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+     LIMIT 1`,
+    [table, column]
+  );
+  return rows.length > 0;
+}
 
 async function backfillSortOrder(conn, table) {
   const [rows] = await conn.query(`SELECT id FROM \`${table}\` ORDER BY id DESC`);
@@ -79,26 +90,29 @@ async function backfillSortOrder(conn, table) {
   }
 }
 
-// 기존 테이블에 누락된 컬럼이 있으면 추가 (이미 있으면 무시)
+async function ensureSortOrder(conn, table) {
+  if (await hasColumn(conn, table, "sort_order")) return;
+  console.log(`[db] add sort_order → ${table}`);
+  await conn.query(`ALTER TABLE \`${table}\` ADD COLUMN sort_order INT NOT NULL DEFAULT 0`);
+  await backfillSortOrder(conn, table);
+}
+
 async function runMigrations(conn) {
   const migrations = [
     "ALTER TABLE users ADD COLUMN role ENUM('GUEST','ADMIN') NOT NULL DEFAULT 'GUEST'",
     "ALTER TABLE careers ADD COLUMN category VARCHAR(64) AFTER title",
-    ...CONTENT_TABLES.map(
-      (t) => `ALTER TABLE \`${t}\` ADD COLUMN sort_order INT NOT NULL DEFAULT 0`
-    ),
   ];
   for (const sql of migrations) {
     try {
       await conn.query(sql);
-      const match = sql.match(/ALTER TABLE `(\w+)` ADD COLUMN sort_order/);
-      if (match) await backfillSortOrder(conn, match[1]);
     } catch (err) {
-      // 컬럼이 이미 존재하면(ER_DUP_FIELDNAME) 정상이므로 무시
       if (err.code !== "ER_DUP_FIELDNAME") {
         console.warn(`[db] migration skipped: ${err.code || err.message}`);
       }
     }
+  }
+  for (const table of CONTENT_TABLES) {
+    await ensureSortOrder(conn, table);
   }
 }
 
@@ -121,6 +135,10 @@ export async function initDb(retries = 15, delayMs = 3000) {
       await new Promise((r) => setTimeout(r, delayMs));
     }
   }
+}
+
+export async function pingDb() {
+  await pool.query("SELECT 1");
 }
 
 export default pool;
