@@ -29,6 +29,9 @@ read_val() {
 GOOGLE_CLIENT_ID="$(read_val GOOGLE_CLIENT_ID_GWON "$SRC")"
 DB_ROOT_PASSWORD="$(read_val DB_PASSWORD "$SRC")"
 JWT_SECRET="$(read_val JWT_SECRET "$SRC")"
+# 관리자(ADMIN)로 자동 승격할 이메일 목록 (쉼표 구분). 예: ADMIN_EMAILS_GWON=me@gmail.com
+ADMIN_EMAILS="$(read_val ADMIN_EMAILS_GWON "$SRC")"
+[[ -z "$ADMIN_EMAILS" ]] && ADMIN_EMAILS="$(read_val ADMIN_EMAILS "$SRC")"
 
 # ── 2) 폴백: 기존 .env / .env.production 의 값 ────────────────────────
 CLOUDFLARE_TUNNEL_TOKEN="$(read_val CLOUDFLARE_TUNNEL_TOKEN "$SRC")"
@@ -60,6 +63,7 @@ cat > "$OUT" <<EOF
 DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
 GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
 JWT_SECRET=${JWT_SECRET}
+ADMIN_EMAILS=${ADMIN_EMAILS}
 CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
 EOF
 
@@ -67,4 +71,5 @@ echo "[prepare-env] .env 생성 완료:"
 echo "  - DB_ROOT_PASSWORD      : (설정됨)"
 echo "  - GOOGLE_CLIENT_ID      : ${GOOGLE_CLIENT_ID:0:18}…"
 echo "  - JWT_SECRET            : (설정됨)"
+echo "  - ADMIN_EMAILS          : ${ADMIN_EMAILS:-(없음 — 관리자 자동승격 비활성)}"
 echo "  - CLOUDFLARE_TUNNEL_TOKEN: (${#CLOUDFLARE_TUNNEL_TOKEN} chars)"

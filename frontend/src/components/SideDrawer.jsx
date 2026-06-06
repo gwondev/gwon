@@ -86,7 +86,7 @@ export default function SideDrawer({ open, onClose }) {
                   onClick={() => go("/admin")}
                 >
                   <span className="drawer__link-no">★</span>
-                  <span className="drawer__link-title">관리자</span>
+                  <span className="drawer__link-title">관리자 · DB</span>
                   <span className="drawer__link-arrow">→</span>
                 </motion.button>
               )}

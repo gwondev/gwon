@@ -7,6 +7,7 @@ import ActivitiesPage from "./pages/ActivitiesPage";
 import CertificationsPage from "./pages/CertificationsPage";
 import CareerPage from "./pages/CareerPage";
 import NicknameSetupPage from "./pages/NicknameSetupPage";
+import AdminPage from "./pages/AdminPage";
 
 export default function App() {
   const location = useLocation();
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/certifications" element={<CertificationsPage />} />
           <Route path="/career" element={<CareerPage />} />
           <Route path="/setup-nickname" element={<NicknameSetupPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<RootPage />} />
         </Routes>
       </AnimatePresence>

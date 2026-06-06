@@ -5,6 +5,42 @@ import { requireAdmin } from "../auth-middleware.js";
 const router = Router();
 const ROLES = ["GUEST", "ADMIN"];
 
+const TABLE_LABELS = {
+  users: "회원",
+  projects: "프로젝트 & 공모전",
+  activities: "활동",
+  certifications: "자격증",
+  careers: "경력",
+};
+
+// GET /api/admin/stats  -> 전체 DB 테이블 요약
+router.get("/stats", requireAdmin, async (req, res) => {
+  const tables = Object.keys(TABLE_LABELS);
+  const counts = {};
+
+  for (const table of tables) {
+    const [rows] = await pool.query(`SELECT COUNT(*) AS count FROM \`${table}\``);
+    counts[table] = Number(rows[0].count);
+  }
+
+  const [roleRows] = await pool.query(
+    "SELECT role, COUNT(*) AS count FROM users GROUP BY role"
+  );
+  const roles = { GUEST: 0, ADMIN: 0 };
+  for (const row of roleRows) roles[row.role] = Number(row.count);
+
+  res.json({
+    database: "gwon",
+    tables: tables.map((key) => ({
+      key,
+      label: TABLE_LABELS[key],
+      count: counts[key],
+    })),
+    roles,
+    total: Object.values(counts).reduce((a, b) => a + b, 0),
+  });
+});
+
 // GET /api/admin/users?q=검색어  -> 회원 목록 / 이름·닉네임·이메일 검색
 router.get("/users", requireAdmin, async (req, res) => {
   const q = (req.query.q || "").trim();
