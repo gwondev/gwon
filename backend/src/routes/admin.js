@@ -88,17 +88,29 @@ router.put("/users/:id/role", requireAdmin, async (req, res) => {
   res.json({ item: rows[0] });
 });
 
-// GET /api/admin/chat-prompt — AI 추가 지침
+// GET /api/admin/chat-prompt — AI 프롬프트 (DB)
 router.get("/chat-prompt", requireAdmin, async (_req, res) => {
-  const extraPrompt = await getSetting("chat_extra_prompt", "");
-  res.json({ extraPrompt });
+  const [systemPrompt, extraPrompt] = await Promise.all([
+    getSetting("chat_system_prompt", ""),
+    getSetting("chat_extra_prompt", ""),
+  ]);
+  res.json({ systemPrompt, extraPrompt });
 });
 
-// PUT /api/admin/chat-prompt — AI 추가 지침 저장
+// PUT /api/admin/chat-prompt — AI 프롬프트 저장
 router.put("/chat-prompt", requireAdmin, async (req, res) => {
-  const extraPrompt = String(req.body?.extraPrompt ?? "");
-  await setSetting("chat_extra_prompt", extraPrompt);
-  res.json({ extraPrompt });
+  const { systemPrompt, extraPrompt } = req.body || {};
+  if (systemPrompt !== undefined) {
+    await setSetting("chat_system_prompt", String(systemPrompt));
+  }
+  if (extraPrompt !== undefined) {
+    await setSetting("chat_extra_prompt", String(extraPrompt));
+  }
+  const [savedSystem, savedExtra] = await Promise.all([
+    getSetting("chat_system_prompt", ""),
+    getSetting("chat_extra_prompt", ""),
+  ]);
+  res.json({ systemPrompt: savedSystem, extraPrompt: savedExtra });
 });
 
 export default router;

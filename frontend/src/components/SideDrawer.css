@@ -148,7 +148,9 @@
 .drawer__link--admin .drawer__link-no,
 .drawer__link--admin .drawer__link-title,
 .drawer__link--mypage .drawer__link-no,
-.drawer__link--mypage .drawer__link-title {
+.drawer__link--mypage .drawer__link-title,
+.drawer__link--chat-admin .drawer__link-no,
+.drawer__link--chat-admin .drawer__link-title {
   color: var(--accent);
 }
 

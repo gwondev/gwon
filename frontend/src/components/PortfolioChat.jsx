@@ -92,9 +92,6 @@ export default function PortfolioChat() {
 
   const examplesDisabled = busy || quota?.remaining === 0;
 
-  const quotaLabel =
-    quota != null ? `남은 질문 ${quota.remaining}회 / ${quota.limit}회` : null;
-
   return (
     <motion.section
       className="portfolio-chat"
@@ -105,7 +102,6 @@ export default function PortfolioChat() {
       <div className="portfolio-chat__head">
         <div className="portfolio-chat__head-text">
           <span className="portfolio-chat__title">저에 대해 질문해주세요!!</span>
-          {quotaLabel && <span className="portfolio-chat__quota">{quotaLabel}</span>}
         </div>
         <button
           type="button"

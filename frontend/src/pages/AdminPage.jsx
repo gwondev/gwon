@@ -36,9 +36,6 @@ export default function AdminPage() {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const [chatPrompt, setChatPrompt] = useState("");
-  const [promptBusy, setPromptBusy] = useState(false);
-  const [promptMsg, setPromptMsg] = useState(null);
 
   useEffect(() => {
     if (!loading && !isAdmin) navigate("/");
@@ -87,26 +84,12 @@ export default function AdminPage() {
     [token, localMode]
   );
 
-  const loadChatPrompt = useCallback(async () => {
-    if (localMode) {
-      setChatPrompt("");
-      return;
-    }
-    try {
-      const data = await api("/admin/chat-prompt", { token });
-      setChatPrompt(data.extraPrompt || "");
-    } catch (e) {
-      setPromptMsg({ type: "err", text: e.message });
-    }
-  }, [token, localMode]);
-
   useEffect(() => {
     if (isAdmin) {
       loadStats();
       loadUsers("");
-      loadChatPrompt();
     }
-  }, [isAdmin, loadStats, loadUsers, loadChatPrompt]);
+  }, [isAdmin, loadStats, loadUsers]);
 
   const search = (e) => {
     e.preventDefault();
@@ -137,28 +120,6 @@ export default function AdminPage() {
       loadStats();
     } catch (e) {
       alert(`권한 변경 실패: ${e.message}`);
-    }
-  };
-
-  const saveChatPrompt = async (e) => {
-    e.preventDefault();
-    if (localMode) {
-      setPromptMsg({ type: "ok", text: "로컬 모드 — 저장은 서버 배포 후 가능합니다." });
-      return;
-    }
-    setPromptBusy(true);
-    setPromptMsg(null);
-    try {
-      await api("/admin/chat-prompt", {
-        method: "PUT",
-        body: { extraPrompt: chatPrompt },
-        token,
-      });
-      setPromptMsg({ type: "ok", text: "AI 지침이 저장되었습니다." });
-    } catch (e2) {
-      setPromptMsg({ type: "err", text: e2.message });
-    } finally {
-      setPromptBusy(false);
     }
   };
 
@@ -228,31 +189,6 @@ export default function AdminPage() {
         ) : (
           <div className="state">DB 요약을 불러오는 중…</div>
         )}
-      </section>
-
-      {/* ── AI 챗봇 지침 ── */}
-      <section className="admin__section admin__section--prompt">
-        <h2 className="admin__section-title">AI 챗봇 추가 지침</h2>
-        <p className="admin__prompt-desc">
-          메인 챗봇 답변에 반영할 추가 지침을 입력하세요.
-        </p>
-        <form className="admin__prompt-form" onSubmit={saveChatPrompt}>
-          <textarea
-            className="admin__prompt-area"
-            value={chatPrompt}
-            onChange={(e) => setChatPrompt(e.target.value)}
-            placeholder="예: 강점은 백엔드와 IoT 프로젝트 경험입니다. 수상 경력을 우선 언급해주세요."
-            rows={6}
-          />
-          {promptMsg && (
-            <p className={`admin__prompt-msg ${promptMsg.type === "err" ? "is-err" : "is-ok"}`}>
-              {promptMsg.text}
-            </p>
-          )}
-          <button type="submit" className="btn btn-accent" disabled={promptBusy}>
-            {promptBusy ? "저장 중…" : "지침 저장"}
-          </button>
-        </form>
       </section>
 
       {/* ── 회원 관리 ── */}
