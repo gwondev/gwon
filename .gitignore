@@ -1,0 +1,7 @@
+node_modules/
+**/node_modules/
+mysql_data/
+data/
+npm-debug.log*
+.DS_Store
+.env.production

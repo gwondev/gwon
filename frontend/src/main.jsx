@@ -1,24 +1,21 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import { AuthProvider } from "./context/AuthContext";
+import App from "./App";
+import "./styles/global.css";
 
-import RootPage from './pages/RootPage'; 
-import DBPage from './pages/DBPage';
+const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
-const theme = createTheme();
-
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <BrowserRouter>
-        <Routes>
-          {/* element 부분도 RootPage로 맞춰줍니다 */}
-          <Route path="/" element={<RootPage />} />
-          <Route path="/db" element={<DBPage />} />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+    <GoogleOAuthProvider clientId={clientId}>
+      <AuthProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   </React.StrictMode>
 );

@@ -1,0 +1,59 @@
+import { motion } from "framer-motion";
+import SectionLayout from "../components/SectionLayout";
+import Adder from "../components/Adder";
+import { useResource } from "../lib/useResource";
+import { useAuth } from "../context/AuthContext";
+
+const FIELDS = [
+  { name: "title", label: "활동명", required: true, placeholder: "예: 멋쟁이사자처럼 13기" },
+  { name: "organization", label: "기관 / 단체", placeholder: "예: 멋쟁이사자처럼" },
+  { name: "role", label: "역할", placeholder: "예: 백엔드 리드" },
+  { name: "period", label: "기간", placeholder: "예: 2024.09 – 2025.02" },
+  { name: "description", label: "설명", type: "textarea", span: true, placeholder: "활동 내용, 성과 등" },
+];
+
+export default function ActivitiesPage() {
+  const { items, loading, error, create, remove } = useResource("activities");
+  const { isAdmin } = useAuth();
+
+  return (
+    <SectionLayout active="activities" title="활동" sub="Activities" count={items.length}>
+      <Adder label="활동 추가" fields={FIELDS} onCreate={create} />
+
+      {loading ? (
+        <div className="state">불러오는 중…</div>
+      ) : error ? (
+        <div className="state">목록을 불러오지 못했습니다.</div>
+      ) : items.length === 0 ? (
+        <div className="state">아직 등록된 활동이 없습니다.</div>
+      ) : (
+        <div className="records">
+          {items.map((a, i) => (
+            <motion.article
+              key={a.id}
+              className="record"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {isAdmin && (
+                <button className="record__del" onClick={() => remove(a.id)} aria-label="삭제">
+                  ✕
+                </button>
+              )}
+              <div className="record__row">
+                <span className="record__title">{a.title}</span>
+                {a.role && <span className="record__tag">{a.role}</span>}
+              </div>
+              <div className="record__meta">
+                {a.organization && <span><b>단체</b>{a.organization}</span>}
+                {a.period && <span><b>기간</b>{a.period}</span>}
+              </div>
+              {a.description && <p className="record__desc">{a.description}</p>}
+            </motion.article>
+          ))}
+        </div>
+      )}
+    </SectionLayout>
+  );
+}
