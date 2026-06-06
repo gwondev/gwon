@@ -1,7 +1,7 @@
 .root {
   display: flex;
   flex-direction: column;
-  gap: clamp(14px, 2.2vw, 20px);
+  gap: clamp(17px, 2.6vw, 24px);
   padding-top: clamp(2px, 0.6vh, 8px);
   padding-bottom: clamp(60px, 12vh, 140px);
 }
@@ -124,12 +124,12 @@
   overflow: hidden;
   isolation: isolate;
   text-align: left;
-  min-height: clamp(156px, 21vh, 214px);
+  min-height: clamp(203px, 27vh, 278px);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   gap: 0.65rem;
-  padding: clamp(16px, 1.6vw, 22px);
+  padding: clamp(21px, 2.1vw, 29px);
   border-radius: var(--radius-xl);
   border: 1px solid var(--line);
   background:
@@ -231,9 +231,9 @@
     gap: 10px;
   }
   .cat-card {
-    min-height: 88px;
+    min-height: 114px;
     gap: 0.45rem;
-    padding: 14px;
+    padding: 18px;
     border-radius: var(--radius-lg);
   }
   .cat-card__title {
@@ -249,7 +249,7 @@
 }
 @media (max-width: 480px) {
   .hero__lead {
-    font-size: 0.2rem;
+    font-size: 0.14rem;
     letter-spacing: 0.14em;
     white-space: normal;
   }
@@ -270,8 +270,8 @@
     height: 40px;
   }
   .cat-card {
-    min-height: 76px;
-    padding: 13px;
+    min-height: 99px;
+    padding: 17px;
   }
   .cat-card__title {
     font-size: 0.9rem;

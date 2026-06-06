@@ -70,7 +70,7 @@
 
 @media (max-width: 560px) {
   .topbar__greet-text {
-    font-size: 0.72rem;
+    font-size: calc(0.72rem - 1pt);
     gap: 0.4rem;
   }
 }
