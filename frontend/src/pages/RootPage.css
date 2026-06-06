@@ -22,7 +22,7 @@
 .hero__lead {
   max-width: none;
   margin: 0 auto;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.12em;
   opacity: 0.7;
@@ -80,12 +80,12 @@
   color: var(--accent);
 }
 .overview-bar__title {
-  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 .overview-bar__sub {
-  font-size: 0.84rem;
+  font-size: 0.76rem;
   letter-spacing: 0.04em;
   color: var(--text-faint);
   text-transform: uppercase;
@@ -172,13 +172,13 @@
   gap: 0.35rem;
 }
 .cat-card__title {
-  font-size: clamp(1.2rem, 1.35vw, 1.5rem);
+  font-size: clamp(1.08rem, 1.2vw, 1.35rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
 .cat-card__sub {
-  font-size: 0.82rem;
+  font-size: 0.74rem;
   letter-spacing: 0.06em;
   color: var(--text-faint);
   text-transform: uppercase;
@@ -190,7 +190,7 @@
   gap: 1rem;
 }
 .cat-card__desc {
-  font-size: 0.83rem;
+  font-size: 0.76rem;
   line-height: 1.35;
   color: var(--text-dim);
   max-width: 18ch;
@@ -245,11 +245,17 @@
 }
 @media (max-width: 480px) {
   .hero__lead {
-    font-size: 0.92rem;
+    font-size: 0.62rem;
     white-space: normal;
   }
   .overview-bar {
     padding: 16px 18px;
+  }
+  .overview-bar__title {
+    font-size: 1.15rem;
+  }
+  .overview-bar__sub {
+    font-size: 0.66rem;
   }
   .overview-bar__arrow {
     width: 40px;
@@ -260,11 +266,14 @@
     padding: 15px;
   }
   .cat-card__title {
-    font-size: 1rem;
+    font-size: 0.9rem;
     line-height: 1.1;
   }
+  .cat-card__sub {
+    font-size: 0.64rem;
+  }
   .cat-card__desc {
-    font-size: 0.72rem;
+    font-size: 0.66rem;
     max-width: 100%;
   }
 }
