@@ -1,7 +1,7 @@
 .portfolio-chat {
   width: 100%;
-  margin-bottom: clamp(10px, 1.2vw, 16px);
-  padding: clamp(12px, 1.6vw, 16px);
+  margin-bottom: clamp(32px, 4vw, 48px);
+  padding: clamp(14px, 1.8vw, 20px);
   border-radius: var(--radius-xl);
   border: 1px solid var(--line);
   background:
@@ -11,14 +11,43 @@
 
 .portfolio-chat__head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.portfolio-chat__head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.portfolio-chat__quota {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.01em;
+}
+
+.portfolio-chat__limit-notice {
+  margin: 0 0 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.portfolio-chat__limit-notice strong {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .portfolio-chat__title {
-  font-size: clamp(0.88rem, 1.4vw, 0.98rem);
+  font-size: clamp(0.92rem, 1.5vw, 1.02rem);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -46,22 +75,45 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.65rem;
   overflow-y: auto;
 }
 .portfolio-chat__log.is-compact {
-  max-height: 5.2rem;
+  min-height: 3.2rem;
+  max-height: 7rem;
 }
 .portfolio-chat__log.is-full {
   max-height: min(280px, 38vh);
   padding-right: 0.15rem;
 }
 
-.portfolio-chat__placeholder {
-  margin: 0;
-  font-size: 0.76rem;
+.portfolio-chat__examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.portfolio-chat__example {
+  padding: 0.38rem 0.85rem;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--line);
+  background: transparent;
   color: var(--text-faint);
-  line-height: 1.45;
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: border-color 0.3s var(--ease), color 0.3s var(--ease),
+    background 0.3s var(--ease);
+}
+.portfolio-chat__example:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.02);
+}
+.portfolio-chat__example:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .portfolio-chat__bubble {
@@ -116,8 +168,8 @@
 .portfolio-chat__form input {
   flex: 1;
   min-width: 0;
-  padding: 0.55rem 0.75rem;
-  border-radius: var(--radius-md);
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--bg);
   color: var(--text);
@@ -129,16 +181,19 @@
 }
 .portfolio-chat__form .btn {
   flex: none;
-  padding: 0.55rem 0.9rem;
+  padding: 0.6rem 0.95rem;
   font-size: 0.8rem;
+  border-radius: var(--radius-pill);
 }
 
 @media (max-width: 480px) {
   .portfolio-chat__title {
-    font-size: 0.82rem;
+    font-size: 0.86rem;
   }
-  .portfolio-chat__bubble p,
-  .portfolio-chat__placeholder {
+  .portfolio-chat__example {
+    font-size: 0.72rem;
+  }
+  .portfolio-chat__bubble p {
     font-size: 0.72rem;
   }
   .portfolio-chat__form input {

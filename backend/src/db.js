@@ -75,6 +75,13 @@ const SCHEMA = [
     value TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS chat_daily_usage (
+    subject_key VARCHAR(128) NOT NULL,
+    usage_date DATE NOT NULL,
+    count INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (subject_key, usage_date)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 const CONTENT_TABLES = ["projects", "activities", "certifications", "careers"];

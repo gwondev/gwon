@@ -2,6 +2,28 @@
   padding-top: clamp(18px, 4vh, 40px);
   padding-bottom: clamp(56px, 12vh, 140px);
 }
+.admin__top {
+  display: flex;
+  justify-content: center;
+  margin-bottom: clamp(16px, 3vh, 28px);
+}
+.admin__home {
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: border-color 0.35s var(--ease), background 0.35s var(--ease),
+    transform 0.35s var(--ease);
+}
+.admin__home:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
 .admin__head {
   display: flex;
   align-items: flex-start;
@@ -32,18 +54,23 @@
   text-transform: uppercase;
 }
 
+.admin__section--prompt .admin__section-title {
+  margin-bottom: 0.75rem;
+}
 .admin__prompt-desc {
   margin: -0.4rem 0 1rem;
-  max-width: 56ch;
   font-size: 0.88rem;
   color: var(--text-dim);
-  line-height: 1.55;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .admin__prompt-form {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-width: 720px;
+  width: 100%;
 }
 .admin__prompt-area {
   width: 100%;
@@ -249,6 +276,9 @@
 }
 
 @media (max-width: 680px) {
+  .admin__prompt-desc {
+    white-space: normal;
+  }
   .admin__col-email {
     display: none;
   }

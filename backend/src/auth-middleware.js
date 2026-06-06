@@ -9,6 +9,20 @@ export function signToken(user) {
   });
 }
 
+// Bearer 토큰이 있으면 req.auth 설정 (없거나 무효면 게스트)
+export function optionalAuth(req, _res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (token) {
+    try {
+      req.auth = jwt.verify(token, JWT_SECRET);
+    } catch {
+      // 무효 토큰 → 비로그인(IP 제한)으로 처리
+    }
+  }
+  next();
+}
+
 // Bearer 토큰 검증 미들웨어
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";

@@ -1,7 +1,9 @@
 import { Router } from "express";
+import { optionalAuth } from "../auth-middleware.js";
 import { buildPortfolioContext } from "../lib/portfolio-context.js";
 import { askGemini, getGeminiModels } from "../lib/gemini.js";
 import { getSetting } from "../lib/settings.js";
+import { assertChatQuotaAvailable, getChatQuota, incrementChatQuota } from "../lib/chat-quota.js";
 
 const router = Router();
 
@@ -11,11 +13,23 @@ const BASE_SYSTEM = `당신은 이성권의 포트폴리오 웹사이트 AI 어�
 답변은 한국어로, 간결하고 친절하게 작성하세요.
 주어는 이성권입니다.`;
 
+router.use(optionalAuth);
+
 router.get("/status", (_req, res) => {
   res.json({
     ready: Boolean(process.env.GEMINI_API_KEY?.trim()),
     models: getGeminiModels(),
   });
+});
+
+router.get("/quota", async (req, res) => {
+  try {
+    const quota = await getChatQuota(req);
+    res.json(quota);
+  } catch (err) {
+    console.error("[chat/quota]", err.message);
+    res.status(500).json({ error: err.message || "할당량 조회 실패" });
+  }
 });
 
 router.post("/", async (req, res) => {
@@ -27,6 +41,8 @@ router.post("/", async (req, res) => {
     if (!process.env.GEMINI_API_KEY?.trim()) {
       return res.status(503).json({ error: "AI 챗봇 API 키가 설정되지 않았습니다." });
     }
+
+    await assertChatQuotaAvailable(req);
 
     const history = Array.isArray(req.body?.history) ? req.body.history.slice(-8) : [];
     const extra = await getSetting("chat_extra_prompt", "");
@@ -41,9 +57,13 @@ router.post("/", async (req, res) => {
       .join("\n");
 
     const reply = await askGemini({ system, history, message });
-    res.json({ reply });
+    const quota = await incrementChatQuota(req);
+    res.json({ reply, quota });
   } catch (err) {
     console.error("[chat]", err.message);
+    if (err.status === 429) {
+      return res.status(429).json({ error: err.message, quota: err.quota });
+    }
     res.status(500).json({ error: err.message || "AI 답변 생성에 실패했습니다." });
   }
 });

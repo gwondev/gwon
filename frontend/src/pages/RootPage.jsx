@@ -116,7 +116,7 @@ export default function RootPage() {
               <span className="cat-card__sheen" aria-hidden />
               <span className="cat-card__body">
                 <span className="cat-card__title">{s.title}</span>
-                <span className="cat-card__sub">{s.sub}</span>
+                <span className="cat-card__divider" aria-hidden />
                 <span className="cat-card__preview">
                   {rows.length > 0 ? (
                     rows.map((it) => (

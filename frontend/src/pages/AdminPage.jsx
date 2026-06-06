@@ -166,6 +166,12 @@ export default function AdminPage() {
 
   return (
     <PageTransition className="page admin">
+      <div className="admin__top">
+        <button type="button" className="admin__home" onClick={() => navigate("/")}>
+          메인 화면
+        </button>
+      </div>
+
       <motion.header
         className="admin__head"
         initial={{ opacity: 0, y: 18 }}
@@ -225,11 +231,10 @@ export default function AdminPage() {
       </section>
 
       {/* ── AI 챗봇 지침 ── */}
-      <section className="admin__section">
+      <section className="admin__section admin__section--prompt">
         <h2 className="admin__section-title">AI 챗봇 추가 지침</h2>
         <p className="admin__prompt-desc">
-          메인 화면 챗봇이 답변할 때 참고하는 추가 스크립트입니다. DB 데이터 외에 강조할 내용이나
-          말투를 적어주세요.
+          메인 챗봇 답변에 반영할 추가 지침을 입력하세요.
         </p>
         <form className="admin__prompt-form" onSubmit={saveChatPrompt}>
           <textarea

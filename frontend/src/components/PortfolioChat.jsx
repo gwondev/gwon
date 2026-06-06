@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import "./PortfolioChat.css";
 
 export default function PortfolioChat() {
+  const { token, isAuthed, localMode } = useAuth();
+  const authedRequest = isAuthed && !localMode && token;
+
   const [compact, setCompact] = useState(true);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [quota, setQuota] = useState(null);
   const logRef = useRef(null);
 
   const visible = compact
@@ -17,16 +22,36 @@ export default function PortfolioChat() {
       : messages
     : messages;
 
+  const guestExhausted = quota?.tier === "guest" && quota.remaining === 0 && !localMode;
+
+  useEffect(() => {
+    let alive = true;
+    api("/chat/quota", { token: authedRequest ? token : undefined })
+      .then((data) => alive && setQuota(data))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [token, authedRequest]);
+
   useEffect(() => {
     if (!compact && logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [messages, compact]);
 
-  const send = async (e) => {
-    e.preventDefault();
-    const text = input.trim();
+  const submitMessage = async (textOverride) => {
+    const text = (textOverride ?? input).trim();
     if (!text || busy) return;
+
+    if (quota?.remaining === 0) {
+      setErr(
+        guestExhausted
+          ? "오늘 질문 횟수를 모두 사용하셨습니다. 로그인하시면 하루 100회까지 질문하실 수 있습니다."
+          : "오늘 질문 가능 횟수를 모두 사용하셨습니다."
+      );
+      return;
+    }
 
     setInput("");
     setErr(null);
@@ -39,16 +64,34 @@ export default function PortfolioChat() {
       const data = await api("/chat", {
         method: "POST",
         body: { message: text, history },
+        token: authedRequest ? token : undefined,
       });
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+      if (data.quota) setQuota(data.quota);
     } catch (e2) {
+      if (e2.quota) setQuota(e2.quota);
       setErr(e2.message);
       setMessages((prev) => prev.slice(0, -1));
-      setInput(text);
+      if (!textOverride) setInput(text);
     } finally {
       setBusy(false);
     }
   };
+
+  const send = (e) => {
+    e.preventDefault();
+    submitMessage();
+  };
+
+  const askExample = (text) => {
+    if (busy || quota?.remaining === 0) return;
+    submitMessage(text);
+  };
+
+  const examplesDisabled = busy || quota?.remaining === 0;
+
+  const quotaLabel =
+    quota != null ? `남은 질문 ${quota.remaining}회 / ${quota.limit}회` : null;
 
   return (
     <motion.section
@@ -58,7 +101,10 @@ export default function PortfolioChat() {
       transition={{ duration: 0.75, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="portfolio-chat__head">
-        <span className="portfolio-chat__title">저에 대해 질문해주세요!!</span>
+        <div className="portfolio-chat__head-text">
+          <span className="portfolio-chat__title">저에 대해 질문해주세요!!</span>
+          {quotaLabel && <span className="portfolio-chat__quota">{quotaLabel}</span>}
+        </div>
         <button
           type="button"
           className="portfolio-chat__toggle"
@@ -68,14 +114,38 @@ export default function PortfolioChat() {
         </button>
       </div>
 
+      {guestExhausted && (
+        <p className="portfolio-chat__limit-notice">
+          <strong>오늘 무료 질문 횟수를 모두 사용하셨습니다.</strong>
+          <br />
+          로그인하시면 하루 100회까지 질문하실 수 있습니다. 왼쪽 상단 또는 오른쪽 메뉴에서
+          로그인해 주세요.
+        </p>
+      )}
+
       <div
         ref={logRef}
         className={`portfolio-chat__log ${compact ? "is-compact" : "is-full"}`}
       >
         {visible.length === 0 && !busy && (
-          <p className="portfolio-chat__placeholder">
-            예: 이 사람의 강점은 뭐야? · 어떤 프로젝트를 했어?
-          </p>
+          <div className="portfolio-chat__examples">
+            <button
+              type="button"
+              className="portfolio-chat__example"
+              disabled={examplesDisabled}
+              onClick={() => askExample("이성권의 강점")}
+            >
+              이성권의 강점
+            </button>
+            <button
+              type="button"
+              className="portfolio-chat__example"
+              disabled={examplesDisabled}
+              onClick={() => askExample("자기소개")}
+            >
+              자기소개
+            </button>
+          </div>
         )}
         {visible.map((m, i) => (
           <div
@@ -100,11 +170,19 @@ export default function PortfolioChat() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="질문을 입력하세요"
+          placeholder={
+            quota?.remaining === 0
+              ? "오늘 질문 횟수를 모두 사용하셨습니다"
+              : "질문을 입력해 주세요"
+          }
           maxLength={500}
-          disabled={busy}
+          disabled={busy || quota?.remaining === 0}
         />
-        <button type="submit" className="btn btn-accent" disabled={busy || !input.trim()}>
+        <button
+          type="submit"
+          className="btn btn-accent"
+          disabled={busy || !input.trim() || quota?.remaining === 0}
+        >
           전송
         </button>
       </form>

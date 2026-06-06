@@ -14,7 +14,10 @@ export async function api(path, { method = "GET", body, token } = {}) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `요청 실패 (${res.status})`);
+    const err = new Error(data.error || `요청 실패 (${res.status})`);
+    err.status = res.status;
+    if (data.quota) err.quota = data.quota;
+    throw err;
   }
   return data;
 }
