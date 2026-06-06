@@ -33,6 +33,7 @@ const SCHEMA = [
     award VARCHAR(255),
     period VARCHAR(128),
     description TEXT,
+    sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
@@ -43,6 +44,7 @@ const SCHEMA = [
     role VARCHAR(255),
     period VARCHAR(128),
     description TEXT,
+    sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
@@ -53,6 +55,7 @@ const SCHEMA = [
     acquired VARCHAR(128),
     score VARCHAR(128),
     description TEXT,
+    sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
@@ -63,19 +66,33 @@ const SCHEMA = [
     position VARCHAR(255),
     period VARCHAR(128),
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    sort_order INT NOT NULL DEFAULT 0,
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
+
+const CONTENT_TABLES = ["projects", "activities", "certifications", "careers"];
+
+async function backfillSortOrder(conn, table) {
+  const [rows] = await conn.query(`SELECT id FROM \`${table}\` ORDER BY id DESC`);
+  for (let i = 0; i < rows.length; i++) {
+    await conn.query(`UPDATE \`${table}\` SET sort_order = ? WHERE id = ?`, [i, rows[i].id]);
+  }
+}
 
 // 기존 테이블에 누락된 컬럼이 있으면 추가 (이미 있으면 무시)
 async function runMigrations(conn) {
   const migrations = [
     "ALTER TABLE users ADD COLUMN role ENUM('GUEST','ADMIN') NOT NULL DEFAULT 'GUEST'",
     "ALTER TABLE careers ADD COLUMN category VARCHAR(64) AFTER title",
+    ...CONTENT_TABLES.map(
+      (t) => `ALTER TABLE \`${t}\` ADD COLUMN sort_order INT NOT NULL DEFAULT 0`
+    ),
   ];
   for (const sql of migrations) {
     try {
       await conn.query(sql);
+      const match = sql.match(/ALTER TABLE `(\w+)` ADD COLUMN sort_order/);
+      if (match) await backfillSortOrder(conn, match[1]);
     } catch (err) {
       // 컬럼이 이미 존재하면(ER_DUP_FIELDNAME) 정상이므로 무시
       if (err.code !== "ER_DUP_FIELDNAME") {

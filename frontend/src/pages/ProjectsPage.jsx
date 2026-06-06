@@ -1,6 +1,6 @@
 import SectionLayout from "../components/SectionLayout";
 import Adder from "../components/Adder";
-import RecordItem from "../components/RecordItem";
+import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
 import { PROJECT_CATEGORIES } from "../lib/sections";
@@ -17,7 +17,7 @@ const FIELDS = [
 ];
 
 export default function ProjectsPage() {
-  const { items, loading, error, create, update, remove } = useResource("projects");
+  const { items, loading, error, create, update, remove, reorder } = useResource("projects");
   const { isAdmin } = useAuth();
 
   return (
@@ -36,17 +36,15 @@ export default function ProjectsPage() {
       ) : items.length === 0 ? (
         <div className="state">아직 등록된 프로젝트가 없습니다.</div>
       ) : (
-        <div className="records">
-          {items.map((p, i) => (
-            <RecordItem
-              key={p.id}
-              item={p}
-              fields={FIELDS}
-              index={i}
-              isAdmin={isAdmin}
-              onUpdate={update}
-              onRemove={remove}
-            >
+        <RecordList
+          items={items}
+          fields={FIELDS}
+          isAdmin={isAdmin}
+          onUpdate={update}
+          onRemove={remove}
+          onReorder={reorder}
+          renderItem={(p) => (
+            <>
               <div className="record__head">
                 <span className="record__title">{p.title}</span>
                 {p.category && <span className="record__tag">{p.category}</span>}
@@ -59,9 +57,9 @@ export default function ProjectsPage() {
                 {p.period && <span><b>기간</b>{p.period}</span>}
               </div>
               {p.description && <p className="record__desc">{p.description}</p>}
-            </RecordItem>
-          ))}
-        </div>
+            </>
+          )}
+        />
       )}
     </SectionLayout>
   );

@@ -1,6 +1,6 @@
 import SectionLayout from "../components/SectionLayout";
 import Adder from "../components/Adder";
-import RecordItem from "../components/RecordItem";
+import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
 
@@ -13,7 +13,7 @@ const FIELDS = [
 ];
 
 export default function ActivitiesPage() {
-  const { items, loading, error, create, update, remove } = useResource("activities");
+  const { items, loading, error, create, update, remove, reorder } = useResource("activities");
   const { isAdmin } = useAuth();
 
   return (
@@ -27,17 +27,15 @@ export default function ActivitiesPage() {
       ) : items.length === 0 ? (
         <div className="state">아직 등록된 활동이 없습니다.</div>
       ) : (
-        <div className="records">
-          {items.map((a, i) => (
-            <RecordItem
-              key={a.id}
-              item={a}
-              fields={FIELDS}
-              index={i}
-              isAdmin={isAdmin}
-              onUpdate={update}
-              onRemove={remove}
-            >
+        <RecordList
+          items={items}
+          fields={FIELDS}
+          isAdmin={isAdmin}
+          onUpdate={update}
+          onRemove={remove}
+          onReorder={reorder}
+          renderItem={(a) => (
+            <>
               <div className="record__head">
                 <span className="record__title">{a.title}</span>
                 {a.role && <span className="record__tag">{a.role}</span>}
@@ -47,9 +45,9 @@ export default function ActivitiesPage() {
                 {a.period && <span><b>기간</b>{a.period}</span>}
               </div>
               {a.description && <p className="record__desc">{a.description}</p>}
-            </RecordItem>
-          ))}
-        </div>
+            </>
+          )}
+        />
       )}
     </SectionLayout>
   );

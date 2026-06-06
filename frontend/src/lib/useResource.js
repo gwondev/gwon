@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { useAuth } from "../context/AuthContext";
 
@@ -8,6 +8,8 @@ export function useResource(resource) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const reorderTimer = useRef(null);
+  const reorderPrev = useRef(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -20,6 +22,13 @@ export function useResource(resource) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(
+    () => () => {
+      if (reorderTimer.current) clearTimeout(reorderTimer.current);
+    },
+    []
+  );
 
   const create = useCallback(
     async (body) => {
@@ -47,5 +56,29 @@ export function useResource(resource) {
     [resource, token]
   );
 
-  return { items, loading, error, create, update, remove, reload: load };
+  const reorder = useCallback(
+    (nextItems) => {
+      setItems((prev) => {
+        reorderPrev.current = prev;
+        return nextItems;
+      });
+      if (reorderTimer.current) clearTimeout(reorderTimer.current);
+      reorderTimer.current = setTimeout(async () => {
+        try {
+          const data = await api(`/${resource}/reorder`, {
+            method: "PUT",
+            body: { ids: nextItems.map((it) => it.id) },
+            token,
+          });
+          setItems(data.items || nextItems);
+        } catch (e) {
+          if (reorderPrev.current) setItems(reorderPrev.current);
+          alert(`순서 변경 실패: ${e.message}`);
+        }
+      }, 350);
+    },
+    [resource, token]
+  );
+
+  return { items, loading, error, create, update, remove, reorder, reload: load };
 }

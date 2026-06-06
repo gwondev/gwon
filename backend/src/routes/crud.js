@@ -31,9 +31,36 @@ export function crudRouter(table) {
     return rows[0] || null;
   };
 
-  // GET 목록 (공개)
+  // GET 목록 (공개) — sort_order 오름차순
   router.get("/", async (_req, res) => {
-    const [rows] = await pool.query(`SELECT * FROM \`${table}\` ORDER BY id DESC`);
+    const [rows] = await pool.query(
+      `SELECT * FROM \`${table}\` ORDER BY sort_order ASC, id ASC`
+    );
+    res.json({ items: rows });
+  });
+
+  // PUT 순서 변경 (관리자 전용) — 반드시 /:id 보다 먼저 등록
+  router.put("/reorder", requireAdmin, async (req, res) => {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "ids 배열이 필요합니다." });
+    }
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      for (let i = 0; i < ids.length; i++) {
+        await conn.query(`UPDATE \`${table}\` SET sort_order = ? WHERE id = ?`, [i, ids[i]]);
+      }
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+    const [rows] = await pool.query(
+      `SELECT * FROM \`${table}\` ORDER BY sort_order ASC, id ASC`
+    );
     res.json({ items: rows });
   });
 
@@ -41,6 +68,10 @@ export function crudRouter(table) {
   router.post("/", requireAdmin, async (req, res) => {
     const data = pick(req.body || {});
     if (!data.title) return res.status(400).json({ error: "제목(title)은 필수입니다." });
+    const [[{ nextOrder }]] = await pool.query(
+      `SELECT COALESCE(MIN(sort_order), 0) - 1 AS nextOrder FROM \`${table}\``
+    );
+    data.sort_order = nextOrder;
     const keys = Object.keys(data);
     const placeholders = keys.map(() => "?").join(", ");
     const [result] = await pool.query(

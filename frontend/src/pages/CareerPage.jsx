@@ -1,6 +1,6 @@
 import SectionLayout from "../components/SectionLayout";
 import Adder from "../components/Adder";
-import RecordItem from "../components/RecordItem";
+import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
 
@@ -13,7 +13,7 @@ const FIELDS = [
 ];
 
 export default function CareerPage() {
-  const { items, loading, error, create, update, remove } = useResource("careers");
+  const { items, loading, error, create, update, remove, reorder } = useResource("careers");
   const { isAdmin } = useAuth();
 
   return (
@@ -27,17 +27,15 @@ export default function CareerPage() {
       ) : items.length === 0 ? (
         <div className="state">아직 등록된 경력이 없습니다.</div>
       ) : (
-        <div className="records">
-          {items.map((c, i) => (
-            <RecordItem
-              key={c.id}
-              item={c}
-              fields={FIELDS}
-              index={i}
-              isAdmin={isAdmin}
-              onUpdate={update}
-              onRemove={remove}
-            >
+        <RecordList
+          items={items}
+          fields={FIELDS}
+          isAdmin={isAdmin}
+          onUpdate={update}
+          onRemove={remove}
+          onReorder={reorder}
+          renderItem={(c) => (
+            <>
               <div className="record__head">
                 <span className="record__title">{c.title}</span>
                 {c.category && <span className="record__tag">{c.category}</span>}
@@ -47,9 +45,9 @@ export default function CareerPage() {
                 {c.period && <span><b>기간</b>{c.period}</span>}
               </div>
               {c.description && <p className="record__desc">{c.description}</p>}
-            </RecordItem>
-          ))}
-        </div>
+            </>
+          )}
+        />
       )}
     </SectionLayout>
   );

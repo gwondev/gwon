@@ -103,6 +103,41 @@
 .record--editing {
   transform: none;
 }
+.record-wrap {
+  list-style: none;
+  position: relative;
+}
+.record--sortable {
+  padding-left: clamp(28px, 3vw, 34px);
+}
+.record--sortable .record__head {
+  padding-right: 3.2rem;
+}
+.record__drag {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  opacity: 0.45;
+  transition: opacity 0.25s var(--ease), color 0.25s var(--ease);
+}
+.record:hover .record__drag,
+.record:focus-within .record__drag {
+  opacity: 0.85;
+}
+.record__drag:active {
+  cursor: grabbing;
+  color: var(--accent);
+}
 .record__head {
   display: flex;
   align-items: center;
@@ -196,6 +231,9 @@
 @media (hover: none) {
   .record__actions {
     opacity: 0.85;
+  }
+  .record__drag {
+    opacity: 0.75;
   }
 }
 
