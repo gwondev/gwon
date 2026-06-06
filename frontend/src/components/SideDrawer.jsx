@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { SECTIONS } from "../lib/sections";
-import DrawerChatAdmin from "./DrawerChatAdmin";
 import "./SideDrawer.css";
 
 const panel = {
@@ -24,7 +22,6 @@ const item = {
 export default function SideDrawer({ open, onClose }) {
   const { user, isAuthed, isAdmin, localMode, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
-  const [chatAdminOpen, setChatAdminOpen] = useState(false);
 
   const go = (path) => {
     onClose();
@@ -70,6 +67,17 @@ export default function SideDrawer({ open, onClose }) {
             </div>
 
             <motion.nav className="drawer__nav" variants={stagger} initial="hidden" animate="show">
+              {isAuthed && (
+                <motion.button
+                  variants={item}
+                  className="drawer__link drawer__link--mypage"
+                  onClick={() => go("/mypage")}
+                >
+                  <span className="drawer__link-no">♦</span>
+                  <span className="drawer__link-title">마이페이지</span>
+                  <span className="drawer__link-arrow">→</span>
+                </motion.button>
+              )}
               {SECTIONS.map((s) => (
                 <motion.button
                   key={s.key}
@@ -82,17 +90,6 @@ export default function SideDrawer({ open, onClose }) {
                   <span className="drawer__link-arrow">→</span>
                 </motion.button>
               ))}
-              {isAuthed && !localMode && (
-                <motion.button
-                  variants={item}
-                  className="drawer__link drawer__link--mypage"
-                  onClick={() => go("/mypage")}
-                >
-                  <span className="drawer__link-no">♦</span>
-                  <span className="drawer__link-title">마이페이지</span>
-                  <span className="drawer__link-arrow">→</span>
-                </motion.button>
-              )}
               {isAdmin && (
                 <motion.button
                   variants={item}
@@ -105,19 +102,15 @@ export default function SideDrawer({ open, onClose }) {
                 </motion.button>
               )}
               {isAdmin && (
-                <motion.div variants={item}>
-                  <button
-                    type="button"
-                    className={`drawer__link drawer__link--chat-admin ${chatAdminOpen ? "is-open" : ""}`}
-                    onClick={() => setChatAdminOpen((v) => !v)}
-                    aria-expanded={chatAdminOpen}
-                  >
-                    <span className="drawer__link-no">◆</span>
-                    <span className="drawer__link-title">AI 챗봇 관리</span>
-                    <span className="drawer__link-arrow">{chatAdminOpen ? "−" : "+"}</span>
-                  </button>
-                  <DrawerChatAdmin open={chatAdminOpen} />
-                </motion.div>
+                <motion.button
+                  variants={item}
+                  className="drawer__link drawer__link--chat-admin"
+                  onClick={() => go("/admin/chat")}
+                >
+                  <span className="drawer__link-no">◆</span>
+                  <span className="drawer__link-title">AI 챗봇 관리</span>
+                  <span className="drawer__link-arrow">→</span>
+                </motion.button>
               )}
             </motion.nav>
 

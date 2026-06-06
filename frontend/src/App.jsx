@@ -11,6 +11,7 @@ import OverviewPage from "./pages/OverviewPage";
 import NicknameSetupPage from "./pages/NicknameSetupPage";
 import MyPage from "./pages/MyPage";
 import AdminPage from "./pages/AdminPage";
+import ChatAdminPage from "./pages/ChatAdminPage";
 
 export default function App() {
   const location = useLocation();
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/setup-nickname" element={<NicknameSetupPage />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/chat" element={<ChatAdminPage />} />
           <Route path="*" element={<RootPage />} />
         </Routes>
       </AnimatePresence>
