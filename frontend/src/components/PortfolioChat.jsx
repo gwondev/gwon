@@ -34,11 +34,13 @@ export default function PortfolioChat() {
     };
   }, [token, authedRequest]);
 
+  const hasLog = messages.length > 0 || busy;
+
   useEffect(() => {
-    if (!compact && logRef.current) {
+    if (logRef.current && hasLog) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-  }, [messages, compact]);
+  }, [messages, compact, busy, hasLog]);
 
   const submitMessage = async (textOverride) => {
     const text = (textOverride ?? input).trim();
@@ -108,6 +110,7 @@ export default function PortfolioChat() {
         <button
           type="button"
           className="portfolio-chat__toggle"
+          hidden={!hasLog}
           onClick={() => setCompact((c) => !c)}
         >
           {compact ? "전체 보기" : "간략화"}
@@ -123,46 +126,49 @@ export default function PortfolioChat() {
         </p>
       )}
 
-      <div
-        ref={logRef}
-        className={`portfolio-chat__log ${compact ? "is-compact" : "is-full"}`}
-      >
-        {visible.length === 0 && !busy && (
-          <div className="portfolio-chat__examples">
-            <button
-              type="button"
-              className="portfolio-chat__example"
-              disabled={examplesDisabled}
-              onClick={() => askExample("이성권의 강점")}
-            >
-              이성권의 강점
-            </button>
-            <button
-              type="button"
-              className="portfolio-chat__example"
-              disabled={examplesDisabled}
-              onClick={() => askExample("자기소개")}
-            >
-              자기소개
-            </button>
-          </div>
-        )}
-        {visible.map((m, i) => (
-          <div
-            key={`${i}-${m.role}`}
-            className={`portfolio-chat__bubble portfolio-chat__bubble--${m.role}`}
+      {!hasLog && (
+        <div className="portfolio-chat__examples">
+          <button
+            type="button"
+            className="portfolio-chat__example"
+            disabled={examplesDisabled}
+            onClick={() => askExample("이성권의 강점")}
           >
-            <span className="portfolio-chat__who">{m.role === "user" ? "Q" : "A"}</span>
-            <p>{m.content}</p>
-          </div>
-        ))}
-        {busy && (
-          <div className="portfolio-chat__bubble portfolio-chat__bubble--assistant">
-            <span className="portfolio-chat__who">A</span>
-            <p className="portfolio-chat__typing">답변 생성 중…</p>
-          </div>
-        )}
-      </div>
+            이성권의 강점
+          </button>
+          <button
+            type="button"
+            className="portfolio-chat__example"
+            disabled={examplesDisabled}
+            onClick={() => askExample("자기소개")}
+          >
+            자기소개
+          </button>
+        </div>
+      )}
+
+      {hasLog && (
+        <div
+          ref={logRef}
+          className={`portfolio-chat__log ${compact ? "is-compact" : "is-full"}`}
+        >
+          {visible.map((m, i) => (
+            <div
+              key={`${i}-${m.role}`}
+              className={`portfolio-chat__bubble portfolio-chat__bubble--${m.role}`}
+            >
+              <span className="portfolio-chat__who">{m.role === "user" ? "Q" : "A"}</span>
+              <p>{m.content}</p>
+            </div>
+          ))}
+          {busy && (
+            <div className="portfolio-chat__bubble portfolio-chat__bubble--assistant">
+              <span className="portfolio-chat__who">A</span>
+              <p className="portfolio-chat__typing">답변 생성 중…</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {err && <p className="portfolio-chat__err">{err}</p>}
 

@@ -129,9 +129,6 @@ export default function RootPage() {
                   )}
                 </span>
               </span>
-              <span className="cat-card__foot">
-                <span className="cat-card__arrow">→</span>
-              </span>
             </motion.button>
           );
         })}
