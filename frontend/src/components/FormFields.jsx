@@ -126,6 +126,22 @@ function PeriodInput({ id, value, onChange }) {
   );
 }
 
+// 기간 입력 (시작 ~ 종료, 연·월·일)
+function PeriodYmdInput({ id, value, onChange }) {
+  const [startRaw = "", endRaw = ""] = (value || "").split("~").map((s) => s.trim());
+  const combine = (s, e) => {
+    if (!s && !e) return onChange("");
+    onChange(`${s} ~ ${e}`.trim());
+  };
+  return (
+    <div className="period-input">
+      <YmdInput id={id} value={startRaw} onChange={(v) => combine(v, endRaw)} />
+      <span className="period-input__sep">~</span>
+      <YmdInput value={endRaw} onChange={(v) => combine(startRaw, v)} />
+    </div>
+  );
+}
+
 export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
   const set = (name, value) => onChange(name, value);
 
@@ -138,6 +154,8 @@ export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
             <label htmlFor={fid}>{f.label}</label>
             {f.type === "period" ? (
               <PeriodInput id={fid} value={form[f.name]} onChange={(v) => set(f.name, v)} />
+            ) : f.type === "period-ymd" ? (
+              <PeriodYmdInput id={fid} value={form[f.name]} onChange={(v) => set(f.name, v)} />
             ) : f.type === "ymd" ? (
               <YmdInput id={fid} value={form[f.name]} onChange={(v) => set(f.name, v)} />
             ) : f.type === "select-other" ? (

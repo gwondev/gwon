@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import { SECTIONS } from "../lib/sections";
 import { api } from "../lib/api";
+import { formatCareerPeriodPreview } from "../lib/format";
 import "./RootPage.css";
 
 const RESOURCE_BY_KEY = {
@@ -19,7 +20,10 @@ const PREVIEW = {
     (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
   activities: (it) => it.title,
   certifications: (it) => it.title,
-  career: (it) => it.title + (it.period ? ` (${it.period})` : ""),
+  career: (it) => {
+    const span = formatCareerPeriodPreview(it.period);
+    return it.title + (span ? ` (${span})` : "");
+  },
 };
 
 const PREVIEW_LIMIT = 3;
