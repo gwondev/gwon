@@ -1,8 +1,28 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import { SECTIONS } from "../lib/sections";
+import { api } from "../lib/api";
 import "./RootPage.css";
+
+const RESOURCE_BY_KEY = {
+  projects: "projects",
+  activities: "activities",
+  certifications: "certifications",
+  career: "careers",
+};
+
+// 카드 미리보기 한 줄 포맷 (DB row -> 텍스트)
+const PREVIEW = {
+  projects: (it) =>
+    (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
+  activities: (it) => it.title,
+  certifications: (it) => it.title,
+  career: (it) => it.title + (it.period ? ` (${it.period})` : ""),
+};
+
+const PREVIEW_LIMIT = 3;
 
 const heroStagger = {
   show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
@@ -22,6 +42,26 @@ const cardRise = {
 
 export default function RootPage() {
   const navigate = useNavigate();
+  const [preview, setPreview] = useState({});
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all(
+      SECTIONS.map((s) =>
+        api(`/${RESOURCE_BY_KEY[s.key]}`)
+          .then((d) => ({ key: s.key, items: d.items || [] }))
+          .catch(() => ({ key: s.key, items: [] }))
+      )
+    ).then((results) => {
+      if (!alive) return;
+      const next = {};
+      for (const { key, items } of results) next[key] = items;
+      setPreview(next);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <PageTransition className="page root">
@@ -44,37 +84,50 @@ export default function RootPage() {
         whileTap={{ scale: 0.99 }}
       >
         <span className="overview-bar__sheen" aria-hidden />
-        <span className="overview-bar__left">
-          <span className="overview-bar__no">00</span>
-          <span className="overview-bar__title">한번에 보기</span>
+        <span className="overview-bar__center">
+          <span className="overview-bar__title">
+            <span className="overview-bar__star" aria-hidden>★</span>
+            한번에 보기
+          </span>
           <span className="overview-bar__sub">기술스택 · 소개 · 전체 요약</span>
         </span>
-        <span className="overview-bar__arrow">→</span>
       </motion.button>
 
       <motion.div className="root__grid" variants={gridStagger} initial="hidden" animate="show">
-        {SECTIONS.map((s) => (
-          <motion.button
-            key={s.key}
-            variants={cardRise}
-            className="cat-card"
-            onClick={() => navigate(s.path)}
-            whileHover={{ y: -12 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 320, damping: 26 }}
-          >
-            <span className="cat-card__sheen" aria-hidden />
-            <span className="cat-card__no">{s.no}</span>
-            <span className="cat-card__body">
-              <span className="cat-card__title">{s.title}</span>
-              <span className="cat-card__sub">{s.sub}</span>
-            </span>
-            <span className="cat-card__foot">
-              <span className="cat-card__desc">{s.desc}</span>
-              <span className="cat-card__arrow">→</span>
-            </span>
-          </motion.button>
-        ))}
+        {SECTIONS.map((s) => {
+          const rows = (preview[s.key] || []).slice(0, PREVIEW_LIMIT);
+          return (
+            <motion.button
+              key={s.key}
+              variants={cardRise}
+              className="cat-card"
+              onClick={() => navigate(s.path)}
+              whileHover={{ y: -12 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 320, damping: 26 }}
+            >
+              <span className="cat-card__sheen" aria-hidden />
+              <span className="cat-card__body">
+                <span className="cat-card__title">{s.title}</span>
+                <span className="cat-card__sub">{s.sub}</span>
+                <span className="cat-card__preview">
+                  {rows.length > 0 ? (
+                    rows.map((it) => (
+                      <span className="cat-card__preview-item" key={it.id}>
+                        {PREVIEW[s.key](it)}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="cat-card__preview-empty">아직 등록된 항목 없음</span>
+                  )}
+                </span>
+              </span>
+              <span className="cat-card__foot">
+                <span className="cat-card__arrow">→</span>
+              </span>
+            </motion.button>
+          );
+        })}
       </motion.div>
     </PageTransition>
   );
