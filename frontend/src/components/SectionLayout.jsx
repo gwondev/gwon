@@ -3,7 +3,7 @@ import PageTransition from "./PageTransition";
 import TabNav from "./TabNav";
 import "./SectionLayout.css";
 
-const PAGE_HINT = "항목을 눌러 자세한 설명·사진을 확인하세요";
+const PAGE_HINT = "항목을 눌러 자세한 설명·사진·영상을 확인하세요";
 
 export default function SectionLayout({ active, title, sub, count, showPageHint, children }) {
   return (

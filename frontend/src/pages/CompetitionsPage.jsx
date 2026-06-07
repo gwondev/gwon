@@ -24,7 +24,7 @@ const FIELDS = [
     span: true,
     placeholder: "공모전 개요, 역할, 성과 등",
   },
-  { name: "media", label: "사진 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
+  { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
 export default function CompetitionsPage() {

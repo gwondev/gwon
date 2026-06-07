@@ -425,7 +425,8 @@
   color: var(--text-faint);
   font-size: 0.7rem;
 }
-.media-editor__thumb img {
+.media-editor__thumb img,
+.media-editor__thumb video {
   width: 100%;
   height: 100%;
   object-fit: cover;

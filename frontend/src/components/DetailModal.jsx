@@ -88,7 +88,14 @@ export default function DetailModal({ open, onClose, title, media = [], children
                           else if (info.offset.x > 60) go(-1);
                         }}
                       >
-                        {current?.image ? (
+                        {current?.video ? (
+                          <video
+                            src={current.video}
+                            controls
+                            playsInline
+                            className="detail-modal__video"
+                          />
+                        ) : current?.image ? (
                           <img src={current.image} alt={current.caption || ""} draggable={false} />
                         ) : null}
                       </motion.div>
@@ -117,7 +124,7 @@ export default function DetailModal({ open, onClose, title, media = [], children
                           key={i}
                           className={`detail-modal__dot ${i === index ? "is-on" : ""}`}
                           onClick={() => setIndex(i)}
-                          aria-label={`${i + 1}번째 사진`}
+                          aria-label={`${i + 1}번째 미디어`}
                         />
                       ))}
                     </div>

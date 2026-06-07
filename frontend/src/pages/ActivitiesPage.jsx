@@ -10,7 +10,7 @@ const FIELDS = [
   { name: "role", label: "역할", placeholder: "예: 백엔드 리드" },
   { name: "period", label: "기간", type: "period-ymd" },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "활동 내용, 성과 등" },
-  { name: "media", label: "사진 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
+  { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
 export default function ActivitiesPage() {

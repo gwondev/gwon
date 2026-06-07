@@ -97,12 +97,18 @@
 .detail-modal__slide:active {
   cursor: grabbing;
 }
-.detail-modal__slide img {
+.detail-modal__slide img,
+.detail-modal__slide video {
   max-width: 100%;
   max-height: clamp(220px, 42vh, 460px);
   object-fit: contain;
   display: block;
   user-select: none;
+}
+.detail-modal__video {
+  width: 100%;
+  background: #000;
+  border-radius: var(--radius-md);
 }
 
 .detail-modal__nav {

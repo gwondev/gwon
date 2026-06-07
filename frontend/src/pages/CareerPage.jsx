@@ -10,7 +10,7 @@ const FIELDS = [
   { name: "position", label: "직무 / 직책", placeholder: "예: 백엔드 엔지니어" },
   { name: "period", label: "기간", type: "period-ymd" },
   { name: "description", label: "주요 업무", type: "textarea", span: true, placeholder: "담당 업무, 성과 등" },
-  { name: "media", label: "사진 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
+  { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
 export default function CareerPage() {

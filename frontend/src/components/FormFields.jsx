@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { fileToCompressedDataUrl } from "../lib/image";
+import { fileToVideoDataUrl } from "../lib/video";
 import { parseMedia, stringifyMedia, splitTags } from "../lib/media";
 
 export function blankForm(fields) {
@@ -219,13 +220,21 @@ function MediaEditor({ value, onChange }) {
     try {
       const additions = [];
       for (const f of files) {
-        if (!f.type.startsWith("image/")) continue;
-        const image = await fileToCompressedDataUrl(f);
-        additions.push({ image, caption: "" });
+        if (f.type.startsWith("image/")) {
+          const image = await fileToCompressedDataUrl(f);
+          additions.push({ image, caption: "" });
+        } else if (f.type.startsWith("video/")) {
+          const video = await fileToVideoDataUrl(f);
+          additions.push({ video, caption: "" });
+        }
+      }
+      if (!additions.length) {
+        alert("사진 또는 영상 파일만 추가할 수 있습니다.");
+        return;
       }
       setList([...list, ...additions]);
-    } catch {
-      alert("이미지를 불러오지 못했습니다.");
+    } catch (err) {
+      alert(err.message || "미디어를 불러오지 못했습니다.");
     } finally {
       setBusy(false);
     }
@@ -248,13 +257,19 @@ function MediaEditor({ value, onChange }) {
         {list.map((m, i) => (
           <div className="media-editor__item" key={i}>
             <div className="media-editor__thumb">
-              {m.image ? <img src={m.image} alt="" /> : <span>이미지 없음</span>}
+              {m.video ? (
+                <video src={m.video} muted playsInline />
+              ) : m.image ? (
+                <img src={m.image} alt="" />
+              ) : (
+                <span>미디어 없음</span>
+              )}
             </div>
             <div className="media-editor__fields">
               <textarea
                 className="media-editor__caption"
                 value={m.caption || ""}
-                placeholder="이 사진에 대한 설명 한 줄"
+                placeholder="이 사진·영상에 대한 설명 한 줄"
                 onChange={(e) => updateCaption(i, e.target.value)}
               />
               <div className="media-editor__row-actions">
@@ -283,10 +298,10 @@ function MediaEditor({ value, onChange }) {
         ))}
       </div>
       <label className="media-editor__upload">
-        {busy ? "이미지 처리 중…" : "＋ 사진 추가 (여러 장 가능)"}
+        {busy ? "미디어 처리 중…" : "＋ 사진·영상 추가 (여러 개 가능)"}
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,video/mp4,video/webm,video/quicktime"
           multiple
           hidden
           disabled={busy}
