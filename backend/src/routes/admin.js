@@ -4,6 +4,7 @@ import { requireAdmin } from "../auth-middleware.js";
 
 import { getSetting, setSetting } from "../lib/settings.js";
 import { getTechStack, saveTechStack } from "../lib/tech-stack.js";
+import { listRecentChatLogs } from "../lib/chat-logs.js";
 
 const router = Router();
 const ROLES = ["GUEST", "ADMIN"];
@@ -96,6 +97,17 @@ router.get("/chat-prompt", requireAdmin, async (_req, res) => {
     getSetting("chat_extra_prompt", ""),
   ]);
   res.json({ systemPrompt, extraPrompt });
+});
+
+// GET /api/admin/chat-logs — 최근 AI 질문·답변 로그
+router.get("/chat-logs", requireAdmin, async (_req, res) => {
+  try {
+    const items = await listRecentChatLogs(20);
+    res.json({ items });
+  } catch (err) {
+    console.error("[admin/chat-logs]", err.message);
+    res.status(500).json({ error: err.message || "로그 조회 실패" });
+  }
 });
 
 // PUT /api/admin/chat-prompt — AI 프롬프트 저장

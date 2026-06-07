@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
@@ -16,6 +16,25 @@ const RESOURCE_BY_KEY = {
   certifications: "certifications",
   career: "careers",
 };
+
+const MOBILE_PREVIEW_MAX = 19;
+const MOBILE_MQ = "(max-width: 820px)";
+
+function subscribeMobileMq(cb) {
+  const mq = window.matchMedia(MOBILE_MQ);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+
+function getMobileMq() {
+  return window.matchMedia(MOBILE_MQ).matches;
+}
+
+function truncatePreview(text, max) {
+  const s = String(text || "");
+  if (!max || s.length <= max) return s;
+  return `${s.slice(0, max)}...`;
+}
 
 const PREVIEW = {
   competitions: (it) => (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
@@ -66,6 +85,8 @@ export default function RootPage() {
   const navigate = useNavigate();
   const [preview, setPreview] = useState({ projects: [] });
   const { groups: techGroups } = useTechStack();
+  const isMobile = useSyncExternalStore(subscribeMobileMq, getMobileMq, () => false);
+  const previewMax = isMobile ? MOBILE_PREVIEW_MAX : null;
 
   useEffect(() => {
     let alive = true;
@@ -114,7 +135,10 @@ export default function RootPage() {
         <span className="overview-bar__center">
           <span className="overview-bar__title">전체 포트폴리오 요약</span>
           <span className="overview-bar__sub">
-            프로젝트·경력·스택을 한 페이지에서 펼쳐 보실 수 있습니다
+            {truncatePreview(
+              "프로젝트·경력·스택을 한 페이지에서 펼쳐 보실 수 있습니다",
+              previewMax
+            )}
           </span>
         </span>
       </motion.button>
@@ -140,7 +164,7 @@ export default function RootPage() {
                   {rows.length > 0 ? (
                     rows.map((line, i) => (
                       <span className="cat-card__preview-item" key={`${s.key}-${i}`}>
-                        {line}
+                        {truncatePreview(line, previewMax)}
                       </span>
                     ))
                   ) : (

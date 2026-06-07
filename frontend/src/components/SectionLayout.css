@@ -403,6 +403,10 @@
   font-family: inherit;
   font-size: 0.84rem;
   line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: break-word;
+  letter-spacing: 0;
 }
 .media-editor__caption:focus {
   outline: none;

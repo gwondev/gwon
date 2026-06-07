@@ -4,6 +4,7 @@ import { buildPortfolioContext } from "../lib/portfolio-context.js";
 import { askGemini, getGeminiModels } from "../lib/gemini.js";
 import { buildChatSystemInstruction, sanitizeChatReply } from "../lib/chat-prompt.js";
 import { assertChatQuotaAvailable, getChatQuota, incrementChatQuota } from "../lib/chat-quota.js";
+import { insertChatLog } from "../lib/chat-logs.js";
 
 const router = Router();
 
@@ -45,6 +46,11 @@ router.post("/", async (req, res) => {
     const raw = await askGemini({ system, history, message });
     const reply = sanitizeChatReply(raw);
     const quota = await incrementChatQuota(req);
+    try {
+      await insertChatLog(req, message, reply);
+    } catch (logErr) {
+      console.error("[chat/log]", logErr.message);
+    }
     res.json({ reply, quota });
   } catch (err) {
     console.error("[chat]", err.message);

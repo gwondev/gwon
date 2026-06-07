@@ -14,7 +14,7 @@ export function parseMedia(raw) {
 export function stringifyMedia(list) {
   const cleaned = (list || [])
     .filter((m) => m && (m.image || (m.caption && m.caption.trim())))
-    .map((m) => ({ image: m.image || "", caption: (m.caption || "").trim() }));
+    .map((m) => ({ image: m.image || "", caption: m.caption || "" }));
   // 빈 배열도 "[]" 로 저장해야 전부 삭제 시 서버 반영됨 (pick() 가 빈 문자열은 건너뜀)
   return JSON.stringify(cleaned);
 }

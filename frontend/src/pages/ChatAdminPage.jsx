@@ -12,6 +12,7 @@ export default function ChatAdminPage() {
 
   const [systemPrompt, setSystemPrompt] = useState("");
   const [extraPrompt, setExtraPrompt] = useState("");
+  const [logs, setLogs] = useState([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
 
@@ -23,12 +24,17 @@ export default function ChatAdminPage() {
     if (localMode) {
       setSystemPrompt("");
       setExtraPrompt("");
+      setLogs([]);
       return;
     }
     try {
-      const data = await api("/admin/chat-prompt", { token });
-      setSystemPrompt(data.systemPrompt || "");
-      setExtraPrompt(data.extraPrompt || "");
+      const [promptData, logData] = await Promise.all([
+        api("/admin/chat-prompt", { token }),
+        api("/admin/chat-logs", { token }),
+      ]);
+      setSystemPrompt(promptData.systemPrompt || "");
+      setExtraPrompt(promptData.extraPrompt || "");
+      setLogs(logData.items || []);
     } catch (e) {
       setMsg({ type: "err", text: e.message });
     }
@@ -119,6 +125,56 @@ export default function ChatAdminPage() {
             {busy ? "저장 중…" : "지침 저장"}
           </button>
         </form>
+      </motion.section>
+
+      <motion.section
+        className="chat-admin__section chat-admin__logs"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.65, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="chat-admin__logs-head">
+          <h2 className="chat-admin__logs-title">최근 질문·답변 로그</h2>
+          <span className="chat-admin__logs-meta">최대 20건 · 회원은 닉네임, 비회원은 IP</span>
+        </div>
+
+        {localMode ? (
+          <p className="chat-admin__logs-empty">로컬 모드 — 서버 배포 후 로그가 표시됩니다.</p>
+        ) : logs.length === 0 ? (
+          <p className="chat-admin__logs-empty">아직 저장된 대화 로그가 없습니다.</p>
+        ) : (
+          <ul className="chat-admin__log-list">
+            {logs.map((log) => (
+              <li key={log.id} className="chat-admin__log">
+                <div className="chat-admin__log-top">
+                  <span
+                    className={`chat-admin__log-user ${log.userType === "user" ? "is-user" : "is-guest"}`}
+                  >
+                    {log.userLabel}
+                  </span>
+                  <time className="chat-admin__log-time">
+                    {new Date(log.createdAt).toLocaleString("ko-KR", {
+                      timeZone: "Asia/Seoul",
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                </div>
+                <p className="chat-admin__log-q">
+                  <span className="chat-admin__log-label">Q</span>
+                  {log.question}
+                </p>
+                <p className="chat-admin__log-a">
+                  <span className="chat-admin__log-label">A</span>
+                  {log.answer}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </motion.section>
     </PageTransition>
   );

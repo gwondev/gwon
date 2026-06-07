@@ -89,6 +89,17 @@ const SCHEMA = [
     count INT NOT NULL DEFAULT 0,
     PRIMARY KEY (subject_key, usage_date)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS chat_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    nickname VARCHAR(64) NULL,
+    ip VARCHAR(64) NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_chat_logs_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 const CONTENT_TABLES = ["projects", "activities", "certifications", "careers"];
