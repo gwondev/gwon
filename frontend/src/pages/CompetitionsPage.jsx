@@ -5,6 +5,7 @@ import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
 import { PROJECT_CATEGORIES, isCompetition } from "../lib/sections";
 import { splitTags } from "../lib/media";
+import RecordUrl from "../components/RecordUrl";
 
 const FIELDS = [
   { name: "title", label: "공모전 / 대회명", required: true, placeholder: "예: OO 해커톤" },
@@ -14,6 +15,7 @@ const FIELDS = [
   { name: "members", label: "팀원", span: true, placeholder: "예: 이성권, 홍길동, 김철수" },
   { name: "award", label: "수상 / 결과", required: true, placeholder: "예: 대상 (1위)" },
   { name: "period", label: "기간", type: "period-ymd" },
+  { name: "url", label: "접속주소", placeholder: "예: https://example.com", span: true },
   {
     name: "description",
     label: "설명",
@@ -95,6 +97,7 @@ export default function CompetitionsPage() {
                   </span>
                 )}
               </div>
+              <RecordUrl url={p.url} />
               {p.description && <p className="record__desc">{p.description}</p>}
             </>
           )}

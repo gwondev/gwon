@@ -35,6 +35,7 @@ const SCHEMA = [
     members TEXT,
     award VARCHAR(255),
     period VARCHAR(128),
+    url VARCHAR(512),
     description TEXT,
     media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
@@ -158,6 +159,7 @@ async function runMigrations(conn) {
     "ALTER TABLE activities ADD COLUMN media LONGTEXT AFTER description",
     "ALTER TABLE certifications ADD COLUMN media LONGTEXT AFTER description",
     "ALTER TABLE careers ADD COLUMN media LONGTEXT AFTER description",
+    "ALTER TABLE projects ADD COLUMN url VARCHAR(512) AFTER period",
   ];
   for (const sql of migrations) {
     try {

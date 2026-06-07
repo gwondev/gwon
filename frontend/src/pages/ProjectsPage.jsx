@@ -5,6 +5,7 @@ import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
 import { PROJECT_CATEGORIES, isProjectRecord } from "../lib/sections";
 import { splitTags } from "../lib/media";
+import RecordUrl from "../components/RecordUrl";
 
 const FIELDS = [
   { name: "title", label: "프로젝트명", required: true, placeholder: "예: 스마트팜 모니터링" },
@@ -13,6 +14,7 @@ const FIELDS = [
   { name: "team_name", label: "팀명", placeholder: "예: 팀 GWON" },
   { name: "members", label: "팀원", span: true, placeholder: "예: 이성권, 홍길동, 김철수" },
   { name: "period", label: "기간", type: "period-ymd" },
+  { name: "url", label: "접속주소", placeholder: "예: https://devsign.co.kr", span: true },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "프로젝트 개요, 역할, 기술 스택 등" },
   { name: "media", label: "사진 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
@@ -62,6 +64,7 @@ export default function ProjectsPage() {
                 {p.members && <span><b>팀원</b>{p.members}</span>}
                 {p.period && <span><b>기간</b>{p.period}</span>}
               </div>
+              <RecordUrl url={p.url} />
               {p.description && <p className="record__desc">{p.description}</p>}
             </>
           )}
