@@ -185,6 +185,27 @@
   line-height: 1.45;
   white-space: pre-wrap;
 }
+.record__clickable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+.record__more {
+  margin-top: 0.15rem;
+  align-self: flex-start;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  opacity: 0.85;
+  transition: opacity 0.25s var(--ease);
+}
+.record__clickable:hover .record__more {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .record__actions {
   position: absolute;
   top: 10px;
@@ -261,4 +282,171 @@
   .adder__grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---- 다중 분류 선택 ---- */
+.multiselect {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.multiselect__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.multiselect__chip {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: border-color 0.25s var(--ease), color 0.25s var(--ease),
+    background 0.25s var(--ease);
+}
+.multiselect__chip:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.multiselect__chip.is-on {
+  border-color: var(--accent-line);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.multiselect__add {
+  display: flex;
+  gap: 0.4rem;
+}
+.multiselect__add input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
+  font-size: 0.84rem;
+}
+.multiselect__add input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+.multiselect__add-btn {
+  flex: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.multiselect__add-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+/* ---- 미디어(사진+글) 에디터 ---- */
+.media-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.media-editor__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.media-editor__item {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 0.7rem;
+  padding: 0.6rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+.media-editor__thumb {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-sm, 10px);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text-faint);
+  font-size: 0.7rem;
+}
+.media-editor__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.media-editor__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.media-editor__caption {
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.media-editor__caption:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+.media-editor__row-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+.media-editor__row-actions button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+.media-editor__row-actions button:disabled {
+  opacity: 0.35;
+}
+.media-editor__row-actions button:not(:disabled):hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.media-editor__del:not(:disabled):hover {
+  color: #ff6b6b !important;
+  border-color: rgba(255, 107, 107, 0.5) !important;
+}
+.media-editor__upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--line-strong);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.25s var(--ease), color 0.25s var(--ease);
+}
+.media-editor__upload:hover {
+  border-color: var(--accent-line);
+  color: var(--accent);
 }

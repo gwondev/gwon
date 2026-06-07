@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Reorder, useDragControls, motion } from "framer-motion";
 import FieldGrid, { blankForm } from "./FormFields";
+import DetailModal from "./DetailModal";
+import { parseMedia } from "../lib/media";
 
 function RecordBody({
   item,
@@ -16,7 +18,11 @@ function RecordBody({
 }) {
   const [form, setForm] = useState(() => blankForm(fields));
   const [busy, setBusy] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const controls = useDragControls();
+
+  const media = parseMedia(item.media);
+  const canOpen = media.length > 0 || Boolean(item.description?.trim());
 
   const startEdit = () => {
     setForm(fields.reduce((acc, f) => ({ ...acc, [f.name]: item[f.name] || "" }), {}));
@@ -95,6 +101,34 @@ function RecordBody({
             </button>
           </div>
         </form>
+      ) : canOpen ? (
+        <>
+          <div
+            className="record__clickable"
+            role="button"
+            tabIndex={0}
+            onClick={() => setDetailOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setDetailOpen(true);
+              }
+            }}
+          >
+            {children}
+            <span className="record__more">
+              {media.length > 0 ? `사진 ${media.length}장 · 자세히 보기` : "자세히 보기"}
+            </span>
+          </div>
+          <DetailModal
+            open={detailOpen}
+            onClose={() => setDetailOpen(false)}
+            title={item.title}
+            media={media}
+          >
+            {children}
+          </DetailModal>
+        </>
       ) : (
         children
       )}

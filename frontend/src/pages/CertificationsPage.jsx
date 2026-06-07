@@ -10,6 +10,7 @@ const FIELDS = [
   { name: "acquired", label: "취득일", type: "ymd" },
   { name: "score", label: "등급 / 점수", placeholder: "예: 합격 / 920점" },
   { name: "description", label: "비고", type: "textarea", span: true, placeholder: "관련 내용" },
+  { name: "media", label: "사진 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
 export default function CertificationsPage() {

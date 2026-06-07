@@ -7,6 +7,7 @@ import { ABOUT, SECTIONS, isCompetition, isProjectRecord } from "../lib/sections
 import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
 import { formatCareerPeriodPreview } from "../lib/format";
+import { splitTags } from "../lib/media";
 import "./OverviewPage.css";
 
 const PREVIEW_LIMIT = 3;
@@ -147,7 +148,7 @@ export default function OverviewPage() {
                   key={it.id}
                   main={it.team_name || it.title}
                   tag={it.award || null}
-                  meta={joinMeta([it.category, it.period])}
+                  meta={joinMeta([splitTags(it.category).join(" · "), it.period])}
                 />
               ))
             ) : (
@@ -164,7 +165,7 @@ export default function OverviewPage() {
                 <CompactLine
                   key={it.id}
                   main={it.team_name || it.title}
-                  tag={it.category || null}
+                  tag={splitTags(it.category)[0] || null}
                   meta={joinMeta([it.host, it.period])}
                 />
               ))

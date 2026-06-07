@@ -29,13 +29,14 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    category VARCHAR(64),
+    category VARCHAR(255),
     host VARCHAR(255),
     team_name VARCHAR(255),
     members TEXT,
     award VARCHAR(255),
     period VARCHAR(128),
     description TEXT,
+    media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -47,6 +48,7 @@ const SCHEMA = [
     role VARCHAR(255),
     period VARCHAR(128),
     description TEXT,
+    media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -58,6 +60,7 @@ const SCHEMA = [
     acquired VARCHAR(128),
     score VARCHAR(128),
     description TEXT,
+    media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -69,6 +72,7 @@ const SCHEMA = [
     position VARCHAR(255),
     period VARCHAR(128),
     description TEXT,
+    media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -136,6 +140,13 @@ async function runMigrations(conn) {
   const migrations = [
     "ALTER TABLE users ADD COLUMN role ENUM('GUEST','ADMIN') NOT NULL DEFAULT 'GUEST'",
     "ALTER TABLE careers ADD COLUMN category VARCHAR(64) AFTER title",
+    // 다중 분류 저장을 위한 컬럼 확장
+    "ALTER TABLE projects MODIFY COLUMN category VARCHAR(255)",
+    // 사진+글 묶음(JSON) 저장 컬럼
+    "ALTER TABLE projects ADD COLUMN media LONGTEXT AFTER description",
+    "ALTER TABLE activities ADD COLUMN media LONGTEXT AFTER description",
+    "ALTER TABLE certifications ADD COLUMN media LONGTEXT AFTER description",
+    "ALTER TABLE careers ADD COLUMN media LONGTEXT AFTER description",
   ];
   for (const sql of migrations) {
     try {

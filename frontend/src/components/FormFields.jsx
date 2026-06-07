@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { fileToCompressedDataUrl } from "../lib/image";
+import { parseMedia, stringifyMedia, splitTags } from "../lib/media";
 
 export function blankForm(fields) {
   return fields.reduce((acc, f) => ({ ...acc, [f.name]: "" }), {});
@@ -142,6 +144,162 @@ function PeriodYmdInput({ id, value, onChange }) {
   );
 }
 
+function MultiSelect({ value, options, onChange }) {
+  const selected = splitTags(value);
+  const [custom, setCustom] = useState("");
+
+  const setSelected = (next) => onChange(next.join(", "));
+
+  const toggle = (opt) => {
+    if (selected.includes(opt)) setSelected(selected.filter((s) => s !== opt));
+    else setSelected([...selected, opt]);
+  };
+
+  const addCustom = () => {
+    const v = custom.trim();
+    if (v && !selected.includes(v)) setSelected([...selected, v]);
+    setCustom("");
+  };
+
+  const extras = selected.filter((s) => !options.includes(s));
+
+  return (
+    <div className="multiselect">
+      <div className="multiselect__chips">
+        {options.map((o) => (
+          <button
+            type="button"
+            key={o}
+            className={`multiselect__chip ${selected.includes(o) ? "is-on" : ""}`}
+            onClick={() => toggle(o)}
+          >
+            {o}
+          </button>
+        ))}
+        {extras.map((o) => (
+          <button
+            type="button"
+            key={o}
+            className="multiselect__chip is-on multiselect__chip--custom"
+            onClick={() => toggle(o)}
+          >
+            {o} ✕
+          </button>
+        ))}
+      </div>
+      <div className="multiselect__add">
+        <input
+          value={custom}
+          placeholder="직접 추가"
+          onChange={(e) => setCustom(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addCustom();
+            }
+          }}
+        />
+        <button type="button" className="multiselect__add-btn" onClick={addCustom}>
+          추가
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MediaEditor({ value, onChange }) {
+  const list = parseMedia(value);
+  const [busy, setBusy] = useState(false);
+  const setList = (next) => onChange(stringifyMedia(next));
+
+  const handleFiles = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    setBusy(true);
+    try {
+      const additions = [];
+      for (const f of files) {
+        if (!f.type.startsWith("image/")) continue;
+        const image = await fileToCompressedDataUrl(f);
+        additions.push({ image, caption: "" });
+      }
+      setList([...list, ...additions]);
+    } catch {
+      alert("이미지를 불러오지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateCaption = (i, caption) =>
+    setList(list.map((m, j) => (j === i ? { ...m, caption } : m)));
+  const removeAt = (i) => setList(list.filter((_, j) => j !== i));
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    setList(next);
+  };
+
+  return (
+    <div className="media-editor">
+      <div className="media-editor__items">
+        {list.map((m, i) => (
+          <div className="media-editor__item" key={i}>
+            <div className="media-editor__thumb">
+              {m.image ? <img src={m.image} alt="" /> : <span>이미지 없음</span>}
+            </div>
+            <div className="media-editor__fields">
+              <textarea
+                className="media-editor__caption"
+                value={m.caption || ""}
+                placeholder="이 사진에 대한 설명 한 줄"
+                onChange={(e) => updateCaption(i, e.target.value)}
+              />
+              <div className="media-editor__row-actions">
+                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="위로">
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(i, 1)}
+                  disabled={i === list.length - 1}
+                  aria-label="아래로"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="media-editor__del"
+                  onClick={() => removeAt(i)}
+                  aria-label="삭제"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <label className="media-editor__upload">
+        {busy ? "이미지 처리 중…" : "＋ 사진 추가 (여러 장 가능)"}
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          disabled={busy}
+          onChange={(e) => {
+            handleFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
 export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
   const set = (name, value) => onChange(name, value);
 
@@ -181,6 +339,14 @@ export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
                   </option>
                 ))}
               </select>
+            ) : f.type === "multiselect" ? (
+              <MultiSelect
+                value={form[f.name]}
+                options={f.options}
+                onChange={(v) => set(f.name, v)}
+              />
+            ) : f.type === "media" ? (
+              <MediaEditor value={form[f.name]} onChange={(v) => set(f.name, v)} />
             ) : (
               <input
                 id={fid}

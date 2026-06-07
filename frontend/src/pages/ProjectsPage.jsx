@@ -4,15 +4,17 @@ import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
 import { PROJECT_CATEGORIES, isProjectRecord } from "../lib/sections";
+import { splitTags } from "../lib/media";
 
 const FIELDS = [
   { name: "title", label: "프로젝트명", required: true, placeholder: "예: 스마트팜 모니터링" },
-  { name: "category", label: "분류", type: "select", options: PROJECT_CATEGORIES },
+  { name: "category", label: "분류 (여러 개 선택 가능)", type: "multiselect", span: true, options: PROJECT_CATEGORIES },
   { name: "host", label: "주관처", placeholder: "예: 교내 캡스톤" },
   { name: "team_name", label: "팀명", placeholder: "예: 팀 GWON" },
   { name: "members", label: "팀원", span: true, placeholder: "예: 이성권, 홍길동, 김철수" },
-  { name: "period", label: "기간", type: "period" },
+  { name: "period", label: "기간", type: "period-ymd" },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "프로젝트 개요, 역할, 기술 스택 등" },
+  { name: "media", label: "사진 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
 export default function ProjectsPage() {
@@ -47,7 +49,11 @@ export default function ProjectsPage() {
             <>
               <div className="record__head">
                 <span className="record__title">{p.title}</span>
-                {p.category && <span className="record__tag">{p.category}</span>}
+                {splitTags(p.category).map((c) => (
+                  <span className="record__tag" key={c}>
+                    {c}
+                  </span>
+                ))}
               </div>
               <div className="record__meta">
                 {p.host && <span><b>주관처</b>{p.host}</span>}

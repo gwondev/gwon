@@ -14,7 +14,8 @@ const PORT = Number(process.env.PORT || 8080);
 app.set("trust proxy", 1);
 
 app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+// 사진(base64)이 포함된 미디어 묶음을 받기 위해 넉넉히 설정
+app.use(express.json({ limit: "30mb" }));
 
 app.get("/api/health", async (_req, res) => {
   try {
