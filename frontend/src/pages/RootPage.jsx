@@ -28,13 +28,10 @@ const PREVIEW = {
   },
 };
 
-const PREVIEW_LIMIT = 3;
-
 function previewLines(key, preview, techGroups) {
   if (key === "techstack") {
-    return techGroups.slice(0, PREVIEW_LIMIT).map(
-      (g) =>
-        `[${g.group}] ${g.items.slice(0, 3).map(formatTechItemLabel).join(", ")}`
+    return techGroups.map(
+      (g) => `[${g.group}] ${g.items.map(formatTechItemLabel).join(", ")}`
     );
   }
 
@@ -46,7 +43,7 @@ function previewLines(key, preview, techGroups) {
         ? pool.filter(isProjectRecord)
         : preview[key] || [];
 
-  return rows.slice(0, PREVIEW_LIMIT).map((it) => PREVIEW[key](it));
+  return rows.map((it) => PREVIEW[key](it));
 }
 
 const heroStagger = {

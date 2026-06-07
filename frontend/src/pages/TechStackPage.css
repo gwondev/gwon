@@ -14,12 +14,46 @@
 }
 
 .techstack__group {
+  position: relative;
   display: grid;
   grid-template-columns: 160px 1fr;
   gap: 1rem;
   align-items: start;
   padding-bottom: 1.2rem;
   border-bottom: 1px solid var(--line);
+  list-style: none;
+}
+
+.techstack__group--sortable {
+  padding-left: clamp(28px, 3vw, 34px);
+}
+
+.techstack__group--sortable .record__drag {
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+}
+
+.techstack__draft-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.techstack__row--sortable {
+  position: relative;
+  padding-left: 28px;
+  list-style: none;
+}
+
+.techstack__draft-drag {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .techstack__group:last-child {

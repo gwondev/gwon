@@ -169,6 +169,8 @@
   isolation: isolate;
   text-align: left;
   min-height: clamp(126px, 16.8vh, 175px);
+  height: auto;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -224,6 +226,8 @@
   margin-top: 0.45rem;
   padding-top: 0;
   border-top: none;
+  flex: 1;
+  min-height: 0;
 }
 .cat-card__preview-item {
   font-size: 0.78rem;
