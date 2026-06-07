@@ -16,6 +16,7 @@ const FIELDS = [
   { name: "members", label: "팀원", span: true, placeholder: "예: 이성권, 홍길동, 김철수" },
   { name: "period", label: "기간", type: "period-ymd" },
   { name: "url", label: "접속주소", placeholder: "예: https://devsign.co.kr", span: true },
+  { name: "github_url", label: "깃허브 주소", placeholder: "예: https://github.com/username/repo", span: true },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "프로젝트 개요, 역할, 기술 스택 등" },
   { name: "media", label: "사진 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
@@ -65,7 +66,7 @@ export default function ProjectsPage() {
                 {p.members && <span><b>팀원</b>{p.members}</span>}
                 {p.period && <span><b>기간</b>{p.period}</span>}
               </div>
-              <RecordUrl url={p.url} />
+              <RecordUrl url={p.url} githubUrl={p.github_url} />
               {p.description && <p className="record__desc">{p.description}</p>}
             </>
           )}

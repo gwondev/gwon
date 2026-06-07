@@ -16,6 +16,7 @@ const FIELDS = [
   { name: "award", label: "수상 / 결과", required: true, placeholder: "예: 대상 (1위)" },
   { name: "period", label: "기간", type: "period-ymd" },
   { name: "url", label: "접속주소", placeholder: "예: https://example.com", span: true },
+  { name: "github_url", label: "깃허브 주소", placeholder: "예: https://github.com/username/repo", span: true },
   {
     name: "description",
     label: "설명",
@@ -97,7 +98,7 @@ export default function CompetitionsPage() {
                   </span>
                 )}
               </div>
-              <RecordUrl url={p.url} />
+              <RecordUrl url={p.url} githubUrl={p.github_url} />
               {p.description && <p className="record__desc">{p.description}</p>}
             </>
           )}

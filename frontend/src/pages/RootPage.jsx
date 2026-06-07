@@ -39,12 +39,6 @@ function truncatePreview(text, max) {
 
 const PREVIEW = {
   competitions: (it) => (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
-  projects: (it) => {
-    const team = String(it.team_name || "").trim() || String(it.title || "").trim();
-    const tags = splitTags(it.category);
-    if (!tags.length) return team;
-    return `${team} · ${tags.join(" · ")}`;
-  },
   activities: (it) => it.title,
   certifications: (it) => it.title + (it.score ? ` (${it.score})` : ""),
   career: (it) => {
@@ -53,22 +47,31 @@ const PREVIEW = {
   },
 };
 
-function previewLines(key, preview, techGroups) {
+function previewRows(key, preview, techGroups) {
   if (key === "techstack") {
-    return techGroups.map(
-      (g) => `[${g.group}] ${g.items.map(formatTechItemLabel).join(", ")}`
-    );
+    return techGroups.map((g) => ({
+      kind: "text",
+      text: `[${g.group}] ${g.items.map(formatTechItemLabel).join(", ")}`,
+    }));
   }
 
   const pool = preview.projects || [];
-  const rows =
+  const items =
     key === "competitions"
       ? pool.filter(isCompetition)
       : key === "projects"
         ? pool.filter(isProjectRecord)
         : preview[key] || [];
 
-  return rows.map((it) => PREVIEW[key](it));
+  if (key === "projects") {
+    return items.map((it) => ({
+      kind: "project",
+      team: String(it.team_name || "").trim() || String(it.title || "").trim(),
+      tags: splitTags(it.category),
+    }));
+  }
+
+  return items.map((it) => ({ kind: "text", text: PREVIEW[key](it) }));
 }
 
 const heroStagger = {
@@ -151,7 +154,7 @@ export default function RootPage() {
 
       <motion.div className="root__grid" variants={gridStagger} initial="hidden" animate="show">
         {SECTIONS.map((s) => {
-          const rows = previewLines(s.key, preview, techGroups);
+          const rows = previewRows(s.key, preview, techGroups);
           return (
             <motion.button
               key={s.key}
@@ -168,11 +171,27 @@ export default function RootPage() {
                 <span className="cat-card__divider" aria-hidden />
                 <span className="cat-card__preview">
                   {rows.length > 0 ? (
-                    rows.map((line, i) => (
-                      <span className="cat-card__preview-item" key={`${s.key}-${i}`}>
-                        {truncatePreview(line, previewMax)}
-                      </span>
-                    ))
+                    rows.map((row, i) =>
+                      row.kind === "project" ? (
+                        <span
+                          className="cat-card__preview-item cat-card__preview-item--project"
+                          key={`${s.key}-${i}`}
+                        >
+                          <span className="cat-card__preview-team">
+                            {truncatePreview(row.team, previewMax)}
+                          </span>
+                          {row.tags.map((tag) => (
+                            <span className="cat-card__preview-tag" key={tag}>
+                              {tag}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="cat-card__preview-item" key={`${s.key}-${i}`}>
+                          {truncatePreview(row.text, previewMax)}
+                        </span>
+                      )
+                    )
                   ) : (
                     <span className="cat-card__preview-empty">아직 등록된 항목 없음</span>
                   )}

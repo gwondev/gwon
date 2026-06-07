@@ -46,6 +46,7 @@ export async function buildPortfolioContext() {
         p.award && `결과:${p.award}`,
         p.period && `기간:${p.period}`,
         p.url && `접속:${p.url}`,
+        p.github_url && `GitHub:${p.github_url}`,
         p.description && `설명:${p.description}`,
       ]
         .filter(Boolean)
