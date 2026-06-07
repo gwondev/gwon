@@ -1,3 +1,11 @@
+// 프로젝트 카드 제목: 팀명(주제명)
+export function formatProjectHeadline(item) {
+  const team = String(item?.team_name || "").trim();
+  const title = String(item?.title || "").trim();
+  if (team && title) return `${team}(${title})`;
+  return team || title;
+}
+
 // 경력 기간 미리보기: "2026.05.01 ~ 2026.09.03" -> "26.05~26.09"
 export function formatCareerPeriodPreview(period) {
   if (!period) return "";

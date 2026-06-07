@@ -6,9 +6,10 @@ import { useAuth } from "../context/AuthContext";
 import { PROJECT_CATEGORIES, isProjectRecord } from "../lib/sections";
 import { splitTags } from "../lib/media";
 import RecordUrl from "../components/RecordUrl";
+import { formatProjectHeadline } from "../lib/format";
 
 const FIELDS = [
-  { name: "title", label: "프로젝트명", required: true, placeholder: "예: 스마트팜 모니터링" },
+  { name: "title", label: "주제명", required: true, placeholder: "예: 실시간이동관리시스템" },
   { name: "category", label: "분류 (여러 개 선택 가능)", type: "multiselect", span: true, options: PROJECT_CATEGORIES },
   { name: "host", label: "주관처", placeholder: "예: 교내 캡스톤" },
   { name: "team_name", label: "팀명", placeholder: "예: 팀 GWON" },
@@ -51,7 +52,7 @@ export default function ProjectsPage() {
           renderItem={(p) => (
             <>
               <div className="record__head">
-                <span className="record__title">{p.title}</span>
+                <span className="record__title">{formatProjectHeadline(p)}</span>
                 {splitTags(p.category).map((c) => (
                   <span className="record__tag" key={c}>
                     {c}
@@ -60,7 +61,7 @@ export default function ProjectsPage() {
               </div>
               <div className="record__meta">
                 {p.host && <span><b>주관처</b>{p.host}</span>}
-                {p.team_name && <span><b>팀명</b>{p.team_name}</span>}
+                {p.title && <span><b>주제명</b>{p.title}</span>}
                 {p.members && <span><b>팀원</b>{p.members}</span>}
                 {p.period && <span><b>기간</b>{p.period}</span>}
               </div>

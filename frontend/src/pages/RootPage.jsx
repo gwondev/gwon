@@ -8,6 +8,7 @@ import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
 import { api } from "../lib/api";
 import { formatCareerPeriodPreview } from "../lib/format";
+import { splitTags } from "../lib/media";
 import "./RootPage.css";
 
 const RESOURCE_BY_KEY = {
@@ -38,7 +39,12 @@ function truncatePreview(text, max) {
 
 const PREVIEW = {
   competitions: (it) => (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
-  projects: (it) => it.team_name || it.title,
+  projects: (it) => {
+    const team = String(it.team_name || "").trim() || String(it.title || "").trim();
+    const tags = splitTags(it.category);
+    if (!tags.length) return team;
+    return `${team} · ${tags.join(" · ")}`;
+  },
   activities: (it) => it.title,
   certifications: (it) => it.title + (it.score ? ` (${it.score})` : ""),
   career: (it) => {
