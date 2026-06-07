@@ -1,5 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
+import { Routes, Route } from "react-router-dom";
 import TopBar from "./components/TopBar";
 import SiteFooter from "./components/SiteFooter";
 import RootPage from "./pages/RootPage";
@@ -17,29 +16,25 @@ import ChatAdminPage from "./pages/ChatAdminPage";
 import ScrollToTop from "./components/ScrollToTop";
 
 export default function App() {
-  const location = useLocation();
-
   return (
     <div className="app-shell">
       <ScrollToTop />
       <TopBar />
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<RootPage />} />
-          <Route path="/tech-stack" element={<TechStackPage />} />
-          <Route path="/competitions" element={<CompetitionsPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/activities" element={<ActivitiesPage />} />
-          <Route path="/certifications" element={<CertificationsPage />} />
-          <Route path="/career" element={<CareerPage />} />
-          <Route path="/overview" element={<OverviewPage />} />
-          <Route path="/setup-nickname" element={<NicknameSetupPage />} />
-          <Route path="/mypage" element={<MyPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/admin/chat" element={<ChatAdminPage />} />
-          <Route path="*" element={<RootPage />} />
-        </Routes>
-      </AnimatePresence>
+      <Routes>
+        <Route path="/" element={<RootPage />} />
+        <Route path="/tech-stack" element={<TechStackPage />} />
+        <Route path="/competitions" element={<CompetitionsPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/activities" element={<ActivitiesPage />} />
+        <Route path="/certifications" element={<CertificationsPage />} />
+        <Route path="/career" element={<CareerPage />} />
+        <Route path="/overview" element={<OverviewPage />} />
+        <Route path="/setup-nickname" element={<NicknameSetupPage />} />
+        <Route path="/mypage" element={<MyPage />} />
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/chat" element={<ChatAdminPage />} />
+        <Route path="*" element={<RootPage />} />
+      </Routes>
       <SiteFooter />
     </div>
   );
