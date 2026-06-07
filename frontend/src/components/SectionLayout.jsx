@@ -3,7 +3,9 @@ import PageTransition from "./PageTransition";
 import TabNav from "./TabNav";
 import "./SectionLayout.css";
 
-export default function SectionLayout({ active, title, sub, count, children }) {
+const PAGE_HINT = "항목을 눌러 자세한 설명·사진을 확인하세요";
+
+export default function SectionLayout({ active, title, sub, count, showPageHint, children }) {
   return (
     <PageTransition className="page section">
       <div className="section__top">
@@ -22,6 +24,8 @@ export default function SectionLayout({ active, title, sub, count, children }) {
         </div>
         {typeof count === "number" && <span className="section__count">{count}</span>}
       </motion.header>
+
+      {showPageHint && <p className="section__page-hint">{PAGE_HINT}</p>}
 
       {children}
     </PageTransition>

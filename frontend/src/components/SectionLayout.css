@@ -191,20 +191,13 @@
   gap: 0.45rem;
   cursor: pointer;
 }
-.record__more {
-  margin-top: 0.15rem;
-  align-self: flex-start;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--accent);
-  opacity: 0.85;
-  transition: opacity 0.25s var(--ease);
-}
-.record__clickable:hover .record__more {
-  opacity: 1;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.section__page-hint {
+  margin: -0.85rem 0 clamp(18px, 3.2vh, 30px);
+  padding-top: 0.7rem;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: var(--text-faint);
 }
 .record__actions {
   position: absolute;

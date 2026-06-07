@@ -35,6 +35,7 @@ export default function CompetitionsPage() {
       title="공모전 & 수상"
       sub="Competitions & Awards"
       count={items.length}
+      showPageHint
     >
       <Adder label="공모전 · 수상 추가" fields={FIELDS} onCreate={create} />
 

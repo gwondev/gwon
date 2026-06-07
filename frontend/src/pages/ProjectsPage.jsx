@@ -28,6 +28,7 @@ export default function ProjectsPage() {
       title="프로젝트"
       sub="Projects"
       count={items.length}
+      showPageHint
     >
       <Adder label="프로젝트 추가" fields={FIELDS} onCreate={create} />
 

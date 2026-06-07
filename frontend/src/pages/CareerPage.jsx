@@ -18,7 +18,7 @@ export default function CareerPage() {
   const { isAdmin } = useAuth();
 
   return (
-    <SectionLayout active="career" title="경력" sub="Career" count={items.length}>
+    <SectionLayout active="career" title="경력" sub="Career" count={items.length} showPageHint>
       <Adder label="경력 추가" fields={FIELDS} onCreate={create} />
 
       {loading ? (

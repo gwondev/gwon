@@ -18,7 +18,7 @@ export default function CertificationsPage() {
   const { isAdmin } = useAuth();
 
   return (
-    <SectionLayout active="certifications" title="자격증" sub="Certifications" count={items.length}>
+    <SectionLayout active="certifications" title="자격증" sub="Certifications" count={items.length} showPageHint>
       <Adder label="자격증 추가" fields={FIELDS} onCreate={create} />
 
       {loading ? (
