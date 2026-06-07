@@ -40,7 +40,7 @@
   border-radius: var(--radius-xl);
   border: 1px solid var(--line);
   background:
-    radial-gradient(120% 100% at 50% -10%, rgba(216, 193, 154, 0.08), transparent 55%),
+    radial-gradient(120% 100% at 50% -10%, rgba(216, 193, 154, 0.064), transparent 55%),
     linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
   box-shadow: var(--shadow);
 }
@@ -62,7 +62,7 @@
   font-weight: 800;
   font-size: 1.3rem;
   color: #1a1408;
-  background: linear-gradient(180deg, #f3e9d4, var(--accent));
+  background: linear-gradient(180deg, #ebe2d2, color-mix(in srgb, var(--accent) 80%, var(--bg-soft)));
 }
 .mypage__profile-meta {
   display: flex;

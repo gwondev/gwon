@@ -14,8 +14,8 @@
 
   /* accent: champagne / warm metal, used sparingly */
   --accent: #d8c19a;
-  --accent-soft: rgba(216, 193, 154, 0.16);
-  --accent-line: rgba(216, 193, 154, 0.4);
+  --accent-soft: rgba(216, 193, 154, 0.13);
+  --accent-line: rgba(216, 193, 154, 0.32);
 
   --radius-lg: 28px;
   --radius-xl: 36px;
@@ -50,8 +50,8 @@ body {
   overflow-x: hidden;
   /* fixed, premium dark gradient field */
   background:
-    radial-gradient(1200px 700px at 78% -10%, rgba(216, 193, 154, 0.08), transparent 60%),
-    radial-gradient(900px 600px at 8% 110%, rgba(120, 130, 160, 0.07), transparent 55%),
+    radial-gradient(1200px 700px at 78% -10%, rgba(216, 193, 154, 0.064), transparent 60%),
+    radial-gradient(900px 600px at 8% 110%, rgba(120, 130, 160, 0.056), transparent 55%),
     var(--bg);
   background-attachment: fixed;
 }
@@ -155,12 +155,12 @@ body::after {
   background: var(--bg-elev-2);
 }
 .btn-accent {
-  background: linear-gradient(180deg, #f3e9d4, var(--accent));
+  background: linear-gradient(180deg, #ebe2d2, color-mix(in srgb, var(--accent) 80%, var(--bg-soft)));
   color: #1a1408;
   border-color: transparent;
 }
 .btn-accent:hover {
-  background: linear-gradient(180deg, #fff6e6, #e6d2a8);
+  background: linear-gradient(180deg, #f5ede0, #d4bc94);
 }
 .btn-ghost {
   background: transparent;

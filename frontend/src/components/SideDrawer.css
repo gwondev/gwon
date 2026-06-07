@@ -116,7 +116,7 @@
   place-items: center;
   font-weight: 800;
   color: #1a1408;
-  background: linear-gradient(180deg, #f3e9d4, var(--accent));
+  background: linear-gradient(180deg, #ebe2d2, color-mix(in srgb, var(--accent) 80%, var(--bg-soft)));
 }
 .drawer__profile-meta {
   display: flex;

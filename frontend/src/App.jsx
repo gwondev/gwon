@@ -4,6 +4,8 @@ import TopBar from "./components/TopBar";
 import SiteFooter from "./components/SiteFooter";
 import RootPage from "./pages/RootPage";
 import ProjectsPage from "./pages/ProjectsPage";
+import CompetitionsPage from "./pages/CompetitionsPage";
+import TechStackPage from "./pages/TechStackPage";
 import ActivitiesPage from "./pages/ActivitiesPage";
 import CertificationsPage from "./pages/CertificationsPage";
 import CareerPage from "./pages/CareerPage";
@@ -24,6 +26,8 @@ export default function App() {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<RootPage />} />
+          <Route path="/tech-stack" element={<TechStackPage />} />
+          <Route path="/competitions" element={<CompetitionsPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/activities" element={<ActivitiesPage />} />
           <Route path="/certifications" element={<CertificationsPage />} />

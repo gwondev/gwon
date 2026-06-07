@@ -149,7 +149,7 @@
 .admin__stat--total {
   border-color: var(--accent-line);
   background:
-    radial-gradient(120% 100% at 50% -20%, rgba(216, 193, 154, 0.12), transparent 55%),
+    radial-gradient(120% 100% at 50% -20%, rgba(216, 193, 154, 0.096), transparent 55%),
     var(--bg-elev);
 }
 .admin__stat-label {

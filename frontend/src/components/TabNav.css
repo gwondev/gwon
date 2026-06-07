@@ -33,7 +33,7 @@
   position: absolute;
   inset: 0;
   border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, #f3e9d4, var(--accent));
+  background: linear-gradient(180deg, #ebe2d2, color-mix(in srgb, var(--accent) 80%, var(--bg-soft)));
   z-index: 0;
 }
 .tabnav__label {

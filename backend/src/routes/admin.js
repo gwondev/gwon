@@ -3,6 +3,7 @@ import pool from "../db.js";
 import { requireAdmin } from "../auth-middleware.js";
 
 import { getSetting, setSetting } from "../lib/settings.js";
+import { getTechStack, saveTechStack } from "../lib/tech-stack.js";
 
 const router = Router();
 const ROLES = ["GUEST", "ADMIN"];
@@ -111,6 +112,18 @@ router.put("/chat-prompt", requireAdmin, async (req, res) => {
     getSetting("chat_extra_prompt", ""),
   ]);
   res.json({ systemPrompt: savedSystem, extraPrompt: savedExtra });
+});
+
+// GET /api/admin/tech-stack
+router.get("/tech-stack", requireAdmin, async (_req, res) => {
+  const groups = await getTechStack();
+  res.json({ groups });
+});
+
+// PUT /api/admin/tech-stack
+router.put("/tech-stack", requireAdmin, async (req, res) => {
+  const groups = await saveTechStack(req.body?.groups);
+  res.json({ groups });
 });
 
 export default router;

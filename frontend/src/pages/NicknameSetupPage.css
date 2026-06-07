@@ -11,7 +11,7 @@
   border-radius: var(--radius-xl);
   border: 1px solid var(--line);
   background:
-    radial-gradient(120% 100% at 50% -10%, rgba(216, 193, 154, 0.1), transparent 55%),
+    radial-gradient(120% 100% at 50% -10%, rgba(216, 193, 154, 0.08), transparent 55%),
     linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
   box-shadow: var(--shadow);
 }

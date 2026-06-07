@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import PortfolioChat from "../components/PortfolioChat";
-import { SECTIONS } from "../lib/sections";
+import { SECTIONS, isCompetition, isProjectRecord } from "../lib/sections";
+import { useTechStack } from "../lib/useTechStack";
+import { formatTechItemLabel } from "../lib/techStackDisplay";
 import { api } from "../lib/api";
 import { formatCareerPeriodPreview } from "../lib/format";
 import "./RootPage.css";
@@ -15,10 +17,9 @@ const RESOURCE_BY_KEY = {
   career: "careers",
 };
 
-// 카드 미리보기 한 줄 포맷 (DB row -> 텍스트)
 const PREVIEW = {
-  projects: (it) =>
-    (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
+  competitions: (it) => (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
+  projects: (it) => it.team_name || it.title,
   activities: (it) => it.title,
   certifications: (it) => it.title + (it.score ? ` (${it.score})` : ""),
   career: (it) => {
@@ -29,6 +30,25 @@ const PREVIEW = {
 
 const PREVIEW_LIMIT = 3;
 
+function previewLines(key, preview, techGroups) {
+  if (key === "techstack") {
+    return techGroups.slice(0, PREVIEW_LIMIT).map(
+      (g) =>
+        `[${g.group}] ${g.items.slice(0, 3).map(formatTechItemLabel).join(", ")}`
+    );
+  }
+
+  const pool = preview.projects || [];
+  const rows =
+    key === "competitions"
+      ? pool.filter(isCompetition)
+      : key === "projects"
+        ? pool.filter(isProjectRecord)
+        : preview[key] || [];
+
+  return rows.slice(0, PREVIEW_LIMIT).map((it) => PREVIEW[key](it));
+}
+
 const heroStagger = {
   show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
 };
@@ -38,7 +58,7 @@ const rise = {
 };
 
 const gridStagger = {
-  show: { transition: { staggerChildren: 0.1, delayChildren: 0.25 } },
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.25 } },
 };
 const cardRise = {
   hidden: { opacity: 0, y: 48 },
@@ -47,19 +67,20 @@ const cardRise = {
 
 export default function RootPage() {
   const navigate = useNavigate();
-  const [preview, setPreview] = useState({});
+  const [preview, setPreview] = useState({ projects: [] });
+  const { groups: techGroups } = useTechStack();
 
   useEffect(() => {
     let alive = true;
     Promise.all(
-      SECTIONS.map((s) =>
-        api(`/${RESOURCE_BY_KEY[s.key]}`)
-          .then((d) => ({ key: s.key, items: d.items || [] }))
-          .catch(() => ({ key: s.key, items: [] }))
+      Object.entries(RESOURCE_BY_KEY).map(([key, resource]) =>
+        api(`/${resource}`)
+          .then((d) => ({ key, items: d.items || [] }))
+          .catch(() => ({ key, items: [] }))
       )
     ).then((results) => {
       if (!alive) return;
-      const next = {};
+      const next = { projects: [] };
       for (const { key, items } of results) next[key] = items;
       setPreview(next);
     });
@@ -70,16 +91,18 @@ export default function RootPage() {
 
   return (
     <PageTransition className="page root">
-      <motion.section className="hero" variants={heroStagger} initial="hidden" animate="show">
-        <motion.h1 className="display hero__name" variants={rise}>
-          이성권
-        </motion.h1>
-        <motion.p className="lead hero__lead" variants={rise}>
-          PORTFOLIO OF LEE SEONG-GWON.
-        </motion.p>
-      </motion.section>
+      <div className="root__masthead">
+        <motion.section className="hero" variants={heroStagger} initial="hidden" animate="show">
+          <motion.h1 className="display hero__name" variants={rise}>
+            이성권
+          </motion.h1>
+          <motion.p className="lead hero__lead" variants={rise}>
+            PORTFOLIO OF LEE SEONG-GWON.
+          </motion.p>
+        </motion.section>
 
-      <PortfolioChat />
+        <PortfolioChat />
+      </div>
 
       <motion.button
         className="overview-bar"
@@ -92,17 +115,16 @@ export default function RootPage() {
       >
         <span className="overview-bar__sheen" aria-hidden />
         <span className="overview-bar__center">
-          <span className="overview-bar__title">
-            <span className="overview-bar__star" aria-hidden>★</span>
-            전체 포트폴리오 요약 & 기술스택
+          <span className="overview-bar__title">전체 포트폴리오 요약</span>
+          <span className="overview-bar__sub">
+            프로젝트·경력·스택을 한 페이지에서 펼쳐 보실 수 있습니다
           </span>
-          <span className="overview-bar__sub">프로젝트·경력·스택을 한 페이지에서 펼쳐 보실 수 있습니다</span>
         </span>
       </motion.button>
 
       <motion.div className="root__grid" variants={gridStagger} initial="hidden" animate="show">
         {SECTIONS.map((s) => {
-          const rows = (preview[s.key] || []).slice(0, PREVIEW_LIMIT);
+          const rows = previewLines(s.key, preview, techGroups);
           return (
             <motion.button
               key={s.key}
@@ -119,9 +141,9 @@ export default function RootPage() {
                 <span className="cat-card__divider" aria-hidden />
                 <span className="cat-card__preview">
                   {rows.length > 0 ? (
-                    rows.map((it) => (
-                      <span className="cat-card__preview-item" key={it.id}>
-                        {PREVIEW[s.key](it)}
+                    rows.map((line, i) => (
+                      <span className="cat-card__preview-item" key={`${s.key}-${i}`}>
+                        {line}
                       </span>
                     ))
                   ) : (

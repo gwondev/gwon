@@ -1,4 +1,5 @@
 import { listTable } from "./list-table.js";
+import { formatTechItemForContext, getTechStack } from "./tech-stack.js";
 
 const ABOUT = {
   intro:
@@ -10,14 +11,6 @@ const ABOUT = {
   ],
 };
 
-const TECH_STACK = [
-  { group: "Frontend", items: ["React", "JavaScript", "HTML/CSS", "Vite"] },
-  { group: "Backend", items: ["Node.js", "Express", "Java", "Spring"] },
-  { group: "Database", items: ["MySQL", "Redis"] },
-  { group: "Infra / DevOps", items: ["Docker", "Linux", "Cloudflare", "Git"] },
-  { group: "IoT / etc", items: ["MQTT", "Arduino", "Python"] },
-];
-
 function lines(items, fmt) {
   if (!items?.length) return "  (없음)";
   return items.map((it) => `  - ${fmt(it)}`).join("\n");
@@ -28,8 +21,11 @@ export async function buildPortfolioContext() {
   const activities = await listTable("activities");
   const certifications = await listTable("certifications");
   const careers = await listTable("careers");
+  const techStack = await getTechStack();
 
-  const tech = TECH_STACK.map((g) => `  [${g.group}] ${g.items.join(", ")}`).join("\n");
+  const tech = techStack
+    .map((g) => `  [${g.group}] ${g.items.map(formatTechItemForContext).join(", ")}`)
+    .join("\n");
 
   return [
     "=== 소개 ===",

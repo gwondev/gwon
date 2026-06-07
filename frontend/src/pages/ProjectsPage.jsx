@@ -3,28 +3,28 @@ import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
-import { PROJECT_CATEGORIES } from "../lib/sections";
+import { PROJECT_CATEGORIES, isProjectRecord } from "../lib/sections";
 
 const FIELDS = [
   { name: "title", label: "프로젝트명", required: true, placeholder: "예: 스마트팜 모니터링" },
   { name: "category", label: "분류", type: "select", options: PROJECT_CATEGORIES },
-  { name: "host", label: "주관처", placeholder: "예: 한국정보산업연합회" },
+  { name: "host", label: "주관처", placeholder: "예: 교내 캡스톤" },
   { name: "team_name", label: "팀명", placeholder: "예: 팀 GWON" },
   { name: "members", label: "팀원", span: true, placeholder: "예: 이성권, 홍길동, 김철수" },
-  { name: "award", label: "수상 / 결과", placeholder: "예: 대상 (1위)" },
   { name: "period", label: "기간", type: "period" },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "프로젝트 개요, 역할, 기술 스택 등" },
 ];
 
 export default function ProjectsPage() {
-  const { items, loading, error, create, update, remove, reorder } = useResource("projects");
+  const { items: all, loading, error, create, update, remove, reorder } = useResource("projects");
   const { isAdmin } = useAuth();
+  const items = all.filter(isProjectRecord);
 
   return (
     <SectionLayout
       active="projects"
-      title="프로젝트 & 공모전"
-      sub="Projects & Competitions"
+      title="프로젝트"
+      sub="Projects"
       count={items.length}
     >
       <Adder label="프로젝트 추가" fields={FIELDS} onCreate={create} />
@@ -53,7 +53,6 @@ export default function ProjectsPage() {
                 {p.host && <span><b>주관처</b>{p.host}</span>}
                 {p.team_name && <span><b>팀명</b>{p.team_name}</span>}
                 {p.members && <span><b>팀원</b>{p.members}</span>}
-                {p.award && <span><b>결과</b>{p.award}</span>}
                 {p.period && <span><b>기간</b>{p.period}</span>}
               </div>
               {p.description && <p className="record__desc">{p.description}</p>}

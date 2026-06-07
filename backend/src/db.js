@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./lib/chat-prompt-defaults.js";
+import { DEFAULT_TECH_STACK } from "./lib/tech-stack-defaults.js";
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "db",
@@ -115,6 +116,7 @@ async function ensureSortOrder(conn, table) {
 async function seedDefaultSettings(conn) {
   const defaults = {
     chat_system_prompt: DEFAULT_CHAT_SYSTEM_PROMPT,
+    tech_stack: JSON.stringify(DEFAULT_TECH_STACK),
   };
   for (const [key, value] of Object.entries(defaults)) {
     const [rows] = await conn.query("SELECT value FROM settings WHERE `key` = ? LIMIT 1", [
@@ -123,6 +125,8 @@ async function seedDefaultSettings(conn) {
     if (!rows.length) {
       await conn.query("INSERT INTO settings (`key`, value) VALUES (?, ?)", [key, value]);
     } else if (key === "chat_system_prompt" && !String(rows[0].value || "").trim()) {
+      await conn.query("UPDATE settings SET value = ? WHERE `key` = ?", [value, key]);
+    } else if (key === "tech_stack" && !String(rows[0].value || "").trim()) {
       await conn.query("UPDATE settings SET value = ? WHERE `key` = ?", [value, key]);
     }
   }

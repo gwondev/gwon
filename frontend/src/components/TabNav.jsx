@@ -6,7 +6,7 @@ import "./TabNav.css";
 // 메인 화면 + 한번에 보기 + 4개 섹션을 한 줄 툴바로
 const NAV = [
   { key: "home", path: "/", title: "메인 화면" },
-  { key: "overview", path: "/overview", title: "한번에 보기" },
+  { key: "overview", path: "/overview", title: "전체 포트폴리오 요약" },
   ...SECTIONS.map((s) => ({ key: s.key, path: s.path, title: s.title })),
 ];
 
