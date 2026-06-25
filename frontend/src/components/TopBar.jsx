@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import { IconCalendar, IconUser } from "./ActionIcons";
 import SideDrawer from "./SideDrawer";
 import "./TopBar.css";
 
@@ -22,6 +23,11 @@ export default function TopBar() {
   );
 
   const handleGreetClick = () => {
+    if (isAuthed) navigate("/mypage");
+    else setOpen(true);
+  };
+
+  const goMyPage = () => {
     if (isAuthed) navigate("/mypage");
     else setOpen(true);
   };
@@ -53,6 +59,28 @@ export default function TopBar() {
               메인 화면
             </button>
           )}
+          <div className="topbar__orbs" role="toolbar" aria-label="빠른 메뉴">
+            <button
+              type="button"
+              className="topbar__orb"
+              onClick={goMyPage}
+              aria-label="마이페이지"
+              title="마이페이지"
+            >
+              <span className="topbar__orb-sheen" aria-hidden />
+              <IconUser />
+            </button>
+            <button
+              type="button"
+              className="topbar__orb"
+              onClick={() => navigate("/schedule")}
+              aria-label="일정"
+              title="일정"
+            >
+              <span className="topbar__orb-sheen" aria-hidden />
+              <IconCalendar />
+            </button>
+          </div>
           <button
             className={`hamburger ${open ? "is-open" : ""}`}
             onClick={() => setOpen(true)}

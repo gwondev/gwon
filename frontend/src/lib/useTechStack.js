@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "./api";
 import { TECH_STACK_FALLBACK } from "./sections";
+import { getCachedTechStack, loadTechStack } from "./resourceCache";
 
 export function useTechStack() {
-  const [groups, setGroups] = useState(TECH_STACK_FALLBACK);
-  const [loading, setLoading] = useState(true);
+  const [groups, setGroups] = useState(() => getCachedTechStack() || TECH_STACK_FALLBACK);
+  const [loading, setLoading] = useState(() => !getCachedTechStack());
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
+    if (!getCachedTechStack()) setLoading(true);
     try {
-      const data = await api("/tech-stack");
-      if (Array.isArray(data.groups) && data.groups.length) {
-        setGroups(data.groups);
-      }
+      const data = await loadTechStack({ force });
+      if (Array.isArray(data) && data.length) setGroups(data);
     } catch {
       setGroups(TECH_STACK_FALLBACK);
     } finally {
@@ -23,5 +22,5 @@ export function useTechStack() {
     load();
   }, [load]);
 
-  return { groups, loading, reload: load };
+  return { groups, loading, reload: () => load(true) };
 }

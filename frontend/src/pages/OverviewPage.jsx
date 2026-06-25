@@ -1,16 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import TabNav from "../components/TabNav";
-import { api } from "../lib/api";
 import { ABOUT, SECTIONS, isCompetition, isProjectRecord, TECH_STACK_FALLBACK } from "../lib/sections";
-import {
-  DEMO_ACTIVITIES,
-  DEMO_CAREERS,
-  DEMO_CERTIFICATIONS,
-  DEMO_PROJECTS,
-  withDemoFallback,
-} from "../lib/demoData";
+import { usePortfolioPreview } from "../lib/usePortfolioPreview";
 import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
 import { formatCareerPeriodPreview } from "../lib/format";
@@ -65,31 +58,13 @@ function EmptyNote() {
 }
 
 export default function OverviewPage() {
-  const [projects, setProjects] = useState([]);
-  const [activities, setActivities] = useState([]);
-  const [certifications, setCertifications] = useState([]);
-  const [career, setCareer] = useState([]);
+  const { preview } = usePortfolioPreview();
+  const projects = preview.projects;
+  const activities = preview.activities;
+  const certifications = preview.certifications;
+  const career = preview.career;
   const { groups: techGroupsRaw } = useTechStack();
   const techGroups = techGroupsRaw.length ? techGroupsRaw : TECH_STACK_FALLBACK;
-
-  useEffect(() => {
-    let alive = true;
-    Promise.all([
-      api("/projects").catch(() => ({ items: [] })),
-      api("/activities").catch(() => ({ items: [] })),
-      api("/certifications").catch(() => ({ items: [] })),
-      api("/careers").catch(() => ({ items: [] })),
-    ]).then(([p, a, c, r]) => {
-      if (!alive) return;
-      setProjects(withDemoFallback(p.items, DEMO_PROJECTS));
-      setActivities(withDemoFallback(a.items, DEMO_ACTIVITIES));
-      setCertifications(withDemoFallback(c.items, DEMO_CERTIFICATIONS));
-      setCareer(withDemoFallback(r.items, DEMO_CAREERS));
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const competitions = useMemo(() => projects.filter(isCompetition), [projects]);
   const projectList = useMemo(() => projects.filter(isProjectRecord), [projects]);

@@ -120,20 +120,19 @@
 
 @media (min-width: 900px) {
   .quick-actions {
-    flex: 1;
-    min-width: 0;
-    align-items: flex-end;
+    width: 100%;
+    align-items: center;
     justify-content: center;
   }
 
   .quick-actions__buttons {
-    justify-content: flex-end;
-    padding-right: 0.15rem;
+    justify-content: center;
+    padding-right: 0;
   }
 
   .quick-actions__btn {
-    width: clamp(132px, 12.5vw, 168px);
-    height: clamp(132px, 12.5vw, 168px);
+    width: clamp(152px, 14vw, 192px);
+    height: clamp(152px, 14vw, 192px);
   }
 }
 

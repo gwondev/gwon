@@ -1,34 +1,21 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import QuickActions from "../components/QuickActions";
-import { SECTIONS, isCompetition, isProjectRecord } from "../lib/sections";
+import { SECTIONS, isCompetition } from "../lib/sections";
 import { useTechStack } from "../lib/useTechStack";
+import { usePortfolioPreview } from "../lib/usePortfolioPreview";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
-import { api } from "../lib/api";
 import {
-  DEMO_ACTIVITIES,
-  DEMO_CAREERS,
-  DEMO_CERTIFICATIONS,
-  DEMO_PROJECTS,
-  withDemoFallback,
-} from "../lib/demoData";
-import {
-  formatActivityPreview,
-  formatCareerPreview,
-  formatCompetitionPreview,
-  formatProjectPreviewLine,
-  isHomeFeatured,
+  formatActivityPreviewParts,
+  formatCareerPreviewParts,
+  formatCertificationPreviewParts,
+  formatCompetitionPreviewParts,
+  formatProjectPreviewParts,
+  orderProjectsForPreview,
 } from "../lib/format";
 import "./RootPage.css";
-
-const RESOURCE_BY_KEY = {
-  projects: "projects",
-  activities: "activities",
-  certifications: "certifications",
-  career: "careers",
-};
 
 const MOBILE_PREVIEW_MAX = 19;
 const MOBILE_MQ = "(max-width: 820px)";
@@ -59,53 +46,87 @@ function previewRows(key, preview, techGroups) {
   }
 
   const pool = preview.projects || [];
-  const items =
-    key === "competitions"
-      ? pool.filter(isCompetition)
-      : key === "projects"
-        ? (() => {
-            const projects = pool.filter(isProjectRecord);
-            const featured = projects.filter(isHomeFeatured);
-            return (featured.length ? featured : projects).slice(0, 2);
-          })()
-        : preview[key] || [];
-
-  if (key === "projects") {
-    return items.map((it) => ({
-      kind: "text",
-      text: formatProjectPreviewLine(it),
-    }));
-  }
 
   if (key === "competitions") {
-    return items.map((it) => ({
-      kind: "text",
-      text: formatCompetitionPreview(it),
+    return pool
+      .filter(isCompetition)
+      .slice(0, 4)
+      .map((it) => ({ kind: "split", ...formatCompetitionPreviewParts(it) }));
+  }
+
+  if (key === "projects") {
+    return orderProjectsForPreview(pool, 4).map((it) => ({
+      kind: "split",
+      ...formatProjectPreviewParts(it),
     }));
   }
 
+  const items = preview[key] || [];
+
   if (key === "activities") {
-    return items.map((it) => ({
-      kind: "text",
-      text: formatActivityPreview(it),
+    return items.slice(0, 4).map((it) => ({
+      kind: "split",
+      ...formatActivityPreviewParts(it),
     }));
   }
 
   if (key === "career") {
-    return items.map((it) => ({
-      kind: "text",
-      text: formatCareerPreview(it),
+    return items.slice(0, 4).map((it) => ({
+      kind: "split",
+      ...formatCareerPreviewParts(it),
     }));
   }
 
   if (key === "certifications") {
-    return items.map((it) => ({
-      kind: "text",
-      text: it.title + (it.score ? ` (${it.score})` : ""),
+    return items.slice(0, 4).map((it) => ({
+      kind: "cert",
+      ...formatCertificationPreviewParts(it),
     }));
   }
 
-  return items.map((it) => ({ kind: "text", text: String(it.title || "") }));
+  return items.map((it) => ({ kind: "plain", text: String(it.title || "") }));
+}
+
+function PreviewRow({ row, previewMax }) {
+  if (row.kind === "tech") {
+    return (
+      <span className="cat-card__preview-item cat-card__preview-item--tech">
+        <span className="cat-card__preview-accent">[{row.group}]</span>
+        <span className="cat-card__preview-main">{truncatePreview(row.items, previewMax)}</span>
+      </span>
+    );
+  }
+
+  if (row.kind === "cert") {
+    return (
+      <span className="cat-card__preview-item cat-card__preview-item--split">
+        <span className="cat-card__preview-accent">{truncatePreview(row.main, previewMax)}</span>
+        {row.meta ? (
+          <span className="cat-card__preview-main"> ({truncatePreview(row.meta, previewMax)})</span>
+        ) : null}
+      </span>
+    );
+  }
+
+  if (row.kind === "split") {
+    return (
+      <span className="cat-card__preview-item cat-card__preview-item--split">
+        {row.accentFirst && row.accent ? (
+          <span className="cat-card__preview-accent">({truncatePreview(row.accent, previewMax)}) </span>
+        ) : null}
+        <span className="cat-card__preview-main">{truncatePreview(row.main, previewMax)}</span>
+        {!row.accentFirst && row.accent ? (
+          <span className="cat-card__preview-accent">({truncatePreview(row.accent, previewMax)})</span>
+        ) : null}
+      </span>
+    );
+  }
+
+  return (
+    <span className="cat-card__preview-item cat-card__preview-item--plain">
+      {truncatePreview(row.text, previewMax)}
+    </span>
+  );
 }
 
 const heroStagger = {
@@ -126,35 +147,10 @@ const cardRise = {
 
 export default function RootPage() {
   const navigate = useNavigate();
-  const [preview, setPreview] = useState({ projects: [] });
+  const { preview } = usePortfolioPreview();
   const { groups: techGroups } = useTechStack();
   const isMobile = useSyncExternalStore(subscribeMobileMq, getMobileMq, () => false);
   const previewMax = isMobile ? MOBILE_PREVIEW_MAX : null;
-
-  useEffect(() => {
-    let alive = true;
-    Promise.all(
-      Object.entries(RESOURCE_BY_KEY).map(([key, resource]) =>
-        api(`/${resource}`)
-          .then((d) => ({ key, items: d.items || [] }))
-          .catch(() => ({ key, items: [] }))
-      )
-    ).then((results) => {
-      if (!alive) return;
-      const next = { projects: withDemoFallback([], DEMO_PROJECTS) };
-      for (const { key, items } of results) {
-        if (key === "projects") next.projects = withDemoFallback(items, DEMO_PROJECTS);
-        else if (key === "activities") next.activities = withDemoFallback(items, DEMO_ACTIVITIES);
-        else if (key === "certifications") next.certifications = withDemoFallback(items, DEMO_CERTIFICATIONS);
-        else if (key === "career") next.career = withDemoFallback(items, DEMO_CAREERS);
-        else next[key] = items;
-      }
-      setPreview(next);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   return (
     <PageTransition className="page root">
@@ -163,7 +159,7 @@ export default function RootPage() {
           <motion.h1 className="display hero__name" variants={rise}>
             이성권
           </motion.h1>
-          <motion.p className="lead hero__lead" variants={rise}>
+          <motion.p className="hero__lead" variants={rise}>
             PORTFOLIO OF LEE SEONG-GWON.
           </motion.p>
         </motion.section>
@@ -190,20 +186,7 @@ export default function RootPage() {
                 <span className="cat-card__divider" aria-hidden />
                 <span className="cat-card__preview cat-card__preview--grid">
                   {rows.length > 0 ? (
-                    rows.map((row, i) =>
-                      row.kind === "tech" ? (
-                        <span className="cat-card__preview-item cat-card__preview-item--tech" key={`${s.key}-${i}`}>
-                          <span className="cat-card__preview-tech-group">[{row.group}]</span>
-                          <span className="cat-card__preview-tech-items">
-                            {truncatePreview(row.items, previewMax)}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="cat-card__preview-item" key={`${s.key}-${i}`}>
-                          {truncatePreview(row.text, previewMax)}
-                        </span>
-                      )
-                    )
+                    rows.map((row, i) => <PreviewRow key={`${s.key}-${i}`} row={row} previewMax={previewMax} />)
                   ) : (
                     <span className="cat-card__preview-empty">아직 등록된 항목 없음</span>
                   )}

@@ -21,10 +21,22 @@ export function formatActivityPreview(item) {
   return yy ? `${title} (${yy})` : title;
 }
 
+export function formatActivityPreviewParts(item) {
+  const main = String(item?.title || "").trim();
+  const yy = extractPeriodYearShort(item?.period);
+  return { main, accent: yy || "" };
+}
+
 export function formatCompetitionPreview(item) {
   const team = String(item?.team_name || item?.title || "").trim().toUpperCase();
   const award = String(item?.award || "").trim();
   return award ? `${team}(${award})` : team;
+}
+
+export function formatCompetitionPreviewParts(item) {
+  const main = String(item?.team_name || item?.title || "").trim().toUpperCase();
+  const accent = String(item?.award || "").trim();
+  return { main, accent };
 }
 
 function parseYmd(raw) {
@@ -54,7 +66,13 @@ export function formatCareerDurationMonths(period) {
 export function formatCareerPreview(item) {
   const title = String(item?.title || "").trim();
   const span = formatCareerDurationMonths(item?.period);
-  return span ? `${title} (${span})` : title;
+  return span ? `(${span}) ${title}` : title;
+}
+
+export function formatCareerPreviewParts(item) {
+  const main = String(item?.title || "").trim();
+  const accent = formatCareerDurationMonths(item?.period);
+  return { main, accent, accentFirst: true };
 }
 
 const PROJECT_PREVIEW_CATEGORY_OVERRIDES = {
@@ -86,8 +104,34 @@ export function formatProjectPreviewLine(item) {
   return tags.length ? `${team}(${tags.join(", ")})` : team;
 }
 
+export function formatProjectPreviewParts(item) {
+  const main = String(item?.team_name || item?.title || "").trim().toUpperCase();
+  const accent = resolveProjectPreviewTags(item)
+    .map((t) => String(t).trim().toUpperCase())
+    .filter(Boolean)
+    .join(", ");
+  return { main, accent };
+}
+
+export function formatCertificationPreviewParts(item) {
+  return {
+    main: String(item?.title || "").trim(),
+    meta: String(item?.score || "").trim(),
+  };
+}
+
+export function orderProjectsForPreview(projects, limit = 4) {
+  const list = projects.filter((p) => !String(p?.award || "").trim());
+  const featured = list.filter(isHomeFeatured);
+  const rest = list.filter((p) => !isHomeFeatured(p));
+  return [...featured, ...rest].slice(0, limit);
+}
+
 export function isHomeFeatured(item) {
-  return item?.home_featured === 1 || item?.home_featured === "1" || item?.home_featured === true;
+  const v = item?.home_featured;
+  if (v === true || v === 1 || v === "1") return true;
+  if (typeof v === "string" && v.toLowerCase() === "true") return true;
+  return false;
 }
 
 // 경력 기간 미리보기: "2026.05.01 ~ 2026.09.03" -> "26.05~26.09"

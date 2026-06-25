@@ -6,11 +6,13 @@
   padding-bottom: clamp(60px, 12vh, 140px);
 }
 
-/* 히어로 + 챗: 모바일 세로 / 데스크탑 좌우 */
+/* 히어로 + 퀵액션: 항상 세로 중앙 배치 */
 .root__masthead {
   display: flex;
   flex-direction: column;
-  gap: clamp(18px, 2.8vw, 28px);
+  align-items: center;
+  gap: clamp(16px, 2.4vw, 24px);
+  width: 100%;
 }
 
 .hero {
@@ -20,6 +22,7 @@
   text-align: center;
   gap: 0.55rem;
   padding: clamp(2px, 0.8vh, 10px) 0 0;
+  width: 100%;
 }
 .hero__name {
   margin: 0.1rem 0 0;
@@ -35,6 +38,7 @@
   margin: 0 auto;
   font-size: clamp(0.52rem, 1.1vw, 0.68rem);
   font-weight: 500;
+  line-height: 1.3;
   letter-spacing: 0.16em;
   opacity: 0.7;
   color: var(--text-faint);
@@ -43,39 +47,21 @@
   background-clip: initial;
 }
 
-@media (min-width: 900px) {
-  .root__masthead {
-    flex-direction: row;
-    align-items: stretch;
-    gap: clamp(20px, 2.8vw, 36px);
-  }
+/* global .lead(1.06rem)와 분리 — hero 전용 */
+.root .hero .hero__lead {
+  font-size: clamp(0.52rem, 1.1vw, 0.68rem);
+  line-height: 1.3;
+}
 
+@media (min-width: 900px) {
   .root__masthead .hero__name {
     font-size: clamp(2.6rem, 4.2vw, 3.8rem);
     line-height: 1.05;
   }
 
   .root__masthead .hero__lead {
-    margin: 0;
     font-size: clamp(0.5rem, 0.72vw, 0.62rem);
     letter-spacing: 0.14em;
-  }
-
-  .root__masthead .hero {
-    flex: 0 0 clamp(200px, 34%, 360px);
-    align-items: flex-start;
-    justify-content: center;
-    text-align: left;
-    padding: clamp(16px, 2.5vh, 28px) 0 clamp(16px, 2.5vh, 28px);
-  }
-
-  .root__masthead .quick-actions {
-    flex: 1;
-    min-width: 0;
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
   }
 }
 
@@ -103,12 +89,19 @@
 
 .root__grid--sub .cat-card__title {
   color: var(--text);
+  font-weight: 800;
 }
 
-.root__grid--sub .cat-card__preview-item,
+.root__grid--sub .cat-card__preview-main,
 .root__grid--sub .cat-card__preview-empty,
-.root__grid--sub .cat-card__preview-tech-items {
+.root__grid--sub .cat-card__preview-item--plain {
   color: var(--text-dim);
+}
+
+.root__grid--sub .cat-card__preview-accent {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .root__grid--sub .cat-card__preview-tech-group {
@@ -116,7 +109,22 @@
   opacity: 1;
 }
 
-/* legacy overview bar styles kept for overview page if needed */
+@media (min-width: 900px) {
+  .root__grid--sub .cat-card {
+    opacity: 0.86;
+    filter: saturate(0.72) brightness(0.94);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .root__grid--sub .cat-card:hover {
+    opacity: 0.94;
+    filter: saturate(0.82) brightness(0.98);
+  }
+
+  .root__grid--sub .cat-card__title {
+    color: var(--text);
+  }
+}
 .overview-bar {
   position: relative;
   overflow: hidden;
@@ -290,6 +298,12 @@
 .cat-card__preview-item::before {
   content: none;
 }
+.cat-card__preview-item--split {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .cat-card__preview-item--tech {
   display: flex;
   align-items: baseline;
@@ -301,14 +315,13 @@
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--accent);
 }
-.cat-card__preview-tech-items {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.cat-card__preview-main {
   color: var(--text-dim);
+}
+.cat-card__preview-accent {
+  color: var(--accent);
+  font-weight: 700;
 }
 .cat-card__preview-empty {
   font-size: 0.76rem;
@@ -354,10 +367,19 @@
   .cat-card__desc {
     font-size: 0.76rem;
   }
-  .cat-card__preview-item,
-  .cat-card__preview-empty {
-    font-size: calc(0.7rem - 1pt);
+@media (max-width: 820px) {
+  .root__grid--sub .cat-card__title {
+    font-size: calc(clamp(0.9rem, 2.6vw, 1rem) - 1pt);
   }
+  .root__grid--sub .cat-card__preview-item,
+  .root__grid--sub .cat-card__preview-empty,
+  .root__grid--sub .cat-card__preview-tech-items {
+    font-size: 0.62rem;
+  }
+  .root__grid--sub .cat-card__preview-tech-group {
+    font-size: 0.58rem;
+  }
+}
   .overview-bar__title {
     font-size: calc(clamp(1.2rem, 2.2vw, 1.7rem) - 1pt);
   }
@@ -374,16 +396,20 @@
     align-items: center;
   }
 
-  .hero__lead {
-    font-size: clamp(0.26rem, 0.55vw, 0.34rem);
-    letter-spacing: 0.12em;
+  .hero__lead,
+  .root .hero .hero__lead {
+    font-size: 0.46rem;
+    letter-spacing: 0.08em;
+    line-height: 1.25;
+    max-width: 92vw;
   }
 }
 
 @media (max-width: 480px) {
-  .hero__lead {
-    font-size: clamp(0.24rem, 1.4vw, 0.29rem);
-    letter-spacing: 0.1em;
+  .hero__lead,
+  .root .hero .hero__lead {
+    font-size: 0.42rem;
+    letter-spacing: 0.07em;
     white-space: normal;
   }
   .hero__name {

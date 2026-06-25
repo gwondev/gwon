@@ -1,27 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { useAuth } from "../context/AuthContext";
+import {
+  getCachedItems,
+  loadResourceItems,
+  prependCachedItem,
+  removeCachedItem,
+  replaceCachedItems,
+  patchCachedItem,
+  subscribeResourceCache,
+} from "./resourceCache";
 
-// 공용 CRUD 훅: /api/<resource>
 export function useResource(resource) {
   const { token } = useAuth();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState(() => getCachedItems(resource) || []);
+  const [loading, setLoading] = useState(() => !getCachedItems(resource));
   const [error, setError] = useState(null);
   const reorderTimer = useRef(null);
   const reorderPrev = useRef(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    api(`/${resource}`)
-      .then((data) => setItems(data.items || []))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [resource]);
+  const load = useCallback(
+    (force = false) => {
+      if (!getCachedItems(resource) || force) {
+        if (!getCachedItems(resource)) setLoading(true);
+      }
+      return loadResourceItems(resource, { force })
+        .then((data) => {
+          setItems(data);
+          setError(null);
+        })
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false));
+    },
+    [resource]
+  );
 
   useEffect(() => {
     load();
-  }, [load]);
+    return subscribeResourceCache((res, data) => {
+      if (res === resource) setItems(data);
+    });
+  }, [load, resource]);
 
   useEffect(
     () => () => {
@@ -33,7 +52,7 @@ export function useResource(resource) {
   const create = useCallback(
     async (body) => {
       const data = await api(`/${resource}`, { method: "POST", body, token });
-      setItems((prev) => [data.item, ...prev]);
+      prependCachedItem(resource, data.item);
       return data.item;
     },
     [resource, token]
@@ -42,7 +61,7 @@ export function useResource(resource) {
   const remove = useCallback(
     async (id) => {
       await api(`/${resource}/${id}`, { method: "DELETE", token });
-      setItems((prev) => prev.filter((it) => it.id !== id));
+      removeCachedItem(resource, id);
     },
     [resource, token]
   );
@@ -50,7 +69,7 @@ export function useResource(resource) {
   const update = useCallback(
     async (id, body) => {
       const data = await api(`/${resource}/${id}`, { method: "PUT", body, token });
-      setItems((prev) => prev.map((it) => (it.id === id ? data.item : it)));
+      patchCachedItem(resource, data.item);
       return data.item;
     },
     [resource, token]
@@ -62,6 +81,7 @@ export function useResource(resource) {
         reorderPrev.current = prev;
         return nextItems;
       });
+      replaceCachedItems(resource, nextItems);
       if (reorderTimer.current) clearTimeout(reorderTimer.current);
       reorderTimer.current = setTimeout(async () => {
         try {
@@ -70,9 +90,9 @@ export function useResource(resource) {
             body: { ids: nextItems.map((it) => it.id) },
             token,
           });
-          setItems(data.items || nextItems);
+          replaceCachedItems(resource, data.items || nextItems);
         } catch (e) {
-          if (reorderPrev.current) setItems(reorderPrev.current);
+          if (reorderPrev.current) replaceCachedItems(resource, reorderPrev.current);
           alert(`순서 변경 실패: ${e.message}`);
         }
       }, 350);

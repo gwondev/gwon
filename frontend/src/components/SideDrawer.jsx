@@ -67,17 +67,6 @@ export default function SideDrawer({ open, onClose }) {
             </div>
 
             <motion.nav className="drawer__nav" variants={stagger} initial="hidden" animate="show">
-              {isAuthed && (
-                <motion.button
-                  variants={item}
-                  className="drawer__link drawer__link--mypage"
-                  onClick={() => go("/mypage")}
-                >
-                  <span className="drawer__link-no">♦</span>
-                  <span className="drawer__link-title">마이페이지</span>
-                  <span className="drawer__link-arrow">→</span>
-                </motion.button>
-              )}
               {SECTIONS.map((s) => (
                 <motion.button
                   key={s.key}
@@ -90,15 +79,6 @@ export default function SideDrawer({ open, onClose }) {
                   <span className="drawer__link-arrow">→</span>
                 </motion.button>
               ))}
-              <motion.button
-                variants={item}
-                className="drawer__link drawer__link--schedule"
-                onClick={() => go("/schedule")}
-              >
-                <span className="drawer__link-no">▣</span>
-                <span className="drawer__link-title">일정관리</span>
-                <span className="drawer__link-arrow">→</span>
-              </motion.button>
               {isAdmin && (
                 <motion.button
                   variants={item}
