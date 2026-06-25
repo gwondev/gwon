@@ -524,10 +524,7 @@ export default function ScheduleTab() {
             aria-label="테마 색상"
           >
             <span className="schedule__theme-dot" style={{ background: theme.accent }} />
-            테마
-          </button>
-          <button type="button" className="btn btn-accent schedule__add-btn" onClick={() => openAdd(todayKey)}>
-            ＋ 추가
+            내 테마
           </button>
         </div>
       </div>
@@ -570,7 +567,7 @@ export default function ScheduleTab() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
           >
-            <p className="schedule__theme-label">달력 테마 색상</p>
+            <p className="schedule__theme-label">내 테마 색상</p>
             <div className="schedule__theme-swatches">
               {CALENDAR_THEME_COLORS.map((c) => (
                 <button

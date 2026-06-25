@@ -63,10 +63,23 @@
     box-shadow 0.35s var(--ease);
 }
 
+.topbar__orb--home {
+  width: 46px;
+  height: 46px;
+  border-color: var(--line);
+  background: rgba(18, 18, 21, 0.6);
+  color: var(--text);
+}
+
 .topbar__orb:hover {
   border-color: var(--accent);
   transform: translateY(-1px);
   box-shadow: 0 0 0 1px var(--accent-soft) inset;
+}
+
+.topbar__orb--home:hover {
+  border-color: var(--accent-line);
+  box-shadow: none;
 }
 
 .topbar__orb-sheen {
@@ -93,20 +106,23 @@
   justify-content: center;
   gap: 6px;
   border-radius: 50%;
-  border: 1px solid var(--line);
-  background: rgba(18, 18, 21, 0.6);
-  transition: border-color 0.4s var(--ease), transform 0.4s var(--ease);
+  border: 1px solid var(--accent-line);
+  background:
+    radial-gradient(120% 180% at 20% 0%, rgba(216, 193, 154, 0.12), transparent 58%),
+    linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
+  transition: border-color 0.4s var(--ease), transform 0.4s var(--ease), box-shadow 0.35s var(--ease);
 }
 .hamburger:hover {
-  border-color: var(--accent-line);
+  border-color: var(--accent);
   transform: translateY(-1px);
+  box-shadow: 0 0 0 1px var(--accent-soft) inset;
 }
 .hamburger span {
   display: block;
   width: 20px;
   height: 1.8px;
   border-radius: 2px;
-  background: var(--text);
+  background: var(--accent);
   transition: transform 0.35s var(--ease), opacity 0.25s var(--ease);
 }
 .hamburger span:nth-child(2) {

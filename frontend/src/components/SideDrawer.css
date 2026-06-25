@@ -56,8 +56,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.28rem;
-  width: 68px;
-  height: 68px;
+  width: 76px;
+  height: 76px;
   flex: none;
   padding: 0.4rem 0.35rem;
   border-radius: 50%;
@@ -83,12 +83,12 @@
 }
 
 .drawer__quick-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .drawer__quick-label {
-  font-size: 0.58rem;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;

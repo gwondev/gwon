@@ -145,7 +145,42 @@ async function resolveOwnerIds(req, requestedOwnerIds) {
   return ids;
 }
 
+async function canViewOwner(actorId, actorRole, ownerId) {
+  if (actorId === ownerId) return true;
+  if (isSuperAdminRole(actorRole)) return canManageOwner(actorId, actorRole, ownerId);
+  if (actorRole !== "ADMIN") return false;
+  const [rows] = await pool.query("SELECT id, role FROM users WHERE id = ?", [ownerId]);
+  const target = rows[0];
+  return Boolean(target && target.role === "SUPER_ADMIN");
+}
+
+async function resolveViewOwnerIds(req, requestedOwnerIds) {
+  const actorId = req.auth.uid;
+  const actorRole = req.userRole || (await getUserRole(actorId));
+  const ids = Array.isArray(requestedOwnerIds)
+    ? [...new Set(requestedOwnerIds.map(Number).filter((n) => Number.isFinite(n) && n > 0))]
+    : [];
+
+  if (ids.length === 0) return [actorId];
+
+  for (const id of ids) {
+    if (!(await canViewOwner(actorId, actorRole, id))) {
+      throw Object.assign(new Error("선택한 일정 주체에 접근할 수 없습니다."), { status: 403 });
+    }
+  }
+  return ids;
+}
+
 async function getVisibleOwnerIds(actorId, actorRole) {
+  if (actorRole === "ADMIN") {
+    const [rows] = await pool.query(
+      `SELECT id, role FROM users
+       WHERE role = 'SUPER_ADMIN' OR id = ?
+       ORDER BY FIELD(role, 'SUPER_ADMIN', 'ADMIN', 'GUEST'), id ASC`,
+      [actorId]
+    );
+    return rows.map((u) => u.id);
+  }
   if (!isSuperAdminRole(actorRole)) return [actorId];
   const [rows] = await pool.query(
     `SELECT id, role FROM users
@@ -272,6 +307,17 @@ router.get("/owners", requireCalendarAdmin, async (req, res, next) => {
       return res.json({ items, selfId: actorId });
     }
 
+    if (actorRole === "ADMIN") {
+      const [rows] = await pool.query(
+        `SELECT id, name, nickname, email, role, calendar_theme_color AS calendarThemeColor
+         FROM users
+         WHERE id = ? OR role = 'SUPER_ADMIN'
+         ORDER BY FIELD(role, 'SUPER_ADMIN', 'ADMIN', 'GUEST'), id ASC`,
+        [actorId]
+      );
+      return res.json({ items: rows, selfId: actorId });
+    }
+
     const [selfRows] = await pool.query(
       `SELECT id, name, nickname, email, role, calendar_theme_color AS calendarThemeColor
        FROM users WHERE id = ?`,
@@ -303,7 +349,7 @@ router.get("/filter", requireCalendarAdmin, async (req, res, next) => {
     }
 
     if (ownerIds?.length) {
-      ownerIds = await resolveOwnerIds(req, ownerIds);
+      ownerIds = await resolveViewOwnerIds(req, ownerIds);
     } else {
       ownerIds = null;
     }
@@ -318,7 +364,7 @@ router.get("/filter", requireCalendarAdmin, async (req, res, next) => {
 // PUT /api/calendar/filter { ownerIds: number[] }
 router.put("/filter", requireCalendarAdmin, async (req, res, next) => {
   try {
-    const ownerIds = await resolveOwnerIds(req, req.body?.ownerIds);
+    const ownerIds = await resolveViewOwnerIds(req, req.body?.ownerIds);
     if (!ownerIds.length) {
       return res.status(400).json({ error: "최소 한 명은 선택해야 합니다." });
     }
@@ -347,7 +393,7 @@ router.get("/events", requireCalendarAdmin, async (req, res, next) => {
     const queryIds = parseOwnerIdsQuery(req.query.ownerIds);
     const legacyId = req.query.ownerId ? [Number(req.query.ownerId)] : [];
     const requested = queryIds.length ? queryIds : legacyId;
-    const ownerIds = await resolveOwnerIds(req, requested);
+    const ownerIds = await resolveViewOwnerIds(req, requested);
     const actorId = req.auth.uid;
     const actorRole = req.userRole || (await getUserRole(actorId));
     const visibleOwnerIds = await getVisibleOwnerIds(actorId, actorRole);
