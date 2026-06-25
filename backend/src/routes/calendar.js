@@ -655,12 +655,21 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
     }
 
+    // 기존 시리즈에 속한 행들의 id를 먼저 수집한다.
+    const [oldRows] = await pool.query(
+      "SELECT id FROM calendar_events WHERE series_id = ? OR id = ?",
+      [existing.series_id || "__no_series__", existing.id]
+    );
+    const oldIds = oldRows.map((r) => r.id);
+
+    // 시리즈 식별자는 그대로 유지(없으면 새로 부여)
     const seriesId = existing.series_id || makeSeriesId();
     const conn = await pool.getConnection();
     let createdRow;
     try {
       await conn.beginTransaction();
-      await conn.query("DELETE FROM calendar_events WHERE series_id = ? OR id = ?", [seriesId, existing.id]);
+
+      // 1) 새 일정을 먼저 생성한다. (실패해도 기존 데이터는 그대로 보존)
       const rows = await createSeriesEvents(conn, {
         ownerId,
         sharedOwnerIds: ownerIds,
@@ -678,6 +687,18 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
         ...location,
       });
       createdRow = rows[0];
+
+      // 2) 새 일정이 정상 생성된 뒤에만 기존 행을 삭제한다.
+      const newIds = new Set(rows.map((r) => r.id));
+      const idsToDelete = oldIds.filter((id) => !newIds.has(id));
+      if (idsToDelete.length) {
+        const placeholders = idsToDelete.map(() => "?").join(", ");
+        await conn.query(
+          `DELETE FROM calendar_events WHERE id IN (${placeholders})`,
+          idsToDelete
+        );
+      }
+
       await conn.commit();
     } catch (e) {
       await conn.rollback();
@@ -694,6 +715,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       }),
     });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
   }
 });

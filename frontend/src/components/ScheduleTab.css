@@ -236,13 +236,20 @@
 }
 
 .schedule__err {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 200;
   margin: 0;
-  padding: 0.5rem 0.65rem;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 107, 107, 0.35);
-  background: rgba(255, 107, 107, 0.08);
+  max-width: min(92vw, 420px);
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 107, 0.45);
+  background: rgba(40, 12, 12, 0.96);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   font-size: 0.86rem;
-  color: #ff6b6b;
+  color: #ffb4b4;
   line-height: 1.4;
   white-space: normal;
   overflow-wrap: anywhere;
