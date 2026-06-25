@@ -76,6 +76,12 @@ function shiftDateKey(dateKey, delta) {
   return toDateKey(dt);
 }
 
+function timeToMinute(v) {
+  if (!v || !/^\d{2}:\d{2}$/.test(v)) return null;
+  const [h, m] = v.split(":").map(Number);
+  return h * 60 + m;
+}
+
 function formatDateDot(dateKey) {
   if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return "";
   const [, m, d] = dateKey.split("-");
@@ -200,8 +206,8 @@ export default function ScheduleTab() {
     }
     for (const key of Object.keys(map)) {
       map[key].sort((a, b) => {
-        if (!a.startTime && b.startTime) return -1;
-        if (a.startTime && !b.startTime) return 1;
+        if (a.startTime && !b.startTime) return -1;
+        if (!a.startTime && b.startTime) return 1;
         if (!a.startTime && !b.startTime) return a.id - b.id;
         return a.startTime.localeCompare(b.startTime);
       });
@@ -412,6 +418,11 @@ export default function ScheduleTab() {
     setBusy(true);
     setErr(null);
     try {
+      if (form.startTime && form.endTime && timeToMinute(form.endTime) <= timeToMinute(form.startTime)) {
+        setErr("종료 시간은 시작 시간보다 뒤로 설정해주세요.");
+        setBusy(false);
+        return;
+      }
       if (editId != null) {
         const payload = {
           title,
@@ -842,9 +853,10 @@ function EventBubble({
     : getThemeById(event.ownerThemeColor || "red");
   const isMoney = event.appointmentType === "MONEY" || (!event.appointmentType && Boolean(event.incomeType));
   const isDrink = event.appointmentType === "DRINK";
+  const isAllDay = !event.startTime;
   return (
     <span
-      className={`schedule__bubble ${connectedPrev ? "is-cont-prev" : ""} ${connectedNext ? "is-cont-next" : ""} ${deleteMode && selected ? "is-pick-selected" : ""} ${deleteMode && selectable ? "is-pickable" : ""}`}
+      className={`schedule__bubble ${connectedPrev ? "is-cont-prev" : ""} ${connectedNext ? "is-cont-next" : ""} ${isAllDay ? "is-all-day" : ""} ${deleteMode && selected ? "is-pick-selected" : ""} ${deleteMode && selectable ? "is-pickable" : ""}`}
       style={{ "--cal-accent": bubbleTheme.accent }}
       onClick={onClick}
       role="presentation"
@@ -1167,6 +1179,67 @@ function EventModal({
     () => Array.from({ length: MAX_REPEAT_WEEKS }, (_, i) => i + 1),
     []
   );
+  const [quickPreset, setQuickPreset] = useState(null);
+
+  const applyQuickDuration = useCallback(
+    (hours) => {
+      const start = /^\d{2}:\d{2}$/.test(form.startTime || "") ? form.startTime : "09:00";
+      const startMinute = timeToMinute(start);
+      const endMinute = startMinute + hours * 60;
+      const endHour = Math.floor((endMinute % (24 * 60)) / 60);
+      const endMin = endMinute % 60;
+      const end = `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
+      setForm((f) => ({ ...f, startTime: start, endTime: end }));
+      setQuickPreset(String(hours));
+    },
+    [form.startTime, setForm]
+  );
+
+  const applyAllDay = useCallback(() => {
+    setForm((f) => ({ ...f, startTime: "", endTime: "" }));
+    setQuickPreset("ALL_DAY");
+  }, [setForm]);
+
+  const handleStartTimeChange = useCallback(
+    (v) => {
+      setForm((f) => ({ ...f, startTime: v }));
+      setQuickPreset(null);
+    },
+    [setForm]
+  );
+
+  const handleEndTimeChange = useCallback(
+    (v) => {
+      setForm((f) => ({ ...f, endTime: v }));
+      setQuickPreset(null);
+    },
+    [setForm]
+  );
+
+  useEffect(() => {
+    if (!form.startTime && !form.endTime) {
+      setQuickPreset("ALL_DAY");
+      return;
+    }
+    if (!form.startTime || !form.endTime) {
+      setQuickPreset(null);
+      return;
+    }
+    const s = timeToMinute(form.startTime);
+    const e = timeToMinute(form.endTime);
+    if (s == null || e == null || e <= s) {
+      setQuickPreset(null);
+      return;
+    }
+    const diff = e - s;
+    if (diff % 60 !== 0) {
+      setQuickPreset(null);
+      return;
+    }
+    const h = diff / 60;
+    if (h >= 1 && h <= 4) setQuickPreset(String(h));
+    else setQuickPreset(null);
+  }, [form.startTime, form.endTime]);
 
   return (
     <motion.div
@@ -1289,18 +1362,39 @@ function EventModal({
             {form.spanDays}일간 · {repeatWeeksLabel(form.repeatWeeks)} 동일 패턴으로 등록됩니다.
           </p>
 
-          <div className="schedule__time-row">
-            <MobileTimePicker
-              label="시작 (선택)"
-              value={form.startTime}
-              onChange={(v) => setForm((f) => ({ ...f, startTime: v }))}
-            />
-            <MobileTimePicker
-              label="종료 (선택)"
-              value={form.endTime}
-              onChange={(v) => setForm((f) => ({ ...f, endTime: v }))}
-            />
+          <div className="schedule__time-quick-row">
+            {[1, 2, 3, 4].map((h) => (
+              <button
+                key={h}
+                type="button"
+                className={`schedule__time-quick-btn ${quickPreset === String(h) ? "is-active" : ""}`}
+                onClick={() => applyQuickDuration(h)}
+              >
+                {h}시간
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`schedule__time-quick-btn ${quickPreset === "ALL_DAY" ? "is-active" : ""}`}
+              onClick={applyAllDay}
+            >
+              종일
+            </button>
           </div>
+          {quickPreset !== "ALL_DAY" && (
+            <div className="schedule__time-row">
+              <MobileTimePicker
+                label="시작 (선택)"
+                value={form.startTime}
+                onChange={handleStartTimeChange}
+              />
+              <MobileTimePicker
+                label="종료 (선택)"
+                value={form.endTime}
+                onChange={handleEndTimeChange}
+              />
+            </div>
+          )}
           <LocationPicker
             value={{
               locationName: form.locationName,
@@ -1309,11 +1403,6 @@ function EventModal({
             }}
             onChange={(loc) => setForm((f) => ({ ...f, ...loc }))}
           />
-          <div className="schedule__time-empty-btns">
-            <button type="button" className="btn btn-ghost" onClick={() => setForm((f) => ({ ...f, startTime: "", endTime: "" }))}>
-              종일 일정으로
-            </button>
-          </div>
           <p className="schedule__hint">시간을 비우면 종일 일정으로 저장됩니다.</p>
 
           <div className="field">

@@ -58,8 +58,8 @@ export function dedupeEventsBySeries(events) {
     const da = a.seriesStartDate || a.eventDate;
     const db = b.seriesStartDate || b.eventDate;
     if (da !== db) return da.localeCompare(db);
-    if (!a.startTime && b.startTime) return -1;
-    if (a.startTime && !b.startTime) return 1;
+    if (a.startTime && !b.startTime) return -1;
+    if (!a.startTime && b.startTime) return 1;
     if (!a.startTime && !b.startTime) return a.id - b.id;
     return (a.startTime || "").localeCompare(b.startTime || "");
   });

@@ -145,6 +145,12 @@ function toDateKey(input) {
   return dt.toISOString().slice(0, 10);
 }
 
+function toTimeMinute(v) {
+  if (!v || !/^\d{2}:\d{2}$/.test(v)) return null;
+  const [h, m] = v.split(":").map(Number);
+  return h * 60 + m;
+}
+
 async function resolveOwnerIds(req, requestedOwnerIds) {
   const actorId = req.auth.uid;
   const actorRole = req.userRole || (await getUserRole(actorId));
@@ -283,6 +289,9 @@ async function insertEvent(conn, data) {
 
 async function createSeriesEvents(conn, data) {
   const dates = expandEventDates(data.eventDate, data.spanDays, data.repeatWeeks);
+  if (!dates.length) {
+    throw Object.assign(new Error("유효한 날짜가 없습니다."), { status: 400 });
+  }
   const seriesId = data.seriesId || makeSeriesId();
   const seriesStartDate = dates[0];
   const seriesEndDate = dates[dates.length - 1];
@@ -545,6 +554,9 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
       return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
     }
+    if (startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
+      return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
+    }
 
     const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
     const ownerIds = requestedOwnerIds.length
@@ -638,6 +650,9 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     }
     if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
       return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
+    }
+    if (startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
+      return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
     }
 
     const seriesId = existing.series_id || makeSeriesId();

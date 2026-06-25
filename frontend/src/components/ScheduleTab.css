@@ -371,6 +371,10 @@
   flex: none;
 }
 
+.schedule__bubble.is-all-day .schedule__bubble-title {
+  font-weight: 800;
+}
+
 .schedule__bubble.is-pickable {
   cursor: pointer;
   padding-left: 1.1rem;
@@ -548,6 +552,28 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem;
+}
+
+.schedule__time-quick-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.schedule__time-quick-btn {
+  padding: 0.38rem 0.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.schedule__time-quick-btn.is-active {
+  border-color: var(--cal-accent);
+  background: color-mix(in srgb, var(--cal-accent) 20%, transparent);
+  color: var(--text);
 }
 
 .schedule__time-wheel-wrap {
@@ -1037,6 +1063,10 @@
 
   .schedule__time-row {
     grid-template-columns: 1fr;
+  }
+
+  .schedule__time-quick-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .schedule__duration-select {
