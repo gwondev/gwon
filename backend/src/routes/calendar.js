@@ -9,6 +9,7 @@ import {
 const router = Router();
 
 const INCOME_TYPES = ["ALBA", "WORK", "SCHOLARSHIP"];
+const APPOINTMENT_TYPES = ["MONEY", "DRINK"];
 const THEME_COLORS = [
   "red",
   "orange",
@@ -21,6 +22,10 @@ const THEME_COLORS = [
   "purple",
   "pink",
 ];
+
+function makeSeriesId() {
+  return `series_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
 
 function parseJsonOwnerIds(raw) {
   if (!raw) return [];
@@ -49,6 +54,16 @@ function publicEvent(row) {
   return {
     id: row.id,
     ownerId: row.owner_id,
+    seriesId: row.series_id || `single-${row.id}`,
+    seriesStartDate: row.series_start_date
+      ? String(row.series_start_date).slice(0, 10)
+      : (row.event_date instanceof Date ? row.event_date.toISOString().slice(0, 10) : String(row.event_date).slice(0, 10)),
+    seriesEndDate: row.series_end_date
+      ? String(row.series_end_date).slice(0, 10)
+      : (row.event_date instanceof Date ? row.event_date.toISOString().slice(0, 10) : String(row.event_date).slice(0, 10)),
+    spanDays: Number(row.series_span_days) || 1,
+    repeatWeeks: Number(row.series_repeat_weeks) || 1,
+    appointmentType: row.appointment_type || null,
     sharedOwnerIds,
     sharedOwnerNames: row.sharedOwnerNames || [],
     createdBy: row.created_by,
@@ -178,12 +193,19 @@ function expandEventDates(eventDate, spanDays, repeatWeeks) {
 async function insertEvent(conn, data) {
   const [result] = await conn.query(
     `INSERT INTO calendar_events
-     (owner_id, created_by, shared_owner_ids, title, description, event_date, start_time, end_time, income_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (owner_id, created_by, shared_owner_ids, series_id, series_start_date, series_end_date, series_span_days, series_repeat_weeks,
+      appointment_type, title, description, event_date, start_time, end_time, income_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.ownerId,
       data.actorId,
       JSON.stringify(data.sharedOwnerIds || [data.ownerId]),
+      data.seriesId || null,
+      data.seriesStartDate || null,
+      data.seriesEndDate || null,
+      data.seriesSpanDays || 1,
+      data.seriesRepeatWeeks || 1,
+      data.appointmentType || null,
       data.title,
       data.description || null,
       data.eventDate,
@@ -201,6 +223,27 @@ async function insertEvent(conn, data) {
     [result.insertId]
   );
   return rows[0];
+}
+
+async function createSeriesEvents(conn, data) {
+  const dates = expandEventDates(data.eventDate, data.spanDays, data.repeatWeeks);
+  const seriesId = data.seriesId || makeSeriesId();
+  const seriesStartDate = dates[0];
+  const seriesEndDate = dates[dates.length - 1];
+  const created = [];
+  for (const date of dates) {
+    const row = await insertEvent(conn, {
+      ...data,
+      eventDate: date,
+      seriesId,
+      seriesStartDate,
+      seriesEndDate,
+      seriesSpanDays: data.spanDays,
+      seriesRepeatWeeks: data.repeatWeeks,
+    });
+    created.push(row);
+  }
+  return created;
 }
 
 // GET /api/calendar/owners
@@ -356,6 +399,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const startTime = body.startTime ? String(body.startTime).trim() : null;
     const endTime = body.endTime ? String(body.endTime).trim() : null;
     const incomeType = body.incomeType ? String(body.incomeType).toUpperCase() : null;
+    const appointmentType = body.appointmentType ? String(body.appointmentType).toUpperCase() : null;
     const spanDays = Math.min(Math.max(Number(body.spanDays) || 1, 1), 31);
     const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks) || 1, 1), 52);
 
@@ -366,6 +410,9 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     if (incomeType && !INCOME_TYPES.includes(incomeType)) {
       return res.status(400).json({ error: "incomeType 이 올바르지 않습니다." });
     }
+    if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
+      return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
+    }
 
     const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
     const ownerIds = requestedOwnerIds.length
@@ -373,26 +420,30 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
       : [await resolveOwnerId(req, body.ownerId)];
     const ownerId = ownerIds[0];
     const actorId = req.auth.uid;
-    const dates = expandEventDates(eventDate, spanDays, repeatWeeks);
-
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      const created = [];
-      for (const date of dates) {
-        const row = await insertEvent(conn, {
-          ownerId,
-          sharedOwnerIds: ownerIds,
-          actorId,
-          title,
-          description,
-          eventDate: date,
-          startTime,
-          endTime,
-          incomeType,
-        });
-        created.push(publicEvent(row));
-      }
+      const rows = await createSeriesEvents(conn, {
+        ownerId,
+        sharedOwnerIds: ownerIds,
+        actorId,
+        title,
+        description,
+        eventDate,
+        startTime,
+        endTime,
+        incomeType,
+        appointmentType,
+        spanDays,
+        repeatWeeks,
+      });
+      const ownerNameMap = await buildOwnerNameMap(ownerIds);
+      const created = rows.map((row) =>
+        publicEvent({
+          ...row,
+          sharedOwnerNames: ownerIds.map((id) => ownerNameMap.get(id) || `#${id}`),
+        })
+      );
       await conn.commit();
       res.status(201).json({ items: created, item: created[0] });
     } catch (err) {
@@ -425,53 +476,71 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     }
 
     const body = req.body || {};
-    const title = body.title !== undefined ? String(body.title).trim() : undefined;
-    const description = body.description !== undefined ? String(body.description).trim() : undefined;
-    const eventDate = body.eventDate !== undefined ? String(body.eventDate).trim() : undefined;
-    const startTime = body.startTime !== undefined ? (body.startTime ? String(body.startTime).trim() : null) : undefined;
-    const endTime = body.endTime !== undefined ? (body.endTime ? String(body.endTime).trim() : null) : undefined;
+    const title = String(body.title ?? existing.title).trim();
+    const description = String(body.description ?? existing.description ?? "").trim();
+    const eventDate = String(body.eventDate ?? existing.series_start_date ?? existing.event_date).trim();
+    const startTime = body.startTime !== undefined ? (body.startTime ? String(body.startTime).trim() : null) : (existing.start_time ? String(existing.start_time).slice(0, 5) : null);
+    const endTime = body.endTime !== undefined ? (body.endTime ? String(body.endTime).trim() : null) : (existing.end_time ? String(existing.end_time).slice(0, 5) : null);
     const incomeType = body.incomeType !== undefined
       ? (body.incomeType ? String(body.incomeType).toUpperCase() : null)
-      : undefined;
+      : existing.income_type;
+    const appointmentType = body.appointmentType !== undefined
+      ? (body.appointmentType ? String(body.appointmentType).toUpperCase() : null)
+      : existing.appointment_type;
+    const spanDays = Math.min(Math.max(Number(body.spanDays ?? existing.series_span_days ?? 1) || 1, 1), 31);
+    const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks ?? existing.series_repeat_weeks ?? 1) || 1, 1), 52);
+    const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
+    const ownerIds = requestedOwnerIds.length
+      ? await resolveOwnerIds(req, requestedOwnerIds)
+      : resolveEventOwnerIds(existing);
+    const ownerId = ownerIds[0];
 
-    if (title === "") return res.status(400).json({ error: "일정명은 필수입니다." });
-    if (eventDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
+    if (!title) return res.status(400).json({ error: "일정명은 필수입니다." });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
       return res.status(400).json({ error: "eventDate 형식이 올바르지 않습니다." });
     }
     if (incomeType && !INCOME_TYPES.includes(incomeType)) {
       return res.status(400).json({ error: "incomeType 이 올바르지 않습니다." });
     }
-
-    const updates = [];
-    const values = [];
-    if (title !== undefined) { updates.push("title = ?"); values.push(title); }
-    if (description !== undefined) { updates.push("description = ?"); values.push(description || null); }
-    if (eventDate !== undefined) { updates.push("event_date = ?"); values.push(eventDate); }
-    if (startTime !== undefined) { updates.push("start_time = ?"); values.push(startTime); }
-    if (endTime !== undefined) { updates.push("end_time = ?"); values.push(endTime); }
-    if (incomeType !== undefined) { updates.push("income_type = ?"); values.push(incomeType); }
-
-    if (updates.length === 0) {
-      return res.status(400).json({ error: "수정할 내용이 없습니다." });
+    if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
+      return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
     }
 
-    values.push(req.params.id);
-    await pool.query(`UPDATE calendar_events SET ${updates.join(", ")} WHERE id = ?`, values);
+    const seriesId = existing.series_id || makeSeriesId();
+    const conn = await pool.getConnection();
+    let createdRow;
+    try {
+      await conn.beginTransaction();
+      await conn.query("DELETE FROM calendar_events WHERE series_id = ? OR id = ?", [seriesId, existing.id]);
+      const rows = await createSeriesEvents(conn, {
+        ownerId,
+        sharedOwnerIds: ownerIds,
+        actorId,
+        title,
+        description,
+        eventDate,
+        startTime,
+        endTime,
+        incomeType,
+        appointmentType,
+        spanDays,
+        repeatWeeks,
+        seriesId,
+      });
+      createdRow = rows[0];
+      await conn.commit();
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
 
-    const [rows] = await pool.query(
-      `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
-              u.calendar_theme_color AS owner_theme_color
-       FROM calendar_events e
-       JOIN users u ON u.id = e.owner_id
-       WHERE e.id = ?`,
-      [req.params.id]
-    );
-    const row = rows[0];
-    const ownerNameMap = await buildOwnerNameMap(resolveEventOwnerIds(row));
+    const ownerNameMap = await buildOwnerNameMap(ownerIds);
     res.json({
       item: publicEvent({
-        ...row,
-        sharedOwnerNames: resolveEventOwnerIds(row).map((id) => ownerNameMap.get(id) || `#${id}`),
+        ...createdRow,
+        sharedOwnerNames: ownerIds.map((id) => ownerNameMap.get(id) || `#${id}`),
       }),
     });
   } catch (err) {
@@ -496,7 +565,12 @@ router.delete("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       return res.status(403).json({ error: "이 일정을 삭제할 권한이 없습니다." });
     }
 
-    await pool.query("DELETE FROM calendar_events WHERE id = ?", [req.params.id]);
+    const seriesId = existing.series_id;
+    if (seriesId) {
+      await pool.query("DELETE FROM calendar_events WHERE series_id = ?", [seriesId]);
+    } else {
+      await pool.query("DELETE FROM calendar_events WHERE id = ?", [req.params.id]);
+    }
     res.status(204).end();
   } catch (err) {
     next(err);

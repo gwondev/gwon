@@ -237,7 +237,6 @@
   min-height: 92px;
   padding: 0.35rem 0.28rem 0.45rem;
   border: none;
-  border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background: transparent;
   color: inherit;
@@ -247,10 +246,6 @@
   gap: 0.25rem;
   cursor: pointer;
   transition: background 0.2s var(--ease);
-}
-
-.schedule__cell:nth-child(7n) {
-  border-right: none;
 }
 
 .schedule__cell:hover {
@@ -307,12 +302,42 @@
   font-size: 0.62rem;
   line-height: 1.25;
   color: var(--text);
+  overflow: hidden;
+}
+
+.schedule__bubble.is-cont-prev {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.schedule__bubble.is-cont-next {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
 }
 
 .schedule__money {
   flex: none;
   font-size: 0.58rem;
   line-height: 1;
+}
+
+.schedule__money-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 0.2rem;
+  border-radius: 50%;
+  background: #facc15;
+  color: #111827;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.schedule__drink-icon {
+  margin-right: 0.2rem;
+  font-size: 0.72rem;
 }
 
 .schedule__bubble-time {
@@ -405,6 +430,23 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem;
+}
+
+.schedule__time-wheel-wrap {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  padding: 0.35rem 0.2rem;
+}
+
+.schedule__time-wheel {
+  height: 120px;
+}
+
+.schedule__time-empty-btns {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.35rem;
 }
 
 .schedule__hint {
@@ -508,6 +550,29 @@
   color: var(--text);
 }
 
+.schedule__detail-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.schedule__detail-btn {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-faint);
+  font-size: 0.86rem;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.schedule__detail-btn.is-active {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.09);
+}
+
 .schedule__del-btn {
   margin-right: auto !important;
   color: #ff6b6b !important;
@@ -589,6 +654,13 @@
   font-weight: 700;
 }
 
+.schedule__day-item-range {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
 .schedule__day-item-actions {
   flex: none;
   display: inline-flex;
@@ -652,11 +724,15 @@
   }
 
   .schedule__bubble-time {
-    font-size: 0.45rem;
+    font-size: 0.41rem;
   }
 
   .schedule__more {
-    font-size: 0.45rem;
+    font-size: 0.4rem;
+  }
+
+  .schedule__bubble-title {
+    font-size: 0.4rem;
   }
 
   .schedule__time-row {

@@ -33,6 +33,12 @@ const SCHEMA = [
     owner_id INT NOT NULL,
     created_by INT NOT NULL,
     shared_owner_ids TEXT DEFAULT NULL,
+    series_id VARCHAR(64) DEFAULT NULL,
+    series_start_date DATE DEFAULT NULL,
+    series_end_date DATE DEFAULT NULL,
+    series_span_days INT DEFAULT NULL,
+    series_repeat_weeks INT DEFAULT NULL,
+    appointment_type ENUM('MONEY','DRINK') DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     event_date DATE NOT NULL,
@@ -196,6 +202,12 @@ async function runMigrations(conn) {
     "ALTER TABLE projects ADD COLUMN home_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER sort_order",
     "ALTER TABLE users ADD COLUMN calendar_filter_owner_ids TEXT DEFAULT NULL",
     "ALTER TABLE calendar_events ADD COLUMN shared_owner_ids TEXT DEFAULT NULL AFTER created_by",
+    "ALTER TABLE calendar_events ADD COLUMN series_id VARCHAR(64) DEFAULT NULL AFTER shared_owner_ids",
+    "ALTER TABLE calendar_events ADD COLUMN series_start_date DATE DEFAULT NULL AFTER series_id",
+    "ALTER TABLE calendar_events ADD COLUMN series_end_date DATE DEFAULT NULL AFTER series_start_date",
+    "ALTER TABLE calendar_events ADD COLUMN series_span_days INT DEFAULT NULL AFTER series_end_date",
+    "ALTER TABLE calendar_events ADD COLUMN series_repeat_weeks INT DEFAULT NULL AFTER series_span_days",
+    "ALTER TABLE calendar_events ADD COLUMN appointment_type ENUM('MONEY','DRINK') DEFAULT NULL AFTER series_repeat_weeks",
   ];
   for (const sql of migrations) {
     try {
