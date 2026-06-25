@@ -15,6 +15,72 @@ const pool = mysql.createPool({
   charset: "utf8mb4",
 });
 
+// ── 최근 DB 쿼리 로그(메모리 링버퍼) ─────────────────────────────────
+const DB_LOG_MAX = 120;
+const dbLogBuffer = [];
+
+function summarizeSql(sql) {
+  return String(sql || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+}
+
+function recordDbLog(entry) {
+  dbLogBuffer.push(entry);
+  if (dbLogBuffer.length > DB_LOG_MAX) dbLogBuffer.shift();
+  const tag = entry.ok ? "[db:ok]" : "[db:ERR]";
+  const msg = `${tag} ${entry.ms}ms ${entry.sql}${entry.error ? ` :: ${entry.error}` : ""}`;
+  if (entry.ok) console.log(msg);
+  else console.error(msg);
+}
+
+export function getRecentDbLogs(limit = 20) {
+  return dbLogBuffer.slice(-limit).reverse();
+}
+
+function wrapQuery(rawFn, target) {
+  return async function loggedQuery(sql, params) {
+    const started = Date.now();
+    const sqlText = typeof sql === "string" ? sql : sql?.sql || "";
+    try {
+      const result = await rawFn.call(target, sql, params);
+      recordDbLog({
+        ok: true,
+        sql: summarizeSql(sqlText),
+        ms: Date.now() - started,
+        at: new Date().toISOString(),
+      });
+      return result;
+    } catch (err) {
+      recordDbLog({
+        ok: false,
+        sql: summarizeSql(sqlText),
+        ms: Date.now() - started,
+        at: new Date().toISOString(),
+        error: err.code || err.message,
+      });
+      throw err;
+    }
+  };
+}
+
+// pool.query / pool.execute 래핑
+const rawPoolQuery = pool.query;
+pool.query = wrapQuery(rawPoolQuery, pool);
+
+// 트랜잭션용 커넥션도 로깅되도록 getConnection 래핑
+const rawGetConnection = pool.getConnection.bind(pool);
+pool.getConnection = async function loggedGetConnection() {
+  const conn = await rawGetConnection();
+  if (!conn.__queryLogPatched) {
+    const rawConnQuery = conn.query;
+    conn.query = wrapQuery(rawConnQuery, conn);
+    conn.__queryLogPatched = true;
+  }
+  return conn;
+};
+
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,

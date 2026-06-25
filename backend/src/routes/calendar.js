@@ -720,6 +720,10 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       ...location,
     };
 
+    console.log(
+      `[calendar] PUT /events/${req.params.id} uid=${actorId} existingSeries=${existing.series_id || "(none)"} existingRows=${seriesRows.length} newDates=${newDates.length} title="${title}"`
+    );
+
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
@@ -752,8 +756,10 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       }
 
       await conn.commit();
+      console.log(`[calendar] PUT done series=${seriesId} kept/updated=${Math.min(newDates.length, seriesRows.length)} inserted=${Math.max(0, newDates.length - seriesRows.length)} deleted=${Math.max(0, seriesRows.length - newDates.length)}`);
     } catch (e) {
       await conn.rollback();
+      console.error(`[calendar] PUT FAILED -> rollback (data preserved): ${e.code || e.message}`);
       throw e;
     } finally {
       conn.release();
@@ -779,6 +785,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       }),
     });
   } catch (err) {
+    console.error(`[calendar] PUT /events/${req.params.id} error: ${err.code || err.message}`);
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
   }

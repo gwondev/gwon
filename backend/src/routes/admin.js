@@ -1,5 +1,5 @@
 import { Router } from "express";
-import pool from "../db.js";
+import pool, { getRecentDbLogs } from "../db.js";
 import { requireSuperAdmin } from "../auth-middleware.js";
 
 import { getSetting, setSetting } from "../lib/settings.js";
@@ -43,6 +43,11 @@ router.get("/stats", requireSuperAdmin, async (req, res) => {
     roles,
     total: Object.values(counts).reduce((a, b) => a + b, 0),
   });
+});
+
+// GET /api/admin/db-logs -> 최근 DB 쿼리 로그 (메모리)
+router.get("/db-logs", requireSuperAdmin, async (_req, res) => {
+  res.json({ items: getRecentDbLogs(20) });
 });
 
 // GET /api/admin/users?q=검색어  -> 회원 목록 / 이름·닉네임·이메일 검색

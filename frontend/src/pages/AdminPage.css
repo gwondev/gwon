@@ -313,6 +313,139 @@
   color: #fca5a5;
 }
 
+.admin__dblogs {
+  margin-top: clamp(16px, 3vh, 26px);
+  padding-top: clamp(14px, 2.5vh, 22px);
+  border-top: 1px solid var(--line);
+}
+
+.admin__dblogs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.admin__dblogs-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.admin__dblogs-refresh {
+  padding: 0.3rem 0.7rem !important;
+  font-size: 0.76rem !important;
+}
+
+.admin__dblogs-empty {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-faint);
+}
+
+.admin__dblogs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.admin__dblog {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 8px;
+  font-size: 0.76rem;
+}
+
+.admin__dblog:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin__dblog-status {
+  flex: none;
+  min-width: 2.4rem;
+  text-align: center;
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+.admin__dblog.is-ok .admin__dblog-status {
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+}
+
+.admin__dblog.is-err .admin__dblog-status {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+.admin__dblog-ms {
+  flex: none;
+  min-width: 3rem;
+  text-align: right;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin__dblog-sql {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text-dim);
+}
+
+.admin__dblog.is-err .admin__dblog-sql {
+  color: #fca5a5;
+}
+
+.admin__dblog-time {
+  flex: none;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .admin__dblog {
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+      "status ms time"
+      "sql sql sql";
+  }
+  .admin__dblog-status {
+    grid-area: status;
+  }
+  .admin__dblog-ms {
+    grid-area: ms;
+  }
+  .admin__dblog-time {
+    grid-area: time;
+    margin-left: auto;
+  }
+  .admin__dblog-sql {
+    grid-area: sql;
+    white-space: normal;
+    word-break: break-all;
+  }
+}
+
 .admin__search {
   display: flex;
   gap: 0.7rem;

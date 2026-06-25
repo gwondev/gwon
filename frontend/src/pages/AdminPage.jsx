@@ -32,6 +32,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState(null);
+  const [dbLogs, setDbLogs] = useState([]);
   const [q, setQ] = useState("");
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -57,6 +58,22 @@ export default function AdminPage() {
       setStats(data);
     } catch (e) {
       setErr(e.message);
+    }
+  }, [token, localMode]);
+
+  const loadDbLogs = useCallback(async () => {
+    if (localMode) {
+      setDbLogs([
+        { ok: true, ms: 2, sql: "SELECT 1", at: new Date().toISOString() },
+        { ok: true, ms: 5, sql: "SELECT COUNT(*) FROM calendar_events", at: new Date().toISOString() },
+      ]);
+      return;
+    }
+    try {
+      const data = await api("/admin/db-logs", { token });
+      setDbLogs(data.items || []);
+    } catch {
+      /* DB 로그는 부가 정보이므로 실패해도 무시 */
     }
   }, [token, localMode]);
 
@@ -113,10 +130,11 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdmin) {
       loadStats();
+      loadDbLogs();
       loadUsers("");
       loadChat();
     }
-  }, [isAdmin, loadStats, loadUsers, loadChat]);
+  }, [isAdmin, loadStats, loadDbLogs, loadUsers, loadChat]);
 
   const search = (e) => {
     e.preventDefault();
@@ -229,6 +247,46 @@ export default function AdminPage() {
               <span className="admin__role-chip admin__role-chip--super">
                 SUPER <b>{stats.roles.SUPER_ADMIN ?? 0}</b>
               </span>
+            </div>
+
+            <div className="admin__dblogs">
+              <div className="admin__dblogs-head">
+                <h3 className="admin__dblogs-title">DB 로그 (최근 20개)</h3>
+                <button
+                  type="button"
+                  className="btn btn-ghost admin__dblogs-refresh"
+                  onClick={loadDbLogs}
+                >
+                  새로고침
+                </button>
+              </div>
+              {dbLogs.length === 0 ? (
+                <p className="admin__dblogs-empty">표시할 DB 로그가 없습니다.</p>
+              ) : (
+                <ul className="admin__dblogs-list">
+                  {dbLogs.map((log, i) => (
+                    <li
+                      key={`${log.at}-${i}`}
+                      className={`admin__dblog ${log.ok ? "is-ok" : "is-err"}`}
+                    >
+                      <span className="admin__dblog-status">{log.ok ? "OK" : "ERR"}</span>
+                      <span className="admin__dblog-ms">{log.ms}ms</span>
+                      <code className="admin__dblog-sql">
+                        {log.sql}
+                        {log.error ? ` :: ${log.error}` : ""}
+                      </code>
+                      <time className="admin__dblog-time">
+                        {new Date(log.at).toLocaleTimeString("ko-KR", {
+                          timeZone: "Asia/Seoul",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
+                      </time>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </>
         ) : (
