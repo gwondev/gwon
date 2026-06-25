@@ -711,10 +711,9 @@ function EventBubble({ event, showTime, onClick, connectedPrev, connectedNext })
 }
 
 function DayCell({ date, dateKey, events, isToday, isWeekend, onOpenDay, seriesDateSet }) {
-  const maxVisibleDesktop = 5;
-  const maxVisibleMobile = 3;
-  const visibleDesktop = events.slice(0, maxVisibleDesktop);
-  const hiddenCount = Math.max(0, events.length - maxVisibleDesktop);
+  const maxVisible = 5;
+  const visible = events.slice(0, maxVisible);
+  const hiddenCount = Math.max(0, events.length - maxVisible);
 
   return (
     <button
@@ -724,26 +723,24 @@ function DayCell({ date, dateKey, events, isToday, isWeekend, onOpenDay, seriesD
       aria-label={`${date.getDate()}일`}
     >
       <span className="schedule__day-num">{date.getDate()}</span>
-      <div className="schedule__bubbles schedule__bubbles--desktop">
-        {visibleDesktop.map((ev) => (
-          (() => {
-            const prev = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, -1)}`);
-            const next = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, 1)}`);
-            return (
-          <EventBubble
-            key={ev.id}
-            event={ev}
-            showTime
-            connectedPrev={prev}
-            connectedNext={next}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenDay();
-            }}
-          />
-            );
-          })()
-        ))}
+      <div className="schedule__bubbles">
+        {visible.map((ev) => {
+          const prev = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, -1)}`);
+          const next = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, 1)}`);
+          return (
+            <EventBubble
+              key={ev.id}
+              event={ev}
+              showTime
+              connectedPrev={prev}
+              connectedNext={next}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenDay();
+              }}
+            />
+          );
+        })}
         {hiddenCount > 0 && (
           <span
             className="schedule__more"
@@ -753,38 +750,6 @@ function DayCell({ date, dateKey, events, isToday, isWeekend, onOpenDay, seriesD
             }}
           >
             +{hiddenCount}
-          </span>
-        )}
-      </div>
-      <div className="schedule__bubbles schedule__bubbles--mobile">
-        {events.slice(0, maxVisibleMobile).map((ev) => (
-          (() => {
-            const prev = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, -1)}`);
-            const next = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, 1)}`);
-            return (
-          <EventBubble
-            key={ev.id}
-            event={ev}
-            showTime={false}
-            connectedPrev={prev}
-            connectedNext={next}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenDay();
-            }}
-          />
-            );
-          })()
-        ))}
-        {events.length > maxVisibleMobile && (
-          <span
-            className="schedule__more"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenDay();
-            }}
-          >
-            +{events.length - maxVisibleMobile}
           </span>
         )}
       </div>
