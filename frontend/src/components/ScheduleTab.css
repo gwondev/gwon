@@ -263,7 +263,6 @@
   overflow: hidden;
   width: 100%;
   touch-action: pan-y;
-  cursor: grab;
 }
 
 .schedule__weekdays {

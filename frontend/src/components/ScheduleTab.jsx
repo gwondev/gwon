@@ -176,6 +176,7 @@ export default function ScheduleTab() {
   const [monthDir, setMonthDir] = useState(0);
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedSeriesKeys, setSelectedSeriesKeys] = useState(() => new Set());
+  const touchStartRef = useRef(null);
 
   const theme = getThemeById(themeColor || "red");
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
@@ -758,12 +759,21 @@ export default function ScheduleTab() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: monthDir >= 0 ? -80 : 80, opacity: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.12}
-            onDragEnd={(_, info) => {
-              if (info.offset.x > 90) shiftMonth(-1);
-              else if (info.offset.x < -90) shiftMonth(1);
+            onTouchStart={(e) => {
+              const t = e.touches[0];
+              touchStartRef.current = { x: t.clientX, y: t.clientY };
+            }}
+            onTouchEnd={(e) => {
+              const start = touchStartRef.current;
+              touchStartRef.current = null;
+              if (!start) return;
+              const t = e.changedTouches[0];
+              const dx = t.clientX - start.x;
+              const dy = t.clientY - start.y;
+              if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+                if (dx > 0) shiftMonth(-1);
+                else shiftMonth(1);
+              }
             }}
           >
             <div className="schedule__weekdays">
