@@ -1105,15 +1105,44 @@ function LocationPicker({ value, onChange }) {
 }
 
 function MobileTimePicker({ label, value, onChange }) {
+  const [hourRaw, minuteRaw] = /^\d{2}:\d{2}$/.test(value || "") ? value.split(":") : ["09", "00"];
+  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")), []);
+  const minutes = useMemo(
+    () => Array.from({ length: 6 }, (_, i) => String(i * 10).padStart(2, "0")),
+    []
+  );
+  const safeMinute = minutes.includes(minuteRaw) ? minuteRaw : "00";
+
   return (
     <div className="field">
       <label>{label}</label>
-      <input
-        type="time"
-        step={600}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <div className="schedule__time-scroll-wrap">
+        <select
+          className="schedule__time-scroll"
+          value={hourRaw}
+          onChange={(e) => onChange(`${e.target.value}:${safeMinute}`)}
+          aria-label={`${label} 시`}
+        >
+          {hours.map((h) => (
+            <option key={h} value={h}>
+              {h}시
+            </option>
+          ))}
+        </select>
+        <span className="schedule__time-colon">:</span>
+        <select
+          className="schedule__time-scroll"
+          value={safeMinute}
+          onChange={(e) => onChange(`${hourRaw}:${e.target.value}`)}
+          aria-label={`${label} 분`}
+        >
+          {minutes.map((m) => (
+            <option key={m} value={m}>
+              {m}분
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
@@ -1388,7 +1417,8 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
                         <span className="schedule__money-icon">₩</span>
                       )}
                       {ev.appointmentType === "DRINK" && <span className="schedule__drink-icon">🍺</span>}
-                      {ev.title}
+                      <span className="schedule__day-item-title-text">{ev.title}</span>
+                      <span className="schedule__day-item-title-time">{formatEventTime(ev)}</span>
                     </strong>
                     <span className="schedule__day-item-range">
                       {formatDateDot(ev.seriesStartDate || ev.eventDate)} ~{" "}
@@ -1402,7 +1432,6 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
                     {ev.ownerName && selectedOwnersCount(events) > 1 && (
                       <span className="schedule__day-item-owner">{ev.ownerName}</span>
                     )}
-                    <span className="schedule__day-item-time">{formatEventTime(ev)}</span>
                     {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
                       <a
                         className="schedule__day-item-location"
@@ -1414,7 +1443,11 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
                         📍 {shortenLocationName(ev.locationName)}
                       </a>
                     )}
-                    {ev.description && <p>{ev.description}</p>}
+                    {ev.description && (
+                      <p className="schedule__day-item-desc" title={ev.description}>
+                        {ev.description}
+                      </p>
+                    )}
                   </div>
                   <div className="schedule__day-item-actions">
                     <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
