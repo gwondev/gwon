@@ -79,38 +79,41 @@
   }
 }
 
-/* ---- 6개 섹션: 서브 톤 (조금 더 선명) ---- */
+/* ---- 6개 섹션: 서브 톤 (안·밖 선명도 동일) ---- */
 .root__grid--sub {
-  opacity: 0.94;
+  opacity: 1;
 }
 
 .root__grid--sub .cat-card {
-  opacity: 0.78;
-  filter: saturate(0.58) brightness(0.96);
-  border-color: rgba(255, 255, 255, 0.07);
+  opacity: 1;
+  filter: none;
+  border-color: rgba(255, 255, 255, 0.1);
   background:
-    radial-gradient(140% 120% at 50% -20%, rgba(216, 193, 154, 0.05), transparent 55%),
-    linear-gradient(180deg, rgba(18, 18, 21, 0.88), rgba(12, 12, 14, 0.92));
+    radial-gradient(140% 120% at 50% -20%, rgba(216, 193, 154, 0.07), transparent 55%),
+    linear-gradient(180deg, rgba(22, 22, 25, 0.92), rgba(14, 14, 16, 0.96));
   box-shadow: none;
 }
 
 .root__grid--sub .cat-card:hover {
-  opacity: 0.92;
-  filter: saturate(0.72) brightness(1);
-  border-color: rgba(255, 255, 255, 0.11);
+  opacity: 1;
+  filter: none;
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft) inset;
 }
 
 .root__grid--sub .cat-card__title {
-  color: var(--text-dim);
+  color: var(--text);
 }
 
 .root__grid--sub .cat-card__preview-item,
-.root__grid--sub .cat-card__preview-empty {
-  color: var(--text-faint);
+.root__grid--sub .cat-card__preview-empty,
+.root__grid--sub .cat-card__preview-tech-items {
+  color: var(--text-dim);
 }
 
-.root__grid--sub .cat-card__preview-tag {
-  opacity: 0.55;
+.root__grid--sub .cat-card__preview-tech-group {
+  color: var(--accent);
+  opacity: 1;
 }
 
 /* legacy overview bar styles kept for overview page if needed */
@@ -370,12 +373,17 @@
   .root__masthead {
     align-items: center;
   }
+
+  .hero__lead {
+    font-size: clamp(0.26rem, 0.55vw, 0.34rem);
+    letter-spacing: 0.12em;
+  }
 }
 
 @media (max-width: 480px) {
   .hero__lead {
-    font-size: clamp(0.48rem, 2.8vw, 0.58rem);
-    letter-spacing: 0.14em;
+    font-size: clamp(0.24rem, 1.4vw, 0.29rem);
+    letter-spacing: 0.1em;
     white-space: normal;
   }
   .hero__name {

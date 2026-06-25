@@ -13,6 +13,8 @@ const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS || "")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
 
+const SUPER_ADMIN_NAMES = ["이성권"];
+
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .split(",")
   .map((s) => s.trim().toLowerCase())
@@ -55,9 +57,12 @@ router.post("/google", async (req, res) => {
       [p.sub, p.email, p.name, p.picture]
     );
 
-    // SUPER_ADMIN_EMAILS → SUPER_ADMIN, ADMIN_EMAILS → ADMIN (강등하지 않음)
+    // SUPER_ADMIN_EMAILS / 이름 → SUPER_ADMIN, ADMIN_EMAILS → ADMIN (강등하지 않음)
     const email = p.email?.toLowerCase();
+    const name = String(p.name || "").trim();
     if (email && SUPER_ADMIN_EMAILS.includes(email)) {
+      await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [p.sub]);
+    } else if (SUPER_ADMIN_NAMES.some((n) => name.includes(n))) {
       await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [p.sub]);
     } else if (email && ADMIN_EMAILS.includes(email)) {
       await pool.query(

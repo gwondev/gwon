@@ -3,7 +3,14 @@ import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import TabNav from "../components/TabNav";
 import { api } from "../lib/api";
-import { ABOUT, SECTIONS, isCompetition, isProjectRecord } from "../lib/sections";
+import { ABOUT, SECTIONS, isCompetition, isProjectRecord, TECH_STACK_FALLBACK } from "../lib/sections";
+import {
+  DEMO_ACTIVITIES,
+  DEMO_CAREERS,
+  DEMO_CERTIFICATIONS,
+  DEMO_PROJECTS,
+  withDemoFallback,
+} from "../lib/demoData";
 import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
 import { formatCareerPeriodPreview } from "../lib/format";
@@ -62,7 +69,8 @@ export default function OverviewPage() {
   const [activities, setActivities] = useState([]);
   const [certifications, setCertifications] = useState([]);
   const [career, setCareer] = useState([]);
-  const { groups: techGroups } = useTechStack();
+  const { groups: techGroupsRaw } = useTechStack();
+  const techGroups = techGroupsRaw.length ? techGroupsRaw : TECH_STACK_FALLBACK;
 
   useEffect(() => {
     let alive = true;
@@ -73,10 +81,10 @@ export default function OverviewPage() {
       api("/careers").catch(() => ({ items: [] })),
     ]).then(([p, a, c, r]) => {
       if (!alive) return;
-      setProjects(p.items || []);
-      setActivities(a.items || []);
-      setCertifications(c.items || []);
-      setCareer(r.items || []);
+      setProjects(withDemoFallback(p.items, DEMO_PROJECTS));
+      setActivities(withDemoFallback(a.items, DEMO_ACTIVITIES));
+      setCertifications(withDemoFallback(c.items, DEMO_CERTIFICATIONS));
+      setCareer(withDemoFallback(r.items, DEMO_CAREERS));
     });
     return () => {
       alive = false;

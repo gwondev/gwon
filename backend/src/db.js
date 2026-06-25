@@ -2,6 +2,7 @@ import mysql from "mysql2/promise";
 
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./lib/chat-prompt-defaults.js";
 import { DEFAULT_TECH_STACK } from "./lib/tech-stack-defaults.js";
+import { seedDemoContent } from "./lib/demo-seed.js";
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "db",
@@ -167,6 +168,15 @@ async function seedDefaultSettings(conn) {
   }
 }
 
+async function ensureOwnerSuperAdmin(conn) {
+  const [result] = await conn.query(
+    "UPDATE users SET role = 'SUPER_ADMIN' WHERE TRIM(name) = '이성권' OR name LIKE '%이성권%'"
+  );
+  if (result.affectedRows > 0) {
+    console.log(`[db] promoted ${result.affectedRows} user(s) → SUPER_ADMIN (이성권)`);
+  }
+}
+
 async function runMigrations(conn) {
   const migrations = [
     "ALTER TABLE users ADD COLUMN role ENUM('GUEST','ADMIN') NOT NULL DEFAULT 'GUEST'",
@@ -207,6 +217,8 @@ export async function initDb(retries = 15, delayMs = 3000) {
         for (const sql of SCHEMA) await conn.query(sql);
         await runMigrations(conn);
         await seedDefaultSettings(conn);
+        await seedDemoContent(conn);
+        await ensureOwnerSuperAdmin(conn);
       } finally {
         conn.release();
       }

@@ -91,9 +91,8 @@ export const ABOUT = {
 
 // API 실패·로컬 모드용 폴백
 export const TECH_STACK_FALLBACK = [
-  { group: "IoT", items: ["MQTT", "Arduino", "ESP32", "Python", "C++"] },
-  { group: "App", items: ["React Native", "JavaScript", "Expo", "Android", "iOS"] },
-  { group: "Infra", items: ["Docker", "Linux", "Cloudflare", "Git", "Redis"] },
-  { group: "AI", items: ["Python", "TensorFlow", "OpenCV", "PyTorch"] },
-  { group: "Web · Backend", items: ["React", "Node.js", "Express", "MySQL"] },
+  { group: "Programming", items: ["Java", "Python", "C++", "JavaScript", "TypeScript"] },
+  { group: "Infra", items: ["Docker", "Linux", "Git", "Cloudflare", "MySQL"] },
+  { group: "IoT", items: ["MQTT", "Arduino", "ESP32", "Raspberry Pi"] },
+  { group: "AI", items: ["TensorFlow", "PyTorch", "OpenCV", "scikit-learn"] },
 ];

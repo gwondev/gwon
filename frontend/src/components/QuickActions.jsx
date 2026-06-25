@@ -7,7 +7,7 @@ import "./QuickActions.css";
 const ACTIONS = [
   {
     id: "schedule",
-    label: "일정관리",
+    label: "일정",
     sub: "캘린더 · 일정 등록",
     glyph: "calendar",
   },

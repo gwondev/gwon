@@ -8,6 +8,13 @@ import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
 import { api } from "../lib/api";
 import {
+  DEMO_ACTIVITIES,
+  DEMO_CAREERS,
+  DEMO_CERTIFICATIONS,
+  DEMO_PROJECTS,
+  withDemoFallback,
+} from "../lib/demoData";
+import {
   formatActivityPreview,
   formatCareerPreview,
   formatCompetitionPreview,
@@ -134,8 +141,14 @@ export default function RootPage() {
       )
     ).then((results) => {
       if (!alive) return;
-      const next = { projects: [] };
-      for (const { key, items } of results) next[key] = items;
+      const next = { projects: withDemoFallback([], DEMO_PROJECTS) };
+      for (const { key, items } of results) {
+        if (key === "projects") next.projects = withDemoFallback(items, DEMO_PROJECTS);
+        else if (key === "activities") next.activities = withDemoFallback(items, DEMO_ACTIVITIES);
+        else if (key === "certifications") next.certifications = withDemoFallback(items, DEMO_CERTIFICATIONS);
+        else if (key === "career") next.career = withDemoFallback(items, DEMO_CAREERS);
+        else next[key] = items;
+      }
       setPreview(next);
     });
     return () => {
@@ -167,7 +180,7 @@ export default function RootPage() {
               variants={cardRise}
               className="cat-card"
               onClick={() => navigate(s.path)}
-              whileHover={{ y: -6, opacity: 0.92 }}
+              whileHover={{ y: -6 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 320, damping: 26 }}
             >
