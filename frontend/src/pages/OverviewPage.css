@@ -43,7 +43,7 @@
   overflow-wrap: break-word;
 }
 
-/* 3×2 → 2×3 그리ㄴ드 */
+/* 3×2 → 2×3 그리ㄴss드 */
 .overview__sections {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
