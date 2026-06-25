@@ -45,7 +45,7 @@ export async function loadResourceItems(resource, { force = false } = {}) {
 
   const promise = api(`/${resource}`)
     .then((data) => {
-      const items = data.items || [];
+      const items = Array.isArray(data.items) ? data.items : [];
       setCachedItems(resource, items);
       inflight.delete(resource);
       return items;
@@ -98,13 +98,21 @@ export async function loadTechStack({ force = false } = {}) {
 }
 
 export async function loadPortfolioBundle({ force = false } = {}) {
-  const [projects, activities, certifications, careers] = await Promise.all([
-    loadResourceItems("projects", { force }),
-    loadResourceItems("activities", { force }),
-    loadResourceItems("certifications", { force }),
-    loadResourceItems("careers", { force }),
-  ]);
-  return { projects, activities, certifications, careers };
+  const keys = ["projects", "activities", "certifications", "careers"];
+  const results = await Promise.allSettled(
+    keys.map((resource) => loadResourceItems(resource, { force }))
+  );
+
+  const bundle = {};
+  keys.forEach((resource, i) => {
+    const result = results[i];
+    if (result.status === "fulfilled") {
+      bundle[resource] = result.value;
+    } else {
+      bundle[resource] = getCachedItems(resource) ?? [];
+    }
+  });
+  return bundle;
 }
 
 export function patchCachedItem(resource, item) {

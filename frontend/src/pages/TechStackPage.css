@@ -193,8 +193,25 @@
 @media (max-width: 680px) {
   .techstack__group {
     grid-template-columns: 1fr;
-    gap: 0.6rem;
+    gap: 0.45rem;
+    padding-bottom: 0.85rem;
   }
+
+  .techstack__group-name {
+    font-size: 0.68rem;
+    padding-top: 0;
+    letter-spacing: 0.04em;
+  }
+
+  .techstack__stack .stack-chip {
+    font-size: 0.72rem;
+    padding: 0.32rem 0.62rem;
+  }
+
+  .techstack__group-items {
+    gap: 0.35rem;
+  }
+
   .techstack__row {
     grid-template-columns: 1fr auto;
   }

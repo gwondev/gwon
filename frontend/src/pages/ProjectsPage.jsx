@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import SectionLayout from "../components/SectionLayout";
 import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
@@ -30,13 +29,9 @@ const FIELDS = [
 ];
 
 export default function ProjectsPage() {
-  const { items: all, loading, error, create, update, remove, reorder, reload } = useResource("projects");
+  const { items: all, loading, error, create, update, remove, reorder } = useResource("projects");
   const { isAdmin } = useAuth();
   const items = all.filter(isProjectRecord);
-
-  useEffect(() => {
-    reload(true);
-  }, [reload]);
 
   return (
     <SectionLayout

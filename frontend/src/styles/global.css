@@ -299,6 +299,40 @@ body::after {
 }
 
 /* ---------- reduced motion ---------- */
+@media (max-width: 760px) {
+  .display {
+    font-size: clamp(2rem, 8.5vw, 2.75rem) !important;
+  }
+
+  .section-title {
+    font-size: clamp(1.35rem, 5.8vw, 1.75rem) !important;
+  }
+
+  .eyebrow {
+    font-size: 0.62rem;
+    letter-spacing: 0.28em;
+  }
+
+  .page {
+    padding-left: clamp(14px, 4vw, 20px);
+    padding-right: clamp(14px, 4vw, 20px);
+  }
+
+  .btn {
+    font-size: 0.86rem;
+    padding: 0.72rem 1.15rem;
+  }
+
+  .topbar {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .topbar__greet-text {
+    font-size: 0.68rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;

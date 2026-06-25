@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { IconCalendar, IconUser } from "./ActionIcons";
 import { SECTIONS } from "../lib/sections";
 import "./SideDrawer.css";
 
@@ -65,6 +66,21 @@ export default function SideDrawer({ open, onClose }) {
                 ✕
               </button>
             </div>
+
+            <motion.div className="drawer__quick" variants={item} initial="hidden" animate="show">
+              <button type="button" className="drawer__quick-btn" onClick={() => go("/mypage")}>
+                <span className="drawer__quick-icon">
+                  <IconUser width={16} height={16} />
+                </span>
+                <span className="drawer__quick-label">마이페이지</span>
+              </button>
+              <button type="button" className="drawer__quick-btn" onClick={() => go("/schedule")}>
+                <span className="drawer__quick-icon">
+                  <IconCalendar width={16} height={16} />
+                </span>
+                <span className="drawer__quick-label">일정</span>
+              </button>
+            </motion.div>
 
             <motion.nav className="drawer__nav" variants={stagger} initial="hidden" animate="show">
               {SECTIONS.map((s) => (

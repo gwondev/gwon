@@ -1,13 +1,11 @@
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import ScheduleTab from "../components/ScheduleTab";
 import { useAuth } from "../context/AuthContext";
+import { motion } from "framer-motion";
 import "./SchedulePage.css";
 
 export default function SchedulePage() {
   const { isCalendarAdmin, loading } = useAuth();
-  const navigate = useNavigate();
 
   if (loading) return null;
 
@@ -24,9 +22,6 @@ export default function SchedulePage() {
           <p className="schedule-page__denied-desc">
             일정 관리는 관리자(ADMIN) 이상 권한이 있는 회원만 이용할 수 있습니다.
           </p>
-          <button type="button" className="btn btn-accent" onClick={() => navigate("/")}>
-            메인으로
-          </button>
         </motion.div>
       </PageTransition>
     );

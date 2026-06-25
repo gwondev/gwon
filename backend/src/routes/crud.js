@@ -49,16 +49,20 @@ export function crudRouter(table) {
 
   const capHomeFeatured = async (data, excludeId = null) => {
     if (table !== "projects" || Number(data.home_featured) !== 1) return;
-    const params = excludeId != null ? [excludeId] : [];
-    const exclude = excludeId != null ? " AND id <> ?" : "";
-    const [rows] = await pool.query(
-      `SELECT id FROM projects WHERE home_featured = 1${exclude} ORDER BY sort_order ASC, id ASC`,
-      params
-    );
-    if (rows.length < 2) return;
-    const drop = rows.slice(0, rows.length - 1);
-    for (const row of drop) {
-      await pool.query("UPDATE projects SET home_featured = 0 WHERE id = ?", [row.id]);
+    try {
+      const params = excludeId != null ? [excludeId] : [];
+      const exclude = excludeId != null ? " AND id <> ?" : "";
+      const [rows] = await pool.query(
+        `SELECT id FROM projects WHERE home_featured = 1${exclude} ORDER BY sort_order ASC, id ASC`,
+        params
+      );
+      if (rows.length < 2) return;
+      const drop = rows.slice(0, rows.length - 1);
+      for (const row of drop) {
+        await pool.query("UPDATE projects SET home_featured = 0 WHERE id = ?", [row.id]);
+      }
+    } catch (err) {
+      if (err.code !== "ER_BAD_FIELD_ERROR") throw err;
     }
   };
 

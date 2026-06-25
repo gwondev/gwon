@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
@@ -17,23 +16,15 @@ import {
 } from "../lib/format";
 import "./RootPage.css";
 
-const MOBILE_PREVIEW_MAX = 19;
-const MOBILE_MQ = "(max-width: 820px)";
-
-function subscribeMobileMq(cb) {
-  const mq = window.matchMedia(MOBILE_MQ);
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-}
-
-function getMobileMq() {
-  return window.matchMedia(MOBILE_MQ).matches;
-}
-
-function truncatePreview(text, max) {
-  const s = String(text || "");
-  if (!max || s.length <= max) return s;
-  return `${s.slice(0, max)}...`;
+function previewLineTitle(row) {
+  if (row.kind === "tech") return `[${row.group}] ${row.items}`;
+  if (row.kind === "cert") return row.meta ? `${row.main} (${row.meta})` : row.main;
+  if (row.kind === "split") {
+    if (row.accentFirst && row.accent) return `(${row.accent}) ${row.main}`;
+    if (row.accent) return `${row.main}(${row.accent})`;
+    return row.main;
+  }
+  return row.text || "";
 }
 
 function previewRows(key, preview, techGroups) {
@@ -87,44 +78,44 @@ function previewRows(key, preview, techGroups) {
   return items.map((it) => ({ kind: "plain", text: String(it.title || "") }));
 }
 
-function PreviewRow({ row, previewMax }) {
+function PreviewRow({ row }) {
+  const title = previewLineTitle(row);
+
   if (row.kind === "tech") {
     return (
-      <span className="cat-card__preview-item cat-card__preview-item--tech">
+      <span className="cat-card__preview-item cat-card__preview-item--split" title={title}>
         <span className="cat-card__preview-accent">[{row.group}]</span>
-        <span className="cat-card__preview-main">{truncatePreview(row.items, previewMax)}</span>
+        <span className="cat-card__preview-main"> {row.items}</span>
       </span>
     );
   }
 
   if (row.kind === "cert") {
     return (
-      <span className="cat-card__preview-item cat-card__preview-item--split">
-        <span className="cat-card__preview-accent">{truncatePreview(row.main, previewMax)}</span>
-        {row.meta ? (
-          <span className="cat-card__preview-main"> ({truncatePreview(row.meta, previewMax)})</span>
-        ) : null}
+      <span className="cat-card__preview-item cat-card__preview-item--split" title={title}>
+        <span className="cat-card__preview-accent">{row.main}</span>
+        {row.meta ? <span className="cat-card__preview-main"> ({row.meta})</span> : null}
       </span>
     );
   }
 
   if (row.kind === "split") {
     return (
-      <span className="cat-card__preview-item cat-card__preview-item--split">
+      <span className="cat-card__preview-item cat-card__preview-item--split" title={title}>
         {row.accentFirst && row.accent ? (
-          <span className="cat-card__preview-accent">({truncatePreview(row.accent, previewMax)}) </span>
+          <span className="cat-card__preview-accent">({row.accent}) </span>
         ) : null}
-        <span className="cat-card__preview-main">{truncatePreview(row.main, previewMax)}</span>
+        <span className="cat-card__preview-main">{row.main}</span>
         {!row.accentFirst && row.accent ? (
-          <span className="cat-card__preview-accent">({truncatePreview(row.accent, previewMax)})</span>
+          <span className="cat-card__preview-accent">({row.accent})</span>
         ) : null}
       </span>
     );
   }
 
   return (
-    <span className="cat-card__preview-item cat-card__preview-item--plain">
-      {truncatePreview(row.text, previewMax)}
+    <span className="cat-card__preview-item cat-card__preview-item--plain" title={title}>
+      {row.text}
     </span>
   );
 }
@@ -149,8 +140,6 @@ export default function RootPage() {
   const navigate = useNavigate();
   const { preview } = usePortfolioPreview();
   const { groups: techGroups } = useTechStack();
-  const isMobile = useSyncExternalStore(subscribeMobileMq, getMobileMq, () => false);
-  const previewMax = isMobile ? MOBILE_PREVIEW_MAX : null;
 
   return (
     <PageTransition className="page root">
@@ -186,7 +175,7 @@ export default function RootPage() {
                 <span className="cat-card__divider" aria-hidden />
                 <span className="cat-card__preview cat-card__preview--grid">
                   {rows.length > 0 ? (
-                    rows.map((row, i) => <PreviewRow key={`${s.key}-${i}`} row={row} previewMax={previewMax} />)
+                    rows.map((row, i) => <PreviewRow key={`${s.key}-${i}`} row={row} />)
                   ) : (
                     <span className="cat-card__preview-empty">아직 등록된 항목 없음</span>
                   )}
