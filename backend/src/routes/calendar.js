@@ -287,6 +287,37 @@ async function insertEvent(conn, data) {
   return rows[0];
 }
 
+async function updateEventRow(conn, id, data) {
+  await conn.query(
+    `UPDATE calendar_events SET
+       owner_id = ?, shared_owner_ids = ?, series_id = ?,
+       series_start_date = ?, series_end_date = ?, series_span_days = ?, series_repeat_weeks = ?,
+       appointment_type = ?, location_name = ?, location_lat = ?, location_lng = ?,
+       title = ?, description = ?, event_date = ?, start_time = ?, end_time = ?, income_type = ?
+     WHERE id = ?`,
+    [
+      data.ownerId,
+      JSON.stringify(data.sharedOwnerIds || [data.ownerId]),
+      data.seriesId || null,
+      data.seriesStartDate || null,
+      data.seriesEndDate || null,
+      data.seriesSpanDays || 1,
+      data.seriesRepeatWeeks || 1,
+      data.appointmentType || null,
+      data.locationName || null,
+      data.locationLat ?? null,
+      data.locationLng ?? null,
+      data.title,
+      data.description || null,
+      data.eventDate,
+      data.startTime || null,
+      data.endTime || null,
+      data.incomeType || null,
+      id,
+    ]
+  );
+}
+
 async function createSeriesEvents(conn, data) {
   const dates = expandEventDates(data.eventDate, data.spanDays, data.repeatWeeks);
   if (!dates.length) {
@@ -655,47 +686,68 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
     }
 
-    // 기존 시리즈에 속한 행들의 id를 먼저 수집한다.
-    const [oldRows] = await pool.query(
-      "SELECT id FROM calendar_events WHERE series_id = ? OR id = ?",
-      [existing.series_id || "__no_series__", existing.id]
-    );
-    const oldIds = oldRows.map((r) => r.id);
-
     // 시리즈 식별자는 그대로 유지(없으면 새로 부여)
     const seriesId = existing.series_id || makeSeriesId();
+
+    // 새로 적용할 날짜 목록
+    const newDates = expandEventDates(eventDate, spanDays, repeatWeeks);
+    if (!newDates.length) {
+      return res.status(400).json({ error: "유효한 날짜가 없습니다." });
+    }
+    const seriesStartDate = newDates[0];
+    const seriesEndDate = newDates[newDates.length - 1];
+
+    // 기존 시리즈 행들을 날짜순으로 가져온다. (가능한 한 그대로 UPDATE)
+    const [seriesRows] = await pool.query(
+      "SELECT id FROM calendar_events WHERE series_id = ? OR id = ? ORDER BY event_date ASC, id ASC",
+      [existing.series_id || "__no_series__", existing.id]
+    );
+
+    const common = {
+      ownerId,
+      sharedOwnerIds: ownerIds,
+      title,
+      description,
+      startTime,
+      endTime,
+      incomeType,
+      appointmentType,
+      seriesId,
+      seriesStartDate,
+      seriesEndDate,
+      seriesSpanDays: spanDays,
+      seriesRepeatWeeks: repeatWeeks,
+      ...location,
+    };
+
     const conn = await pool.getConnection();
-    let createdRow;
     try {
       await conn.beginTransaction();
 
-      // 1) 새 일정을 먼저 생성한다. (실패해도 기존 데이터는 그대로 보존)
-      const rows = await createSeriesEvents(conn, {
-        ownerId,
-        sharedOwnerIds: ownerIds,
-        actorId,
-        title,
-        description,
-        eventDate,
-        startTime,
-        endTime,
-        incomeType,
-        appointmentType,
-        spanDays,
-        repeatWeeks,
-        seriesId,
-        ...location,
-      });
-      createdRow = rows[0];
+      // 1) 겹치는 만큼은 기존 행을 UPDATE (id 보존)
+      for (let i = 0; i < newDates.length; i++) {
+        if (i < seriesRows.length) {
+          await updateEventRow(conn, seriesRows[i].id, {
+            ...common,
+            eventDate: newDates[i],
+          });
+        } else {
+          // 2) 날짜가 더 늘어난 경우에만 추가 INSERT
+          await insertEvent(conn, {
+            ...common,
+            actorId,
+            eventDate: newDates[i],
+          });
+        }
+      }
 
-      // 2) 새 일정이 정상 생성된 뒤에만 기존 행을 삭제한다.
-      const newIds = new Set(rows.map((r) => r.id));
-      const idsToDelete = oldIds.filter((id) => !newIds.has(id));
-      if (idsToDelete.length) {
-        const placeholders = idsToDelete.map(() => "?").join(", ");
+      // 3) 날짜가 줄어든 경우 남는 기존 행만 삭제
+      if (seriesRows.length > newDates.length) {
+        const extraIds = seriesRows.slice(newDates.length).map((r) => r.id);
+        const placeholders = extraIds.map(() => "?").join(", ");
         await conn.query(
           `DELETE FROM calendar_events WHERE id IN (${placeholders})`,
-          idsToDelete
+          extraIds
         );
       }
 
@@ -706,6 +758,18 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     } finally {
       conn.release();
     }
+
+    const [finalRows] = await pool.query(
+      `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
+              u.calendar_theme_color AS owner_theme_color
+       FROM calendar_events e
+       JOIN users u ON u.id = e.owner_id
+       WHERE e.series_id = ?
+       ORDER BY e.event_date ASC, e.id ASC
+       LIMIT 1`,
+      [seriesId]
+    );
+    const createdRow = finalRows[0];
 
     const ownerNameMap = await buildOwnerNameMap(ownerIds);
     res.json({
