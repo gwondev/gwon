@@ -9,6 +9,9 @@ import {
   filterTitle,
   formatShortDateKey,
   ownerLabel,
+  REPEAT_PRESETS,
+  repeatPresetById,
+  repeatPresetFromWeeks,
   repeatWeeksLabel,
   spanDaysLabel,
 } from "../lib/calendarUtils";
@@ -21,7 +24,6 @@ import "./ScheduleTab.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_SPAN_DAYS = 14;
-const MAX_REPEAT_WEEKS = 12;
 
 const MOCK_OWNERS = [
   { id: 0, name: "이성권", nickname: "이성권", role: "SUPER_ADMIN", calendarThemeColor: "red" },
@@ -116,10 +118,12 @@ function blankForm(dateKey = "", ownerId = null) {
     locationLng: null,
     spanDays: 1,
     repeatWeeks: 1,
+    repeatPreset: "1w",
   };
 }
 
 function formFromEvent(ev) {
+  const repeatWeeks = ev.repeatWeeks || 1;
   return {
     ownerIds: ev.sharedOwnerIds?.length ? [...ev.sharedOwnerIds] : [ev.ownerId],
     title: ev.title || "",
@@ -132,7 +136,8 @@ function formFromEvent(ev) {
     locationLat: ev.locationLat ?? null,
     locationLng: ev.locationLng ?? null,
     spanDays: ev.spanDays || 1,
-    repeatWeeks: ev.repeatWeeks || 1,
+    repeatWeeks,
+    repeatPreset: repeatPresetFromWeeks(repeatWeeks),
   };
 }
 
@@ -1192,10 +1197,6 @@ function EventModal({
     () => Array.from({ length: MAX_SPAN_DAYS }, (_, i) => i + 1),
     []
   );
-  const weekOptions = useMemo(
-    () => Array.from({ length: MAX_REPEAT_WEEKS }, (_, i) => i + 1),
-    []
-  );
   const [quickPreset, setQuickPreset] = useState(null);
 
   const applyQuickDuration = useCallback(
@@ -1361,22 +1362,27 @@ function EventModal({
             </select>
             <select
               className="schedule__duration-select"
-              value={form.repeatWeeks}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, repeatWeeks: Number(e.target.value) }))
-              }
-              aria-label="주 반복"
+              value={form.repeatPreset}
+              onChange={(e) => {
+                const preset = repeatPresetById(e.target.value);
+                setForm((f) => ({
+                  ...f,
+                  repeatPreset: preset.id,
+                  repeatWeeks: preset.weeks,
+                }));
+              }}
+              aria-label="반복 기간"
             >
-              {weekOptions.map((n) => (
-                <option key={n} value={n}>
-                  {repeatWeeksLabel(n)}
+              {REPEAT_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
                 </option>
               ))}
             </select>
           </div>
 
           <p className="schedule__hint">
-            {form.spanDays}일간 · {repeatWeeksLabel(form.repeatWeeks)} 동일 패턴으로 등록됩니다.
+            {spanDaysLabel(form.spanDays)} · {repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동일 패턴으로 등록됩니다.
           </p>
 
           <div className="schedule__time-quick-row">
