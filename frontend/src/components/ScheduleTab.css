@@ -58,6 +58,21 @@
   text-align: left;
 }
 
+.schedule__title-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  flex: none;
+}
+
+.schedule__title-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  flex: none;
+}
+
 .schedule__title-caret {
   font-size: 0.72rem;
   color: var(--text-dim);
@@ -113,6 +128,28 @@
   font-weight: 600;
 }
 
+.schedule__bulk-delete-btn {
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.08);
+  color: #ff8a8a;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.schedule__bulk-delete-btn.is-active {
+  border-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.18);
+  color: #ffb4b4;
+}
+
+.schedule__bulk-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .schedule__theme-dot {
   width: 14px;
   height: 14px;
@@ -137,6 +174,16 @@
   margin: 0 0 0.65rem;
   font-size: 0.82rem;
   color: var(--text-dim);
+}
+
+.schedule__theme-owner + .schedule__theme-owner {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.schedule__theme-owner .schedule__theme-label {
+  margin-bottom: 0.55rem;
 }
 
 .schedule__theme-swatches {
@@ -195,8 +242,6 @@
 }
 
 .schedule__calendar {
-  --cal-base: 1rem;
-  font-size: var(--cal-base);
   border: 1px solid var(--line);
   border-radius: 0;
   background: transparent;
@@ -214,9 +259,9 @@
 }
 
 .schedule__weekday {
-  padding: 0.55em 0.25em;
+  padding: 0.55rem 0.25rem;
   text-align: center;
-  font-size: 0.72em;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-faint);
   letter-spacing: 0.04em;
@@ -236,8 +281,8 @@
 }
 
 .schedule__cell {
-  min-height: 5.75em;
-  padding: 0.35em 0.28em 0.45em;
+  min-height: 92px;
+  padding: 0.35rem 0.28rem 0.45rem;
   border: none;
   border-bottom: 1px solid var(--line);
   background: transparent;
@@ -245,10 +290,15 @@
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 0.25em;
+  gap: 0.25rem;
   cursor: pointer;
   transition: background 0.2s var(--ease);
   overflow: hidden;
+  min-width: 0;
+}
+
+.schedule__cell.is-delete-mode {
+  cursor: default;
 }
 
 .schedule__cell:hover {
@@ -271,12 +321,12 @@
 }
 
 .schedule__day-num {
-  width: 1.45em;
-  height: 1.45em;
+  width: 1.45rem;
+  height: 1.45rem;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  font-size: 0.72em;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-dim);
   flex: none;
@@ -285,29 +335,64 @@
 .schedule__bubbles {
   display: flex;
   flex-direction: column;
-  gap: 0.18em;
+  gap: 0.18rem;
   min-width: 0;
+  width: 100%;
   flex: 1;
   overflow: hidden;
 }
 
 .schedule__bubble {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.2em;
+  justify-content: flex-start;
+  gap: 0.2rem;
   min-width: 0;
   width: 100%;
-  padding: 0.16em 0.35em;
+  box-sizing: border-box;
+  padding: 0.16rem 0.35rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--cal-accent) 28%, rgba(255, 255, 255, 0.04));
   border: 1px solid color-mix(in srgb, var(--cal-accent) 42%, transparent);
-  font-size: 0.62em;
+  font-size: 0.62rem;
   line-height: 1.1;
-  min-height: 1.06em;
+  min-height: 1.06rem;
   color: var(--text);
   overflow: hidden;
   flex: none;
+}
+
+.schedule__bubble.is-pickable {
+  cursor: pointer;
+  padding-left: 1.1rem;
+}
+
+.schedule__bubble.is-pick-selected {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.schedule__bubble-check {
+  position: absolute;
+  left: 0.22rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.25);
+  display: grid;
+  place-items: center;
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.schedule__bubble-check.is-checked {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .schedule__bubble.is-cont-prev {
@@ -329,13 +414,13 @@
 .schedule__money-icon {
   display: inline-grid;
   place-items: center;
-  width: 0.75em;
-  height: 0.75em;
-  margin-right: 0.08em;
+  width: 12px;
+  height: 12px;
+  margin-right: 0.08rem;
   border-radius: 50%;
   background: #facc15;
   color: #111827;
-  font-size: 0.5em;
+  font-size: 0.5rem;
   font-weight: 800;
   line-height: 1;
   flex: none;
@@ -345,10 +430,13 @@
 .schedule__drink-icon {
   display: inline-grid;
   place-items: center;
-  width: 0.5em;
-  height: 0.5em;
-  margin-right: 0.08em;
-  font-size: 0.34em;
+  width: 12px;
+  height: 12px;
+  margin-right: 0.08rem;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 0.42rem;
   line-height: 1;
   flex: none;
   align-self: center;
@@ -357,12 +445,13 @@
 
 .schedule__bubble-time {
   flex: none;
-  font-size: 0.94em;
+  font-size: 0.58rem;
   color: var(--text-dim);
   font-weight: 600;
 }
 
 .schedule__bubble-title {
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -371,11 +460,14 @@
 }
 
 .schedule__more {
-  align-self: center;
-  padding: 0.12em 0.4em;
+  align-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 0.12rem 0.4rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
-  font-size: 0.58em;
+  font-size: 0.58rem;
   font-weight: 700;
   color: var(--text-dim);
   cursor: pointer;
@@ -711,8 +803,55 @@
 }
 
 @media (max-width: 720px) {
-  .schedule__calendar {
-    --cal-base: 0.72rem;
+  .schedule__cell {
+    min-height: 72px;
+    padding: 0.28rem 0.2rem 0.36rem;
+    gap: 0.2rem;
+  }
+
+  .schedule__day-num {
+    width: 1.15rem;
+    height: 1.15rem;
+    font-size: 0.58rem;
+  }
+
+  .schedule__weekday {
+    font-size: 0.58rem;
+    padding: 0.45rem 0.12rem;
+  }
+
+  .schedule__bubble {
+    font-size: 0.5rem;
+    min-height: 0.86rem;
+    padding: 0.12rem 0.28rem;
+    gap: 0.14rem;
+  }
+
+  .schedule__bubble.is-pickable {
+    padding-left: 0.95rem;
+  }
+
+  .schedule__bubble-check {
+    width: 0.62rem;
+    height: 0.62rem;
+    left: 0.16rem;
+    font-size: 0.44rem;
+  }
+
+  .schedule__bubble-time {
+    font-size: 0.48rem;
+  }
+
+  .schedule__more {
+    font-size: 0.48rem;
+    padding: 0.1rem 0.3rem;
+  }
+
+  .schedule__money-icon,
+  .schedule__drink-icon {
+    width: 10px;
+    height: 10px;
+    font-size: 0.42rem;
   }
 
   .schedule__time-row {
@@ -739,8 +878,13 @@
 }
 
 @media (max-width: 420px) {
-  .schedule__calendar {
-    --cal-base: 0.64rem;
+  .schedule__cell {
+    min-height: 62px;
+  }
+
+  .schedule__bubble {
+    font-size: 0.46rem;
+    min-height: 0.78rem;
   }
 
   .schedule__month {
@@ -749,11 +893,39 @@
 }
 
 @media (min-width: 1024px) {
-  .schedule__calendar {
-    --cal-base: 1.1rem;
+  .schedule__cell {
+    min-height: 102px;
+    padding: 0.42rem 0.34rem 0.5rem;
+  }
+
+  .schedule__day-num {
+    width: 1.6rem;
+    height: 1.6rem;
+    font-size: 0.8rem;
+  }
+
+  .schedule__weekday {
+    font-size: 0.8rem;
   }
 
   .schedule__month {
     font-size: 1.14rem;
+  }
+
+  .schedule__bubble {
+    font-size: 0.68rem;
+    min-height: 1.14rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .schedule__bubble-time {
+    font-size: 0.62rem;
+  }
+
+  .schedule__money-icon,
+  .schedule__drink-icon {
+    width: 13px;
+    height: 13px;
+    font-size: 0.52rem;
   }
 }

@@ -4,6 +4,8 @@ import Picker from "react-mobile-picker";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import {
+  dedupeEventsBySeries,
+  eventSeriesKey,
   expandEventDates,
   filterTitle,
   formatShortDateKey,
@@ -136,13 +138,13 @@ function enrichEvent(ev, owners) {
     ...ev,
     sharedOwnerIds,
     sharedOwnerNames,
-    ownerThemeColor: ev.ownerThemeColor || owner?.calendarThemeColor || "red",
+    ownerThemeColor: owner?.calendarThemeColor || ev.ownerThemeColor || "red",
     ownerName: ev.ownerName || (owner ? ownerLabel(owner) : null),
   };
 }
 
 export default function ScheduleTab() {
-  const { user, token, localMode, isSuperAdmin } = useAuth();
+  const { user, token, localMode, isSuperAdmin, isCalendarAdmin } = useAuth();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
@@ -161,9 +163,22 @@ export default function ScheduleTab() {
   const [busy, setBusy] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [monthDir, setMonthDir] = useState(0);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedSeriesKeys, setSelectedSeriesKeys] = useState(() => new Set());
 
   const theme = getThemeById(themeColor || "red");
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
+
+  const themeOwners = useMemo(() => {
+    const sid = selfId ?? user?.id;
+    if (isSuperAdmin) return owners;
+    return owners.filter((o) => o.id === sid);
+  }, [owners, selfId, user?.id, isSuperAdmin]);
+
+  const displayEvents = useMemo(
+    () => events.map((e) => enrichEvent(e, owners)),
+    [events, owners]
+  );
 
   const selectedOwners = useMemo(
     () => owners.filter((o) => selectedOwnerIds.includes(o.id)),
@@ -174,7 +189,7 @@ export default function ScheduleTab() {
 
   const eventsByDate = useMemo(() => {
     const map = {};
-    for (const ev of events) {
+    for (const ev of displayEvents) {
       if (!map[ev.eventDate]) map[ev.eventDate] = [];
       map[ev.eventDate].push(ev);
     }
@@ -187,15 +202,15 @@ export default function ScheduleTab() {
       });
     }
     return map;
-  }, [events]);
+  }, [displayEvents]);
 
   const seriesDateSet = useMemo(() => {
     const set = new Set();
-    for (const ev of events) {
+    for (const ev of displayEvents) {
       set.add(`${ev.seriesId}::${ev.eventDate}`);
     }
     return set;
-  }, [events]);
+  }, [displayEvents]);
 
   const loadOwners = useCallback(async () => {
     if (localMode) {
@@ -270,17 +285,15 @@ export default function ScheduleTab() {
     setEvents((data.items || []).map((e) => enrichEvent(e, owners)));
   }, [token, localMode, selectedOwnerIds, viewYear, viewMonth, owners]);
 
-  const loadTheme = useCallback(async () => {
-    const themeOwnerId = selfId ?? user.id;
-    if (localMode) {
-      const owner = MOCK_OWNERS.find((o) => o.id === themeOwnerId) || MOCK_OWNERS[0];
-      setThemeColor(owner.calendarThemeColor || "red");
-      return;
+  useEffect(() => {
+    if (!owners.length) return;
+    const sid = selfId ?? user.id;
+    const self = owners.find((o) => o.id === sid);
+    if (self) {
+      setThemeColor(self.calendarThemeColor || null);
+      if (!self.calendarThemeColor && isCalendarAdmin) setThemeOpen(true);
     }
-    const data = await api(`/calendar/theme?ownerId=${themeOwnerId}`, { token });
-    setThemeColor(data.themeColor);
-    if (!data.themeColor) setThemeOpen(true);
-  }, [token, localMode, selfId, user.id]);
+  }, [owners, selfId, user.id, isCalendarAdmin]);
 
   useEffect(() => {
     let alive = true;
@@ -308,7 +321,7 @@ export default function ScheduleTab() {
     (async () => {
       setErr(null);
       try {
-        await Promise.all([loadEvents(), loadTheme()]);
+        await loadEvents();
       } catch (e) {
         if (alive) setErr(e.message);
       }
@@ -316,7 +329,7 @@ export default function ScheduleTab() {
     return () => {
       alive = false;
     };
-  }, [selectedOwnerIds, viewYear, viewMonth, loadEvents, loadTheme]);
+  }, [selectedOwnerIds, viewYear, viewMonth, loadEvents]);
 
   const shiftMonth = (delta) => {
     setMonthDir(delta > 0 ? 1 : -1);
@@ -349,15 +362,18 @@ export default function ScheduleTab() {
     }
   };
 
-  const saveTheme = async (colorId) => {
-    setThemeColor(colorId);
-    setThemeOpen(false);
+  const saveTheme = async (ownerId, colorId) => {
+    const sid = selfId ?? user.id;
+    setOwners((prev) =>
+      prev.map((o) => (o.id === ownerId ? { ...o, calendarThemeColor: colorId } : o))
+    );
+    if (ownerId === sid) setThemeColor(colorId);
     if (localMode) return;
     try {
       await api("/calendar/theme", {
         method: "PUT",
         token,
-        body: { themeColor: colorId, ownerId: selfId },
+        body: { themeColor: colorId, ownerId },
       });
     } catch (e) {
       setErr(e.message);
@@ -478,10 +494,26 @@ export default function ScheduleTab() {
     }
   };
 
+  const canManageEvent = useCallback(
+    (ev) => {
+      if (!ev) return false;
+      const uid = selfId ?? user?.id;
+      if (ev.ownerId === uid) return true;
+      if (ev.sharedOwnerIds?.includes(uid)) return true;
+      if (isSuperAdmin) return true;
+      return false;
+    },
+    [selfId, user?.id, isSuperAdmin]
+  );
+
   const deleteEvent = async (id) => {
     if (!window.confirm("이 일정을 삭제할까요?")) return;
+    const target = displayEvents.find((ev) => ev.id === id);
+    const seriesKey = target ? eventSeriesKey(target) : null;
     if (localMode) {
-      setEvents((prev) => prev.filter((ev) => ev.id !== id));
+      setEvents((prev) =>
+        prev.filter((ev) => (seriesKey ? eventSeriesKey(ev) !== seriesKey : ev.id !== id))
+      );
       setDayOpen(null);
       closeModal();
       return;
@@ -493,6 +525,62 @@ export default function ScheduleTab() {
       closeModal();
     } catch (e) {
       setErr(e.message);
+    }
+  };
+
+  const toggleSeriesSelection = (ev) => {
+    if (!canManageEvent(ev)) return;
+    const key = eventSeriesKey(ev);
+    setSelectedSeriesKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleDeleteModeClick = async () => {
+    if (!deleteMode) {
+      setDeleteMode(true);
+      setSelectedSeriesKeys(new Set());
+      setDayOpen(null);
+      closeModal();
+      return;
+    }
+
+    if (selectedSeriesKeys.size === 0) {
+      setDeleteMode(false);
+      return;
+    }
+
+    const count = selectedSeriesKeys.size;
+    if (!window.confirm(`선택한 ${count}개 일정을 삭제할까요?`)) return;
+
+    const idsToDelete = [];
+    for (const key of selectedSeriesKeys) {
+      const ev = displayEvents.find((item) => eventSeriesKey(item) === key);
+      if (ev) idsToDelete.push(ev.id);
+    }
+
+    if (localMode) {
+      setEvents((prev) => prev.filter((ev) => !selectedSeriesKeys.has(eventSeriesKey(ev))));
+      setDeleteMode(false);
+      setSelectedSeriesKeys(new Set());
+      return;
+    }
+
+    try {
+      setBusy(true);
+      await Promise.all(
+        idsToDelete.map((id) => api(`/calendar/events/${id}`, { method: "DELETE", token }))
+      );
+      await loadEvents();
+      setDeleteMode(false);
+      setSelectedSeriesKeys(new Set());
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -511,6 +599,15 @@ export default function ScheduleTab() {
             onClick={() => canPickOwner && setFilterOpen((v) => !v)}
             aria-expanded={filterOpen}
           >
+            <span className="schedule__title-dots" aria-hidden>
+              {selectedOwners.map((o) => (
+                <span
+                  key={o.id}
+                  className="schedule__title-dot"
+                  style={{ background: getThemeById(o.calendarThemeColor || "red").accent }}
+                />
+              ))}
+            </span>
             <span className="schedule__owner-name">{headerTitle}</span>
             {canPickOwner && <span className="schedule__title-caret">{filterOpen ? "▴" : "▾"}</span>}
           </button>
@@ -521,11 +618,25 @@ export default function ScheduleTab() {
             type="button"
             className="schedule__theme-btn"
             onClick={() => setThemeOpen((v) => !v)}
-            aria-label="테마 색상"
+            aria-label="테마 변경"
           >
             <span className="schedule__theme-dot" style={{ background: theme.accent }} />
-            내 테마
+            테마 변경
           </button>
+          {isCalendarAdmin && (
+            <button
+              type="button"
+              className={`schedule__bulk-delete-btn ${deleteMode ? "is-active" : ""}`}
+              onClick={handleDeleteModeClick}
+              disabled={busy}
+            >
+              {deleteMode
+                ? selectedSeriesKeys.size > 0
+                  ? `${selectedSeriesKeys.size}개 삭제`
+                  : "선택 취소"
+                : "일정삭제"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -560,27 +671,35 @@ export default function ScheduleTab() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {themeOpen && (
+        {themeOpen && themeOwners.length > 0 && (
           <motion.div
             className="schedule__theme-panel"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
           >
-            <p className="schedule__theme-label">내 테마 색상</p>
-            <div className="schedule__theme-swatches">
-              {CALENDAR_THEME_COLORS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`schedule__swatch ${themeColor === c.id ? "is-active" : ""}`}
-                  style={{ "--swatch": c.accent }}
-                  onClick={() => saveTheme(c.id)}
-                  title={c.label}
-                  aria-label={c.label}
-                />
-              ))}
-            </div>
+            {themeOwners.map((owner) => (
+              <div key={owner.id} className="schedule__theme-owner">
+                <p className="schedule__theme-label">
+                  {isSuperAdmin && themeOwners.length > 1
+                    ? `${ownerLabel(owner)} 테마`
+                    : "테마 색상"}
+                </p>
+                <div className="schedule__theme-swatches">
+                  {CALENDAR_THEME_COLORS.map((c) => (
+                    <button
+                      key={`${owner.id}-${c.id}`}
+                      type="button"
+                      className={`schedule__swatch ${owner.calendarThemeColor === c.id ? "is-active" : ""}`}
+                      style={{ "--swatch": c.accent }}
+                      onClick={() => saveTheme(owner.id, c.id)}
+                      title={c.label}
+                      aria-label={`${ownerLabel(owner)} ${c.label}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </motion.div>
         )}
       </AnimatePresence>
@@ -639,9 +758,16 @@ export default function ScheduleTab() {
                     events={dayEvents}
                     isToday={isToday}
                     isWeekend={isWeekend}
-                  dateKey={key}
-                  seriesDateSet={seriesDateSet}
-                    onOpenDay={() => setDayOpen({ dateKey: key, events: dayEvents })}
+                    dateKey={key}
+                    seriesDateSet={seriesDateSet}
+                    deleteMode={deleteMode}
+                    selectedSeriesKeys={selectedSeriesKeys}
+                    canManageEvent={canManageEvent}
+                    onToggleSelect={toggleSeriesSelection}
+                    onOpenDay={() => {
+                      if (deleteMode) return;
+                      setDayOpen({ dateKey: key, events: dedupeEventsBySeries(dayEvents) });
+                    }}
                   />
                 );
               })}
@@ -686,7 +812,16 @@ export default function ScheduleTab() {
   );
 }
 
-function EventBubble({ event, showTime, onClick, connectedPrev, connectedNext }) {
+function EventBubble({
+  event,
+  showTime,
+  onClick,
+  connectedPrev,
+  connectedNext,
+  deleteMode,
+  selected,
+  selectable,
+}) {
   const isShared = (event.sharedOwnerIds?.length || 1) > 1;
   const bubbleTheme = isShared
     ? { accent: "#9ca3af" }
@@ -695,13 +830,18 @@ function EventBubble({ event, showTime, onClick, connectedPrev, connectedNext })
   const isDrink = event.appointmentType === "DRINK";
   return (
     <span
-      className={`schedule__bubble ${connectedPrev ? "is-cont-prev" : ""} ${connectedNext ? "is-cont-next" : ""}`}
+      className={`schedule__bubble ${connectedPrev ? "is-cont-prev" : ""} ${connectedNext ? "is-cont-next" : ""} ${deleteMode && selected ? "is-pick-selected" : ""} ${deleteMode && selectable ? "is-pickable" : ""}`}
       style={{ "--cal-accent": bubbleTheme.accent }}
       onClick={onClick}
       role="presentation"
     >
+      {deleteMode && selectable && (
+        <span className={`schedule__bubble-check ${selected ? "is-checked" : ""}`} aria-hidden>
+          {selected ? "✓" : ""}
+        </span>
+      )}
       {isMoney && <span className="schedule__money-icon" aria-hidden>₩</span>}
-      {isDrink && <span className="schedule__drink-icon" aria-hidden>🍶</span>}
+      {isDrink && <span className="schedule__drink-icon" aria-hidden>🍺</span>}
       {showTime && event.startTime && (
         <span className="schedule__bubble-time">{formatEventTime(event)}</span>
       )}
@@ -710,15 +850,28 @@ function EventBubble({ event, showTime, onClick, connectedPrev, connectedNext })
   );
 }
 
-function DayCell({ date, dateKey, events, isToday, isWeekend, onOpenDay, seriesDateSet }) {
+function DayCell({
+  date,
+  dateKey,
+  events,
+  isToday,
+  isWeekend,
+  onOpenDay,
+  seriesDateSet,
+  deleteMode,
+  selectedSeriesKeys,
+  canManageEvent,
+  onToggleSelect,
+}) {
   const maxVisible = 5;
-  const visible = events.slice(0, maxVisible);
-  const hiddenCount = Math.max(0, events.length - maxVisible);
+  const uniqueEvents = dedupeEventsBySeries(events);
+  const visible = uniqueEvents.slice(0, maxVisible);
+  const hiddenCount = Math.max(0, uniqueEvents.length - maxVisible);
 
   return (
     <button
       type="button"
-      className={`schedule__cell ${isToday ? "is-today" : ""} ${isWeekend ? "is-weekend" : ""}`}
+      className={`schedule__cell ${isToday ? "is-today" : ""} ${isWeekend ? "is-weekend" : ""} ${deleteMode ? "is-delete-mode" : ""}`}
       onClick={onOpenDay}
       aria-label={`${date.getDate()}일`}
     >
@@ -727,15 +880,25 @@ function DayCell({ date, dateKey, events, isToday, isWeekend, onOpenDay, seriesD
         {visible.map((ev) => {
           const prev = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, -1)}`);
           const next = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, 1)}`);
+          const seriesKey = eventSeriesKey(ev);
+          const selectable = canManageEvent(ev);
+          const selected = selectedSeriesKeys.has(seriesKey);
           return (
             <EventBubble
-              key={ev.id}
+              key={seriesKey}
               event={ev}
               showTime
               connectedPrev={prev}
               connectedNext={next}
+              deleteMode={deleteMode}
+              selected={selected}
+              selectable={selectable}
               onClick={(e) => {
                 e.stopPropagation();
+                if (deleteMode) {
+                  if (selectable) onToggleSelect(ev);
+                  return;
+                }
                 onOpenDay();
               }}
             />
@@ -746,7 +909,7 @@ function DayCell({ date, dateKey, events, isToday, isWeekend, onOpenDay, seriesD
             className="schedule__more"
             onClick={(e) => {
               e.stopPropagation();
-              onOpenDay();
+              if (!deleteMode) onOpenDay();
             }}
           >
             +{hiddenCount}
@@ -1072,13 +1235,13 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
           {events.length === 0 ? (
             <p className="schedule__empty">등록된 일정이 없습니다.</p>
           ) : (
-            events.map((ev) => {
+            dedupeEventsBySeries(events).map((ev) => {
               const isShared = (ev.sharedOwnerIds?.length || 1) > 1;
               const bubbleTheme = isShared
                 ? { accent: "#9ca3af" }
                 : getThemeById(ev.ownerThemeColor || "red");
               return (
-                <div key={ev.id} className="schedule__day-item">
+                <div key={eventSeriesKey(ev)} className="schedule__day-item">
                   <span
                     className="schedule__day-item-dot"
                     style={{ background: bubbleTheme.accent }}
@@ -1089,11 +1252,12 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
                       {(ev.appointmentType === "MONEY" || (!ev.appointmentType && ev.incomeType)) && (
                         <span className="schedule__money-icon">₩</span>
                       )}
-                      {ev.appointmentType === "DRINK" && <span className="schedule__drink-icon">🍶</span>}
+                      {ev.appointmentType === "DRINK" && <span className="schedule__drink-icon">🍺</span>}
                       {ev.title}
                     </strong>
                     <span className="schedule__day-item-range">
-                      {formatDateDot(ev.seriesStartDate)} ~ {formatDateDot(ev.seriesEndDate)}
+                      {formatDateDot(ev.seriesStartDate || ev.eventDate)} ~{" "}
+                      {formatDateDot(ev.seriesEndDate || ev.eventDate)}
                     </span>
                     {ev.sharedOwnerNames?.length > 1 && (
                       <span className="schedule__day-item-shared">

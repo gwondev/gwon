@@ -42,3 +42,25 @@ export function filterTitle(owners) {
   if (owners.length === 1) return `${ownerLabel(owners[0])}의 일정`;
   return `${owners.map(ownerLabel).join(", ")}의 일정`;
 }
+
+export function eventSeriesKey(ev) {
+  return ev.seriesId || `single-${ev.id}`;
+}
+
+/** 연속·반복 일정은 시리즈당 하나만 표시 */
+export function dedupeEventsBySeries(events) {
+  const map = new Map();
+  for (const ev of events) {
+    const key = eventSeriesKey(ev);
+    if (!map.has(key)) map.set(key, ev);
+  }
+  return [...map.values()].sort((a, b) => {
+    const da = a.seriesStartDate || a.eventDate;
+    const db = b.seriesStartDate || b.eventDate;
+    if (da !== db) return da.localeCompare(db);
+    if (!a.startTime && b.startTime) return -1;
+    if (a.startTime && !b.startTime) return 1;
+    if (!a.startTime && !b.startTime) return a.id - b.id;
+    return (a.startTime || "").localeCompare(b.startTime || "");
+  });
+}
