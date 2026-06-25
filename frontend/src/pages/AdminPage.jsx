@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import "./AdminPage.css";
 
-const ROLES = ["GUEST", "ADMIN"];
+const ROLES = ["GUEST", "ADMIN", "SUPER_ADMIN"];
 
 const MOCK_STATS = {
   database: "gwon",
@@ -17,14 +17,14 @@ const MOCK_STATS = {
     { key: "certifications", label: "자격증", count: 4 },
     { key: "careers", label: "경력", count: 1 },
   ],
-  roles: { GUEST: 2, ADMIN: 1 },
+  roles: { GUEST: 2, ADMIN: 0, SUPER_ADMIN: 1 },
   total: 15,
 };
 
 const MOCK_USERS = [
-  { id: 1, name: "이성권", nickname: "이성권", email: "owner@gwon.run", role: "ADMIN" },
-  { id: 2, name: "홍길동", nickname: "길동", email: "hong@example.com", role: "GUEST" },
-  { id: 3, name: "김철수", nickname: "철수", email: "kim@example.com", role: "GUEST" },
+  { id: 1, name: "이성권", nickname: "이성권", email: "owner@gwon.run", role: "SUPER_ADMIN" },
+  { id: 2, name: "이건영", nickname: "이건영", email: "gunyoung@example.com", role: "ADMIN" },
+  { id: 3, name: "홍길동", nickname: "길동", email: "hong@example.com", role: "GUEST" },
 ];
 
 export default function AdminPage() {
@@ -183,6 +183,9 @@ export default function AdminPage() {
               </span>
               <span className="admin__role-chip admin__role-chip--admin">
                 ADMIN <b>{stats.roles.ADMIN ?? 0}</b>
+              </span>
+              <span className="admin__role-chip admin__role-chip--super">
+                SUPER <b>{stats.roles.SUPER_ADMIN ?? 0}</b>
               </span>
             </div>
           </>

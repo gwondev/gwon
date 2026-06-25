@@ -198,6 +198,13 @@
 .admin__role-chip--admin b {
   color: var(--accent);
 }
+.admin__role-chip--super {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+.admin__role-chip--super b {
+  color: #fca5a5;
+}
 
 .admin__search {
   display: flex;
@@ -273,6 +280,10 @@
 .admin__role--admin {
   border-color: var(--accent-line);
   color: var(--accent);
+}
+.admin__role--super_admin {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
 }
 
 @media (max-width: 680px) {

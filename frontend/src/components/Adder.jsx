@@ -4,12 +4,12 @@ import { useAuth } from "../context/AuthContext";
 import FieldGrid, { blankForm } from "./FormFields";
 
 export default function Adder({ label, fields, onCreate }) {
-  const { isAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(() => blankForm(fields));
   const [busy, setBusy] = useState(false);
 
-  if (!isAdmin) return null;
+  if (!isSuperAdmin) return null;
 
   const handleChange = (name, value) => setForm((f) => ({ ...f, [name]: value }));
 

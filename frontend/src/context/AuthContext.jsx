@@ -10,10 +10,11 @@ const LOCAL_MODE = !import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const LOCAL_USER = {
   id: 0,
   email: "local@preview",
-  name: "로컬 사용자",
-  nickname: "로컬 사용자",
+  name: "이성권",
+  nickname: "이성권",
   picture: null,
-  role: "ADMIN",
+  role: "SUPER_ADMIN",
+  calendarThemeColor: "red",
   local: true,
 };
 
@@ -90,7 +91,9 @@ export function AuthProvider({ children }) {
     loading,
     localMode: LOCAL_MODE,
     isAuthed: Boolean(user),
-    isAdmin: user?.role === "ADMIN",
+    isSuperAdmin: user?.role === "SUPER_ADMIN",
+    isCalendarAdmin: user?.role === "ADMIN" || user?.role === "SUPER_ADMIN",
+    isAdmin: user?.role === "SUPER_ADMIN",
     loginWithGoogle,
     updateNickname,
     logout,
