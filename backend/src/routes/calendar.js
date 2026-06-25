@@ -130,6 +130,21 @@ function parseOwnerIdsQuery(raw) {
   return [...new Set(parts)];
 }
 
+function toDateKey(input) {
+  if (input == null) return null;
+  if (input instanceof Date && !Number.isNaN(input.getTime())) {
+    return input.toISOString().slice(0, 10);
+  }
+
+  const s = String(input).trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const dt = new Date(s);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toISOString().slice(0, 10);
+}
+
 async function resolveOwnerIds(req, requestedOwnerIds) {
   const actorId = req.auth.uid;
   const actorRole = req.userRole || (await getUserRole(actorId));
@@ -510,7 +525,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
   try {
     const body = req.body || {};
     const title = String(body.title || "").trim();
-    const eventDate = String(body.eventDate || "").trim();
+    const eventDate = toDateKey(body.eventDate);
     const description = String(body.description || "").trim();
     const startTime = body.startTime ? String(body.startTime).trim() : null;
     const endTime = body.endTime ? String(body.endTime).trim() : null;
@@ -521,7 +536,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const location = parseLocationFields(body);
 
     if (!title) return res.status(400).json({ error: "일정명은 필수입니다." });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
+    if (!eventDate || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
       return res.status(400).json({ error: "eventDate 형식이 올바르지 않습니다." });
     }
     if (incomeType && !INCOME_TYPES.includes(incomeType)) {
@@ -596,7 +611,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const body = req.body || {};
     const title = String(body.title ?? existing.title).trim();
     const description = String(body.description ?? existing.description ?? "").trim();
-    const eventDate = String(body.eventDate ?? existing.series_start_date ?? existing.event_date).trim();
+    const eventDate = toDateKey(body.eventDate ?? existing.series_start_date ?? existing.event_date);
     const startTime = body.startTime !== undefined ? (body.startTime ? String(body.startTime).trim() : null) : (existing.start_time ? String(existing.start_time).slice(0, 5) : null);
     const endTime = body.endTime !== undefined ? (body.endTime ? String(body.endTime).trim() : null) : (existing.end_time ? String(existing.end_time).slice(0, 5) : null);
     const incomeType = body.incomeType !== undefined
@@ -615,7 +630,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const ownerId = ownerIds[0];
 
     if (!title) return res.status(400).json({ error: "일정명은 필수입니다." });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
+    if (!eventDate || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
       return res.status(400).json({ error: "eventDate 형식이 올바르지 않습니다." });
     }
     if (incomeType && !INCOME_TYPES.includes(incomeType)) {
