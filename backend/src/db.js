@@ -193,6 +193,7 @@ async function runMigrations(conn) {
     "ALTER TABLE projects ADD COLUMN url VARCHAR(512) AFTER period",
     "ALTER TABLE projects ADD COLUMN github_url VARCHAR(512) AFTER url",
     "ALTER TABLE projects ADD COLUMN home_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER sort_order",
+    "ALTER TABLE users ADD COLUMN calendar_filter_owner_ids TEXT DEFAULT NULL",
   ];
   for (const sql of migrations) {
     try {

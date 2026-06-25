@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import {
+  expandEventDates,
+  filterTitle,
+  formatShortDateKey,
+  ownerLabel,
+  repeatWeeksLabel,
+  spanDaysLabel,
+} from "../lib/calendarUtils";
 import {
   CALENDAR_THEME_COLORS,
   INCOME_OPTIONS,
@@ -11,6 +19,8 @@ import {
 import "./ScheduleTab.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const MAX_SPAN_DAYS = 14;
+const MAX_REPEAT_WEEKS = 12;
 
 const MOCK_OWNERS = [
   { id: 0, name: "이성권", nickname: "이성권", role: "SUPER_ADMIN", calendarThemeColor: "red" },
@@ -21,6 +31,7 @@ const MOCK_EVENTS = [
   {
     id: 1,
     ownerId: 0,
+    ownerThemeColor: "red",
     title: "포트폴리오 점검",
     description: "",
     eventDate: new Date().toISOString().slice(0, 10),
@@ -28,7 +39,20 @@ const MOCK_EVENTS = [
     endTime: null,
     incomeType: null,
   },
+  {
+    id: 2,
+    ownerId: 1,
+    ownerThemeColor: "orange",
+    title: "팀 미팅",
+    description: "",
+    eventDate: new Date().toISOString().slice(0, 10),
+    startTime: "10:00",
+    endTime: null,
+    incomeType: "WORK",
+  },
 ];
+
+const FILTER_STORAGE_KEY = "gwon.calendar.filter";
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -52,35 +76,41 @@ function buildMonthGrid(year, month) {
   return cells;
 }
 
-function ownerLabel(o) {
-  return o.nickname || o.name || o.email || `#${o.id}`;
-}
-
-function blankForm(dateKey = "") {
+function blankForm(dateKey = "", ownerId = null) {
   return {
+    ownerId,
     title: "",
     description: "",
     eventDate: dateKey,
     startTime: "",
     endTime: "",
     incomeType: "",
-    repeatWeekly: false,
-    repeatWeeks: 4,
+    spanDays: 1,
+    repeatWeeks: 1,
   };
 }
 
-function expandWeeklyDates(startKey, weeks) {
-  if (!startKey || !/^\d{4}-\d{2}-\d{2}$/.test(startKey)) return [];
-  const [y, m, d] = startKey.split("-").map(Number);
-  const start = new Date(y, m - 1, d);
-  const count = Math.min(Math.max(Number(weeks) || 1, 1), 52);
-  const dates = [];
-  for (let i = 0; i < count; i++) {
-    const dt = new Date(start);
-    dt.setDate(start.getDate() + i * 7);
-    dates.push(toDateKey(dt));
-  }
-  return dates;
+function formFromEvent(ev) {
+  return {
+    ownerId: ev.ownerId,
+    title: ev.title || "",
+    description: ev.description || "",
+    eventDate: ev.eventDate,
+    startTime: ev.startTime || "",
+    endTime: ev.endTime || "",
+    incomeType: ev.incomeType || "",
+    spanDays: 1,
+    repeatWeeks: 1,
+  };
+}
+
+function enrichEvent(ev, owners) {
+  const owner = owners.find((o) => o.id === ev.ownerId);
+  return {
+    ...ev,
+    ownerThemeColor: ev.ownerThemeColor || owner?.calendarThemeColor || "red",
+    ownerName: ev.ownerName || (owner ? ownerLabel(owner) : null),
+  };
 }
 
 export default function ScheduleTab() {
@@ -88,20 +118,30 @@ export default function ScheduleTab() {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
-  const [ownerId, setOwnerId] = useState(user?.id);
   const [owners, setOwners] = useState([]);
+  const [selfId, setSelfId] = useState(user?.id);
+  const [selectedOwnerIds, setSelectedOwnerIds] = useState([]);
   const [events, setEvents] = useState([]);
   const [themeColor, setThemeColor] = useState(user?.calendarThemeColor || null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [themeOpen, setThemeOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [dayOpen, setDayOpen] = useState(null);
   const [form, setForm] = useState(blankForm);
   const [busy, setBusy] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const theme = getThemeById(themeColor || "red");
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
+
+  const selectedOwners = useMemo(
+    () => owners.filter((o) => selectedOwnerIds.includes(o.id)),
+    [owners, selectedOwnerIds]
+  );
+
+  const headerTitle = useMemo(() => filterTitle(selectedOwners), [selectedOwners]);
 
   const eventsByDate = useMemo(() => {
     const map = {};
@@ -123,36 +163,87 @@ export default function ScheduleTab() {
   const loadOwners = useCallback(async () => {
     if (localMode) {
       setOwners(MOCK_OWNERS);
-      setOwnerId(user.id);
-      return;
+      setSelfId(user.id);
+      return MOCK_OWNERS;
     }
     const data = await api("/calendar/owners", { token });
     setOwners(data.items || []);
-    setOwnerId(data.selfId);
+    setSelfId(data.selfId);
+    return data.items || [];
   }, [token, localMode, user.id]);
 
+  const loadFilter = useCallback(
+    async (ownerList, defaultSelfId) => {
+      if (localMode) {
+        try {
+          const raw = localStorage.getItem(FILTER_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length) {
+              return parsed.filter((id) => ownerList.some((o) => o.id === id));
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+        return ownerList.map((o) => o.id);
+      }
+
+      const data = await api("/calendar/filter", { token });
+      if (data.ownerIds?.length) {
+        return data.ownerIds.filter((id) => ownerList.some((o) => o.id === id));
+      }
+      return [defaultSelfId];
+    },
+    [token, localMode]
+  );
+
+  const saveFilter = useCallback(
+    async (ids) => {
+      if (localMode) {
+        localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(ids));
+        return;
+      }
+      await api("/calendar/filter", {
+        method: "PUT",
+        token,
+        body: { ownerIds: ids },
+      });
+    },
+    [token, localMode]
+  );
+
   const loadEvents = useCallback(async () => {
+    if (!selectedOwnerIds.length) {
+      setEvents([]);
+      return;
+    }
     if (localMode) {
-      setEvents(MOCK_EVENTS.filter((e) => e.ownerId === (ownerId ?? user.id)));
+      setEvents(
+        MOCK_EVENTS.filter((e) => selectedOwnerIds.includes(e.ownerId)).map((e) =>
+          enrichEvent(e, MOCK_OWNERS)
+        )
+      );
       return;
     }
     const data = await api(
-      `/calendar/events?ownerId=${ownerId}&year=${viewYear}&month=${viewMonth}`,
+      `/calendar/events?ownerIds=${selectedOwnerIds.join(",")}&year=${viewYear}&month=${viewMonth}`,
       { token }
     );
-    setEvents(data.items || []);
-  }, [token, localMode, ownerId, viewYear, viewMonth, user.id]);
+    setEvents((data.items || []).map((e) => enrichEvent(e, owners)));
+  }, [token, localMode, selectedOwnerIds, viewYear, viewMonth, owners]);
 
   const loadTheme = useCallback(async () => {
+    const themeOwnerId = selfId ?? user.id;
     if (localMode) {
-      const owner = MOCK_OWNERS.find((o) => o.id === ownerId) || MOCK_OWNERS[0];
+      const owner = MOCK_OWNERS.find((o) => o.id === themeOwnerId) || MOCK_OWNERS[0];
       setThemeColor(owner.calendarThemeColor || "red");
       return;
     }
-    const data = await api(`/calendar/theme?ownerId=${ownerId}`, { token });
+    const data = await api(`/calendar/theme?ownerId=${themeOwnerId}`, { token });
     setThemeColor(data.themeColor);
     if (!data.themeColor) setThemeOpen(true);
-  }, [token, localMode, ownerId]);
+  }, [token, localMode, selfId, user.id]);
 
   useEffect(() => {
     let alive = true;
@@ -160,7 +251,9 @@ export default function ScheduleTab() {
       setLoading(true);
       setErr(null);
       try {
-        await loadOwners();
+        const ownerList = await loadOwners();
+        const ids = await loadFilter(ownerList, ownerList[0]?.id ?? user.id);
+        if (alive) setSelectedOwnerIds(ids.length ? ids : [user.id]);
       } catch (e) {
         if (alive) setErr(e.message);
       } finally {
@@ -170,10 +263,10 @@ export default function ScheduleTab() {
     return () => {
       alive = false;
     };
-  }, [loadOwners]);
+  }, [loadOwners, loadFilter, user.id]);
 
   useEffect(() => {
-    if (ownerId == null) return;
+    if (!selectedOwnerIds.length) return;
     let alive = true;
     (async () => {
       setErr(null);
@@ -186,7 +279,7 @@ export default function ScheduleTab() {
     return () => {
       alive = false;
     };
-  }, [ownerId, viewYear, viewMonth, loadEvents, loadTheme]);
+  }, [selectedOwnerIds, viewYear, viewMonth, loadEvents, loadTheme]);
 
   const shiftMonth = (delta) => {
     let m = viewMonth + delta;
@@ -202,6 +295,22 @@ export default function ScheduleTab() {
     setViewYear(y);
   };
 
+  const toggleOwnerFilter = async (ownerId) => {
+    let next;
+    if (selectedOwnerIds.includes(ownerId)) {
+      if (selectedOwnerIds.length <= 1) return;
+      next = selectedOwnerIds.filter((id) => id !== ownerId);
+    } else {
+      next = [...selectedOwnerIds, ownerId].sort((a, b) => a - b);
+    }
+    setSelectedOwnerIds(next);
+    try {
+      await saveFilter(next);
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+
   const saveTheme = async (colorId) => {
     setThemeColor(colorId);
     setThemeOpen(false);
@@ -210,7 +319,7 @@ export default function ScheduleTab() {
       await api("/calendar/theme", {
         method: "PUT",
         token,
-        body: { themeColor: colorId, ownerId },
+        body: { themeColor: colorId, ownerId: selfId },
       });
     } catch (e) {
       setErr(e.message);
@@ -218,8 +327,23 @@ export default function ScheduleTab() {
   };
 
   const openAdd = (dateKey) => {
-    setForm(blankForm(dateKey || toDateKey(today)));
+    const defaultOwner = selfId ?? user.id;
+    setEditId(null);
+    setForm(blankForm(dateKey || toDateKey(today), defaultOwner));
     setAddOpen(true);
+  };
+
+  const openEdit = (ev) => {
+    setDayOpen(null);
+    setEditId(ev.id);
+    setForm(formFromEvent(ev));
+    setAddOpen(true);
+  };
+
+  const closeModal = () => {
+    setAddOpen(false);
+    setEditId(null);
+    setForm(blankForm());
   };
 
   const submitEvent = async (e) => {
@@ -229,43 +353,75 @@ export default function ScheduleTab() {
     setBusy(true);
     setErr(null);
     try {
-      const payload = {
-        ownerId,
-        title,
-        description: form.description.trim(),
-        eventDate: form.eventDate,
-        startTime: form.startTime || null,
-        endTime: form.endTime || null,
-        incomeType: form.incomeType || null,
-        repeatWeekly: form.repeatWeekly,
-        repeatWeeks: form.repeatWeekly ? form.repeatWeeks : 1,
-      };
-
-      if (localMode) {
-        const dates = form.repeatWeekly
-          ? expandWeeklyDates(form.eventDate, form.repeatWeeks)
-          : [form.eventDate];
-        const items = dates.map((eventDate, i) => ({
-          id: Date.now() + i,
-          ownerId,
+      if (editId != null) {
+        const payload = {
           title,
           description: form.description.trim(),
-          eventDate,
+          eventDate: form.eventDate,
           startTime: form.startTime || null,
           endTime: form.endTime || null,
           incomeType: form.incomeType || null,
-        }));
-        setEvents((prev) => [...prev, ...items]);
+        };
+        if (localMode) {
+          setEvents((prev) =>
+            prev.map((ev) =>
+              ev.id === editId
+                ? {
+                    ...ev,
+                    ...payload,
+                    startTime: payload.startTime,
+                    endTime: payload.endTime,
+                  }
+                : ev
+            )
+          );
+        } else {
+          await api(`/calendar/events/${editId}`, {
+            method: "PUT",
+            token,
+            body: payload,
+          });
+          await loadEvents();
+        }
       } else {
-        await api("/calendar/events", {
-          method: "POST",
-          token,
-          body: payload,
-        });
-        await loadEvents();
+        const payload = {
+          ownerId: form.ownerId ?? selfId,
+          title,
+          description: form.description.trim(),
+          eventDate: form.eventDate,
+          startTime: form.startTime || null,
+          endTime: form.endTime || null,
+          incomeType: form.incomeType || null,
+          spanDays: form.spanDays,
+          repeatWeeks: form.repeatWeeks,
+        };
+
+        if (localMode) {
+          const dates = expandEventDates(form.eventDate, form.spanDays, form.repeatWeeks);
+          const owner = owners.find((o) => o.id === payload.ownerId) || owners[0];
+          const items = dates.map((eventDate, i) => ({
+            id: Date.now() + i,
+            ownerId: payload.ownerId,
+            ownerThemeColor: owner?.calendarThemeColor || "red",
+            ownerName: owner ? ownerLabel(owner) : null,
+            title,
+            description: form.description.trim(),
+            eventDate,
+            startTime: form.startTime || null,
+            endTime: form.endTime || null,
+            incomeType: form.incomeType || null,
+          }));
+          setEvents((prev) => [...prev, ...items]);
+        } else {
+          await api("/calendar/events", {
+            method: "POST",
+            token,
+            body: payload,
+          });
+          await loadEvents();
+        }
       }
-      setAddOpen(false);
-      setForm(blankForm());
+      closeModal();
     } catch (e2) {
       setErr(e2.message);
     } finally {
@@ -274,16 +430,18 @@ export default function ScheduleTab() {
   };
 
   const deleteEvent = async (id) => {
-    if (!isSuperAdmin) return;
     if (!window.confirm("이 일정을 삭제할까요?")) return;
     if (localMode) {
       setEvents((prev) => prev.filter((ev) => ev.id !== id));
+      setDayOpen(null);
+      closeModal();
       return;
     }
     try {
       await api(`/calendar/events/${id}`, { method: "DELETE", token });
       await loadEvents();
       setDayOpen(null);
+      closeModal();
     } catch (e) {
       setErr(e.message);
     }
@@ -291,32 +449,21 @@ export default function ScheduleTab() {
 
   const monthLabel = `${viewYear}년 ${viewMonth}월`;
   const todayKey = toDateKey(today);
+  const canPickOwner = isSuperAdmin && owners.length > 1;
 
   return (
-    <div
-      className="schedule"
-      style={{ "--cal-accent": theme.accent }}
-    >
+    <div className="schedule" style={{ "--cal-accent": theme.accent }}>
       <div className="schedule__toolbar">
         <div className="schedule__toolbar-left">
-          {isSuperAdmin && owners.length > 1 ? (
-            <label className="schedule__owner">
-              <span>명의</span>
-              <select
-                value={ownerId ?? ""}
-                onChange={(e) => setOwnerId(Number(e.target.value))}
-              >
-                {owners.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {ownerLabel(o)}
-                    {o.role === "SUPER_ADMIN" ? " (SUPER)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <span className="schedule__owner-name">{ownerLabel(user)} 일정</span>
-          )}
+          <button
+            type="button"
+            className="schedule__title-btn"
+            onClick={() => canPickOwner && setFilterOpen((v) => !v)}
+            aria-expanded={filterOpen}
+          >
+            <span className="schedule__owner-name">{headerTitle}</span>
+            {canPickOwner && <span className="schedule__title-caret">{filterOpen ? "▴" : "▾"}</span>}
+          </button>
         </div>
 
         <div className="schedule__toolbar-right">
@@ -334,6 +481,36 @@ export default function ScheduleTab() {
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {filterOpen && canPickOwner && (
+          <motion.div
+            className="schedule__filter-panel"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+          >
+            <p className="schedule__filter-label">보기 대상 (눌러서 선택/해제)</p>
+            <div className="schedule__filter-chips">
+              {owners.map((o) => {
+                const active = selectedOwnerIds.includes(o.id);
+                const chipTheme = getThemeById(o.calendarThemeColor || "red");
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    className={`schedule__filter-chip ${active ? "is-active" : ""}`}
+                    style={{ "--chip-accent": chipTheme.accent }}
+                    onClick={() => toggleOwnerFilter(o.id)}
+                  >
+                    {ownerLabel(o)}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {themeOpen && (
@@ -400,8 +577,8 @@ export default function ScheduleTab() {
                   events={dayEvents}
                   isToday={isToday}
                   isWeekend={isWeekend}
-                  onAdd={() => openAdd(key)}
-                  onExpand={() => setDayOpen({ dateKey: key, events: dayEvents })}
+                  onOpenDay={() => setDayOpen({ dateKey: key, events: dayEvents })}
+                  onEdit={openEdit}
                 />
               );
             })}
@@ -412,13 +589,16 @@ export default function ScheduleTab() {
       <AnimatePresence>
         {addOpen && (
           <EventModal
-            title="일정 추가"
+            title={editId != null ? "일정 수정" : "일정 추가"}
             form={form}
             setForm={setForm}
             busy={busy}
-            theme={theme}
-            onClose={() => setAddOpen(false)}
+            isEdit={editId != null}
+            owners={owners}
+            canPickOwner={canPickOwner}
+            onClose={closeModal}
             onSubmit={submitEvent}
+            onDelete={editId != null ? () => deleteEvent(editId) : null}
           />
         )}
       </AnimatePresence>
@@ -428,8 +608,8 @@ export default function ScheduleTab() {
           <DayModal
             dateKey={dayOpen.dateKey}
             events={dayOpen.events}
-            isSuperAdmin={isSuperAdmin}
             onClose={() => setDayOpen(null)}
+            onEdit={openEdit}
             onDelete={deleteEvent}
             onAdd={() => {
               setDayOpen(null);
@@ -443,9 +623,15 @@ export default function ScheduleTab() {
 }
 
 function EventBubble({ event, showTime, onClick }) {
+  const bubbleTheme = getThemeById(event.ownerThemeColor || "red");
   const paid = Boolean(event.incomeType);
   return (
-    <span className="schedule__bubble" onClick={onClick} role="presentation">
+    <span
+      className="schedule__bubble"
+      style={{ "--cal-accent": bubbleTheme.accent }}
+      onClick={onClick}
+      role="presentation"
+    >
       {paid && <span className="schedule__money" aria-hidden>💰</span>}
       {showTime && event.startTime && (
         <span className="schedule__bubble-time">{formatEventTime(event)}</span>
@@ -455,7 +641,7 @@ function EventBubble({ event, showTime, onClick }) {
   );
 }
 
-function DayCell({ date, events, isToday, isWeekend, onAdd, onExpand }) {
+function DayCell({ date, events, isToday, isWeekend, onOpenDay, onEdit }) {
   const maxVisibleDesktop = 5;
   const maxVisibleMobile = 3;
   const visibleDesktop = events.slice(0, maxVisibleDesktop);
@@ -465,7 +651,7 @@ function DayCell({ date, events, isToday, isWeekend, onAdd, onExpand }) {
     <button
       type="button"
       className={`schedule__cell ${isToday ? "is-today" : ""} ${isWeekend ? "is-weekend" : ""}`}
-      onClick={onAdd}
+      onClick={onOpenDay}
       aria-label={`${date.getDate()}일`}
     >
       <span className="schedule__day-num">{date.getDate()}</span>
@@ -477,7 +663,7 @@ function DayCell({ date, events, isToday, isWeekend, onAdd, onExpand }) {
             showTime
             onClick={(e) => {
               e.stopPropagation();
-              onExpand();
+              onEdit(ev);
             }}
           />
         ))}
@@ -486,7 +672,7 @@ function DayCell({ date, events, isToday, isWeekend, onAdd, onExpand }) {
             className="schedule__more"
             onClick={(e) => {
               e.stopPropagation();
-              onExpand();
+              onOpenDay();
             }}
           >
             +{hiddenCount}
@@ -501,7 +687,7 @@ function DayCell({ date, events, isToday, isWeekend, onAdd, onExpand }) {
             showTime={false}
             onClick={(e) => {
               e.stopPropagation();
-              onExpand();
+              onEdit(ev);
             }}
           />
         ))}
@@ -510,7 +696,7 @@ function DayCell({ date, events, isToday, isWeekend, onAdd, onExpand }) {
             className="schedule__more"
             onClick={(e) => {
               e.stopPropagation();
-              onExpand();
+              onOpenDay();
             }}
           >
             +{events.length - maxVisibleMobile}
@@ -521,17 +707,49 @@ function DayCell({ date, events, isToday, isWeekend, onAdd, onExpand }) {
   );
 }
 
-function EventModal({ title, form, setForm, busy, theme, onClose, onSubmit }) {
-  const repeatDates = useMemo(() => {
-    if (!form.repeatWeekly) return form.eventDate ? [form.eventDate] : [];
-    return expandWeeklyDates(form.eventDate, form.repeatWeeks);
-  }, [form.eventDate, form.repeatWeekly, form.repeatWeeks]);
+function AutoGrowTextarea({ id, value, onChange, placeholder }) {
+  const ref = useRef(null);
 
-  const pickerMonth = useMemo(() => {
-    if (!form.eventDate) return { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
-    const [y, m] = form.eventDate.split("-").map(Number);
-    return { year: y, month: m };
-  }, [form.eventDate]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      id={id}
+      rows={2}
+      className="schedule__desc-input"
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+    />
+  );
+}
+
+function EventModal({
+  title,
+  form,
+  setForm,
+  busy,
+  isEdit,
+  owners,
+  canPickOwner,
+  onClose,
+  onSubmit,
+  onDelete,
+}) {
+  const spanOptions = useMemo(
+    () => Array.from({ length: MAX_SPAN_DAYS }, (_, i) => i + 1),
+    []
+  );
+  const weekOptions = useMemo(
+    () => Array.from({ length: MAX_REPEAT_WEEKS }, (_, i) => i + 1),
+    []
+  );
 
   return (
     <motion.div
@@ -555,6 +773,23 @@ function EventModal({ title, form, setForm, busy, theme, onClose, onSubmit }) {
           </button>
         </div>
         <form className="schedule__form" onSubmit={onSubmit}>
+          {canPickOwner && !isEdit && (
+            <div className="field">
+              <label htmlFor="ev-owner">명의</label>
+              <select
+                id="ev-owner"
+                value={form.ownerId ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, ownerId: Number(e.target.value) }))}
+              >
+                {owners.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {ownerLabel(o)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="field">
             <label htmlFor="ev-title">일정명</label>
             <input
@@ -565,66 +800,57 @@ function EventModal({ title, form, setForm, busy, theme, onClose, onSubmit }) {
               required
             />
           </div>
-          <div className="field">
+
+          <div className="field schedule__field-desc">
             <label htmlFor="ev-desc">세부설명 (선택)</label>
-            <textarea
+            <AutoGrowTextarea
               id="ev-desc"
-              rows={3}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="메모"
             />
           </div>
-          <div className="field">
-            <label htmlFor="ev-date">날짜</label>
-            <input
-              id="ev-date"
-              type="date"
-              value={form.eventDate}
-              onChange={(e) => setForm((f) => ({ ...f, eventDate: e.target.value }))}
-              required
-            />
+
+          <div className="schedule__date-row">
+            <span className="schedule__date-display">{formatShortDateKey(form.eventDate)}</span>
+            {!isEdit && (
+              <>
+                <select
+                  className="schedule__duration-select"
+                  value={form.spanDays}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, spanDays: Number(e.target.value) }))
+                  }
+                  aria-label="기간"
+                >
+                  {spanOptions.map((n) => (
+                    <option key={n} value={n}>
+                      {spanDaysLabel(n)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="schedule__duration-select"
+                  value={form.repeatWeeks}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, repeatWeeks: Number(e.target.value) }))
+                  }
+                  aria-label="주 반복"
+                >
+                  {weekOptions.map((n) => (
+                    <option key={n} value={n}>
+                      {repeatWeeksLabel(n)}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
-          <MiniMonthPicker
-            year={pickerMonth.year}
-            month={pickerMonth.month}
-            selectedDates={repeatDates}
-            accent={theme.accent}
-            onPick={(dateKey) => setForm((f) => ({ ...f, eventDate: dateKey }))}
-          />
-
-          <label className="schedule__repeat-check">
-            <input
-              type="checkbox"
-              checked={form.repeatWeekly}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, repeatWeekly: e.target.checked }))
-              }
-            />
-            매주 반복
-          </label>
-
-          {form.repeatWeekly && (
-            <div className="schedule__repeat-weeks field">
-              <label htmlFor="ev-weeks">반복 주 수</label>
-              <input
-                id="ev-weeks"
-                type="number"
-                min={1}
-                max={52}
-                value={form.repeatWeeks}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    repeatWeeks: Math.min(52, Math.max(1, Number(e.target.value) || 1)),
-                  }))
-                }
-              />
-              <p className="schedule__hint">
-                시작일 기준 {form.repeatWeeks}주 동안 매주 같은 요일에 등록됩니다.
-              </p>
-            </div>
+          {!isEdit && (
+            <p className="schedule__hint">
+              {form.spanDays}일간 · {repeatWeeksLabel(form.repeatWeeks)} 동일 패턴으로 등록됩니다.
+            </p>
           )}
 
           <div className="schedule__time-row">
@@ -648,28 +874,29 @@ function EventModal({ title, form, setForm, busy, theme, onClose, onSubmit }) {
             </div>
           </div>
           <p className="schedule__hint">시간을 비우면 종일 일정으로 저장됩니다.</p>
-          <fieldset className="schedule__income">
-            <legend>유형 (선택)</legend>
-            <div className="schedule__income-options">
+
+          <div className="field">
+            <label htmlFor="ev-income">유형 (선택)</label>
+            <select
+              id="ev-income"
+              value={form.incomeType}
+              onChange={(e) => setForm((f) => ({ ...f, incomeType: e.target.value }))}
+            >
+              <option value="">선택 안 함</option>
               {INCOME_OPTIONS.map((opt) => (
-                <label key={opt.id} className="schedule__income-opt">
-                  <input
-                    type="radio"
-                    name="incomeType"
-                    checked={form.incomeType === opt.id}
-                    onChange={() =>
-                      setForm((f) => ({
-                        ...f,
-                        incomeType: f.incomeType === opt.id ? "" : opt.id,
-                      }))
-                    }
-                  />
+                <option key={opt.id} value={opt.id}>
                   {opt.label}
-                </label>
+                </option>
               ))}
-            </div>
-          </fieldset>
+            </select>
+          </div>
+
           <div className="schedule__modal-actions">
+            {onDelete && (
+              <button type="button" className="btn btn-ghost schedule__del-btn" onClick={onDelete}>
+                삭제
+              </button>
+            )}
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               취소
             </button>
@@ -683,47 +910,7 @@ function EventModal({ title, form, setForm, busy, theme, onClose, onSubmit }) {
   );
 }
 
-function MiniMonthPicker({ year, month, selectedDates, accent, onPick }) {
-  const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
-  const selectedSet = useMemo(() => new Set(selectedDates), [selectedDates]);
-  const todayKey = toDateKey(new Date());
-
-  return (
-    <div className="schedule__mini-cal">
-      <p className="schedule__mini-cal-label">
-        {year}년 {month}월
-      </p>
-      <div className="schedule__mini-weekdays">
-        {WEEKDAYS.map((d) => (
-          <span key={d}>{d}</span>
-        ))}
-      </div>
-      <div className="schedule__mini-grid">
-        {grid.map((date, idx) => {
-          if (!date) {
-            return <span key={`e-${idx}`} className="schedule__mini-cell schedule__mini-cell--empty" />;
-          }
-          const key = toDateKey(date);
-          const isSelected = selectedSet.has(key);
-          const isStart = key === selectedDates[0];
-          return (
-            <button
-              key={key}
-              type="button"
-              className={`schedule__mini-cell ${isSelected ? "is-selected" : ""} ${isStart ? "is-start" : ""} ${key === todayKey ? "is-today" : ""}`}
-              style={isSelected ? { "--mini-accent": accent } : undefined}
-              onClick={() => onPick(key)}
-            >
-              {date.getDate()}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function DayModal({ dateKey, events, isSuperAdmin, onClose, onDelete, onAdd }) {
+function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
   const [y, m, d] = dateKey.split("-");
   return (
     <motion.div
@@ -744,44 +931,57 @@ function DayModal({ dateKey, events, isSuperAdmin, onClose, onDelete, onAdd }) {
           <h3>
             {y}년 {Number(m)}월 {Number(d)}일
           </h3>
-          <button type="button" className="schedule__close" onClick={onClose} aria-label="닫기">
-            ✕
-          </button>
+          <div className="schedule__modal-head-actions">
+            <button type="button" className="btn btn-accent schedule__day-add-top" onClick={onAdd}>
+              ＋ 일정 추가
+            </button>
+            <button type="button" className="schedule__close" onClick={onClose} aria-label="닫기">
+              ✕
+            </button>
+          </div>
         </div>
         <div className="schedule__day-list">
           {events.length === 0 ? (
             <p className="schedule__empty">등록된 일정이 없습니다.</p>
           ) : (
-            events.map((ev) => (
-              <div key={ev.id} className="schedule__day-item">
-                <div className="schedule__day-item-main">
-                  <strong>
-                    {ev.incomeType && <span className="schedule__money">💰</span>}
-                    {ev.title}
-                  </strong>
-                  <span className="schedule__day-item-time">{formatEventTime(ev)}</span>
-                  {ev.description && <p>{ev.description}</p>}
+            events.map((ev) => {
+              const bubbleTheme = getThemeById(ev.ownerThemeColor || "red");
+              return (
+                <div key={ev.id} className="schedule__day-item">
+                  <span
+                    className="schedule__day-item-dot"
+                    style={{ background: bubbleTheme.accent }}
+                    aria-hidden
+                  />
+                  <div className="schedule__day-item-main">
+                    <strong>
+                      {ev.incomeType && <span className="schedule__money">💰</span>}
+                      {ev.title}
+                    </strong>
+                    {ev.ownerName && selectedOwnersCount(events) > 1 && (
+                      <span className="schedule__day-item-owner">{ev.ownerName}</span>
+                    )}
+                    <span className="schedule__day-item-time">{formatEventTime(ev)}</span>
+                    {ev.description && <p>{ev.description}</p>}
+                  </div>
+                  <div className="schedule__day-item-actions">
+                    <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
+                      수정
+                    </button>
+                    <button type="button" className="btn btn-ghost schedule__day-delete-btn" onClick={() => onDelete(ev.id)}>
+                      삭제
+                    </button>
+                  </div>
                 </div>
-                {isSuperAdmin && (
-                  <button
-                    type="button"
-                    className="schedule__day-del"
-                    onClick={() => onDelete(ev.id)}
-                    aria-label="삭제"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
-        </div>
-        <div className="schedule__modal-actions">
-          <button type="button" className="btn btn-accent" onClick={onAdd}>
-            ＋ 일정 추가
-          </button>
         </div>
       </motion.div>
     </motion.div>
   );
+}
+
+function selectedOwnersCount(events) {
+  return new Set(events.map((e) => e.ownerId)).size;
 }

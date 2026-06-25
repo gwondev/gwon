@@ -2,7 +2,6 @@ import { Router } from "express";
 import pool from "../db.js";
 import {
   requireCalendarAdmin,
-  requireSuperAdmin,
   isSuperAdminRole,
   getUserRole,
 } from "../auth-middleware.js";
@@ -36,6 +35,8 @@ function publicEvent(row) {
     startTime: row.start_time ? String(row.start_time).slice(0, 5) : null,
     endTime: row.end_time ? String(row.end_time).slice(0, 5) : null,
     incomeType: row.income_type || null,
+    ownerName: row.owner_name || row.owner_nickname || null,
+    ownerThemeColor: row.owner_theme_color || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -48,6 +49,12 @@ async function canManageOwner(actorId, actorRole, ownerId) {
   const owner = rows[0];
   if (!owner) return false;
   return owner.role === "ADMIN" || owner.id === actorId;
+}
+
+async function canManageEvent(actorId, actorRole, eventRow) {
+  if (eventRow.owner_id === actorId || eventRow.created_by === actorId) return true;
+  if (!isSuperAdminRole(actorRole)) return false;
+  return canManageOwner(actorId, actorRole, eventRow.owner_id);
 }
 
 async function resolveOwnerId(req, requestedOwnerId) {
@@ -70,7 +77,79 @@ async function resolveOwnerId(req, requestedOwnerId) {
   return ownerId;
 }
 
-// GET /api/calendar/owners — SUPER_ADMIN: 일정 주체 선택 목록
+function parseOwnerIdsQuery(raw) {
+  if (!raw) return [];
+  const parts = String(raw)
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return [...new Set(parts)];
+}
+
+async function resolveOwnerIds(req, requestedOwnerIds) {
+  const actorId = req.auth.uid;
+  const actorRole = req.userRole || (await getUserRole(actorId));
+  const ids = Array.isArray(requestedOwnerIds)
+    ? [...new Set(requestedOwnerIds.map(Number).filter((n) => Number.isFinite(n) && n > 0))]
+    : [];
+
+  if (ids.length === 0) return [actorId];
+
+  for (const id of ids) {
+    if (id !== actorId && !(await canManageOwner(actorId, actorRole, id))) {
+      throw Object.assign(new Error("선택한 일정 주체에 접근할 수 없습니다."), { status: 403 });
+    }
+  }
+
+  return ids;
+}
+
+function expandEventDates(eventDate, spanDays, repeatWeeks) {
+  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 31);
+  const weeks = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52);
+  const [y, m, d] = eventDate.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  const dates = new Set();
+  for (let w = 0; w < weeks; w++) {
+    for (let day = 0; day < span; day++) {
+      const dt = new Date(start);
+      dt.setDate(start.getDate() + w * 7 + day);
+      dates.add(
+        `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`
+      );
+    }
+  }
+  return [...dates].sort();
+}
+
+async function insertEvent(conn, data) {
+  const [result] = await conn.query(
+    `INSERT INTO calendar_events
+     (owner_id, created_by, title, description, event_date, start_time, end_time, income_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      data.ownerId,
+      data.actorId,
+      data.title,
+      data.description || null,
+      data.eventDate,
+      data.startTime || null,
+      data.endTime || null,
+      data.incomeType || null,
+    ]
+  );
+  const [rows] = await conn.query(
+    `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
+            u.calendar_theme_color AS owner_theme_color
+     FROM calendar_events e
+     JOIN users u ON u.id = e.owner_id
+     WHERE e.id = ?`,
+    [result.insertId]
+  );
+  return rows[0];
+}
+
+// GET /api/calendar/owners
 router.get("/owners", requireCalendarAdmin, async (req, res, next) => {
   try {
     const actorId = req.auth.uid;
@@ -107,7 +186,59 @@ router.get("/owners", requireCalendarAdmin, async (req, res, next) => {
   }
 });
 
-// GET /api/calendar/events?ownerId=&year=&month=
+// GET /api/calendar/filter — 저장된 일정 보기 필터
+router.get("/filter", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const actorId = req.auth.uid;
+    const [rows] = await pool.query(
+      "SELECT calendar_filter_owner_ids FROM users WHERE id = ?",
+      [actorId]
+    );
+    let ownerIds = null;
+    const raw = rows[0]?.calendar_filter_owner_ids;
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) ownerIds = parsed;
+      } catch {
+        ownerIds = null;
+      }
+    }
+
+    if (ownerIds?.length) {
+      ownerIds = await resolveOwnerIds(req, ownerIds);
+    } else {
+      ownerIds = null;
+    }
+
+    res.json({ ownerIds });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// PUT /api/calendar/filter { ownerIds: number[] }
+router.put("/filter", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const ownerIds = await resolveOwnerIds(req, req.body?.ownerIds);
+    if (!ownerIds.length) {
+      return res.status(400).json({ error: "최소 한 명은 선택해야 합니다." });
+    }
+
+    await pool.query("UPDATE users SET calendar_filter_owner_ids = ? WHERE id = ?", [
+      JSON.stringify(ownerIds),
+      req.auth.uid,
+    ]);
+
+    res.json({ ownerIds });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// GET /api/calendar/events?ownerIds=1,2&year=&month=
 router.get("/events", requireCalendarAdmin, async (req, res, next) => {
   try {
     const year = Number(req.query.year);
@@ -116,62 +247,35 @@ router.get("/events", requireCalendarAdmin, async (req, res, next) => {
       return res.status(400).json({ error: "year, month 가 필요합니다." });
     }
 
-    const ownerId = await resolveOwnerId(req, req.query.ownerId);
+    const queryIds = parseOwnerIdsQuery(req.query.ownerIds);
+    const legacyId = req.query.ownerId ? [Number(req.query.ownerId)] : [];
+    const requested = queryIds.length ? queryIds : legacyId;
+    const ownerIds = await resolveOwnerIds(req, requested);
+
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const endDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
 
+    const placeholders = ownerIds.map(() => "?").join(", ");
     const [rows] = await pool.query(
-      `SELECT * FROM calendar_events
-       WHERE owner_id = ? AND event_date BETWEEN ? AND ?
-       ORDER BY event_date ASC,
-         CASE WHEN start_time IS NULL THEN 0 ELSE 1 END,
-         start_time ASC,
-         id ASC`,
-      [ownerId, startDate, endDate]
+      `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
+              u.calendar_theme_color AS owner_theme_color
+       FROM calendar_events e
+       JOIN users u ON u.id = e.owner_id
+       WHERE e.owner_id IN (${placeholders}) AND e.event_date BETWEEN ? AND ?
+       ORDER BY e.event_date ASC,
+         CASE WHEN e.start_time IS NULL THEN 0 ELSE 1 END,
+         e.start_time ASC,
+         e.id ASC`,
+      [...ownerIds, startDate, endDate]
     );
 
-    res.json({ items: rows.map(publicEvent), ownerId });
+    res.json({ items: rows.map(publicEvent), ownerIds });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
   }
 });
-
-function expandWeeklyDates(eventDate, weeks) {
-  const [y, m, d] = eventDate.split("-").map(Number);
-  const start = new Date(y, m - 1, d);
-  const count = Math.min(Math.max(Number(weeks) || 1, 1), 52);
-  const dates = [];
-  for (let i = 0; i < count; i++) {
-    const dt = new Date(start);
-    dt.setDate(start.getDate() + i * 7);
-    dates.push(
-      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`
-    );
-  }
-  return dates;
-}
-
-async function insertEvent(conn, data) {
-  const [result] = await conn.query(
-    `INSERT INTO calendar_events
-     (owner_id, created_by, title, description, event_date, start_time, end_time, income_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      data.ownerId,
-      data.actorId,
-      data.title,
-      data.description || null,
-      data.eventDate,
-      data.startTime || null,
-      data.endTime || null,
-      data.incomeType || null,
-    ]
-  );
-  const [rows] = await conn.query("SELECT * FROM calendar_events WHERE id = ?", [result.insertId]);
-  return rows[0];
-}
 
 // POST /api/calendar/events
 router.post("/events", requireCalendarAdmin, async (req, res, next) => {
@@ -183,8 +287,8 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const startTime = body.startTime ? String(body.startTime).trim() : null;
     const endTime = body.endTime ? String(body.endTime).trim() : null;
     const incomeType = body.incomeType ? String(body.incomeType).toUpperCase() : null;
-    const repeatWeekly = Boolean(body.repeatWeekly);
-    const repeatWeeks = repeatWeekly ? Math.min(Math.max(Number(body.repeatWeeks) || 1, 1), 52) : 1;
+    const spanDays = Math.min(Math.max(Number(body.spanDays) || 1, 1), 31);
+    const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks) || 1, 1), 52);
 
     if (!title) return res.status(400).json({ error: "일정명은 필수입니다." });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
@@ -196,7 +300,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
 
     const ownerId = await resolveOwnerId(req, body.ownerId);
     const actorId = req.auth.uid;
-    const dates = repeatWeekly ? expandWeeklyDates(eventDate, repeatWeeks) : [eventDate];
+    const dates = expandEventDates(eventDate, spanDays, repeatWeeks);
 
     const conn = await pool.getConnection();
     try {
@@ -229,9 +333,23 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
   }
 });
 
-// PUT /api/calendar/events/:id — SUPER_ADMIN만
-router.put("/events/:id", requireSuperAdmin, async (req, res, next) => {
+// PUT /api/calendar/events/:id
+router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
   try {
+    const [existingRows] = await pool.query("SELECT * FROM calendar_events WHERE id = ?", [
+      req.params.id,
+    ]);
+    const existing = existingRows[0];
+    if (!existing) {
+      return res.status(404).json({ error: "일정을 찾을 수 없습니다." });
+    }
+
+    const actorId = req.auth.uid;
+    const actorRole = req.userRole || (await getUserRole(actorId));
+    if (!(await canManageEvent(actorId, actorRole, existing))) {
+      return res.status(403).json({ error: "이 일정을 수정할 권한이 없습니다." });
+    }
+
     const body = req.body || {};
     const title = body.title !== undefined ? String(body.title).trim() : undefined;
     const description = body.description !== undefined ? String(body.description).trim() : undefined;
@@ -264,28 +382,40 @@ router.put("/events/:id", requireSuperAdmin, async (req, res, next) => {
     }
 
     values.push(req.params.id);
-    const [result] = await pool.query(
-      `UPDATE calendar_events SET ${updates.join(", ")} WHERE id = ?`,
-      values
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "일정을 찾을 수 없습니다." });
-    }
+    await pool.query(`UPDATE calendar_events SET ${updates.join(", ")} WHERE id = ?`, values);
 
-    const [rows] = await pool.query("SELECT * FROM calendar_events WHERE id = ?", [req.params.id]);
+    const [rows] = await pool.query(
+      `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
+              u.calendar_theme_color AS owner_theme_color
+       FROM calendar_events e
+       JOIN users u ON u.id = e.owner_id
+       WHERE e.id = ?`,
+      [req.params.id]
+    );
     res.json({ item: publicEvent(rows[0]) });
   } catch (err) {
     next(err);
   }
 });
 
-// DELETE /api/calendar/events/:id — SUPER_ADMIN만
-router.delete("/events/:id", requireSuperAdmin, async (req, res, next) => {
+// DELETE /api/calendar/events/:id
+router.delete("/events/:id", requireCalendarAdmin, async (req, res, next) => {
   try {
-    const [result] = await pool.query("DELETE FROM calendar_events WHERE id = ?", [req.params.id]);
-    if (result.affectedRows === 0) {
+    const [existingRows] = await pool.query("SELECT * FROM calendar_events WHERE id = ?", [
+      req.params.id,
+    ]);
+    const existing = existingRows[0];
+    if (!existing) {
       return res.status(404).json({ error: "일정을 찾을 수 없습니다." });
     }
+
+    const actorId = req.auth.uid;
+    const actorRole = req.userRole || (await getUserRole(actorId));
+    if (!(await canManageEvent(actorId, actorRole, existing))) {
+      return res.status(403).json({ error: "이 일정을 삭제할 권한이 없습니다." });
+    }
+
+    await pool.query("DELETE FROM calendar_events WHERE id = ?", [req.params.id]);
     res.status(204).end();
   } catch (err) {
     next(err);

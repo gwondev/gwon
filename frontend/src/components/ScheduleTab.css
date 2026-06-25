@@ -46,6 +46,60 @@
   color: var(--text);
 }
 
+.schedule__title-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.schedule__title-caret {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.schedule__filter-panel {
+  overflow: hidden;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+
+.schedule__filter-label {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.schedule__filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.schedule__filter-chip {
+  padding: 0.38rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.schedule__filter-chip.is-active {
+  border-color: var(--chip-accent, var(--cal-accent));
+  background: color-mix(in srgb, var(--chip-accent, var(--cal-accent)) 16%, transparent);
+  color: var(--text);
+}
+
 .schedule__theme-btn {
   display: inline-flex;
   align-items: center;
@@ -318,6 +372,17 @@
   font-size: 1.05rem;
 }
 
+.schedule__modal-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.schedule__day-add-top {
+  padding: 0.35rem 0.7rem !important;
+  font-size: 0.76rem !important;
+}
+
 .schedule__close {
   width: 32px;
   height: 32px;
@@ -346,114 +411,51 @@
   color: var(--text-faint);
 }
 
-.schedule__repeat-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.schedule__repeat-weeks input[type="number"] {
-  max-width: 120px;
-}
-
-.schedule__mini-cal {
-  padding: 0.75rem;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.schedule__mini-cal-label {
-  margin: 0 0 0.5rem;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--text-dim);
-  text-align: center;
-}
-
-.schedule__mini-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  margin-bottom: 4px;
-}
-
-.schedule__mini-weekdays span {
-  text-align: center;
-  font-size: 0.62rem;
-  color: var(--text-faint);
-  font-weight: 700;
-}
-
-.schedule__mini-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-}
-
-.schedule__mini-cell {
-  aspect-ratio: 1;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.schedule__mini-cell--empty {
-  cursor: default;
-}
-
-.schedule__mini-cell.is-selected {
-  background: color-mix(in srgb, var(--mini-accent, var(--cal-accent)) 24%, transparent);
-  color: var(--text);
-}
-
-.schedule__mini-cell.is-start {
-  box-shadow: inset 0 0 0 1px var(--mini-accent, var(--cal-accent));
-  color: var(--mini-accent, var(--cal-accent));
-}
-
-.schedule__mini-cell.is-today:not(.is-selected) {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.schedule__income {
-  margin: 0;
-  padding: 0.75rem;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-}
-
-.schedule__income legend {
-  padding: 0 0.25rem;
-  font-size: 0.82rem;
-  color: var(--text-dim);
-}
-
-.schedule__income-options {
+.schedule__date-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem 0.85rem;
-  margin-top: 0.35rem;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.schedule__income-opt {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+.schedule__date-display {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.schedule__duration-select {
+  min-width: 0;
+  flex: 1;
+  padding: 0.45rem 0.55rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.schedule__field-desc textarea,
+.schedule__desc-input {
+  min-height: 2.6rem;
+  max-height: 12rem;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.45;
   font-size: 0.86rem;
-  cursor: pointer;
+}
+
+.schedule__del-btn {
+  margin-right: auto !important;
+  color: #ff6b6b !important;
 }
 
 .schedule__modal-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 0.55rem;
   padding: 0 1.1rem 1.1rem;
 }
@@ -469,10 +471,27 @@
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
+  width: 100%;
   padding: 0.75rem;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.schedule__day-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--line-strong);
+}
+
+.schedule__day-item-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 0.35rem;
+  border-radius: 50%;
 }
 
 .schedule__day-item-main {
@@ -493,21 +512,36 @@
   font-weight: 600;
 }
 
+.schedule__day-item-owner {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+.schedule__day-item-actions {
+  flex: none;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.schedule__day-edit-btn,
+.schedule__day-delete-btn {
+  min-width: 54px;
+  padding: 0.28rem 0.5rem !important;
+  font-size: 0.72rem !important;
+}
+
+.schedule__day-delete-btn {
+  color: #ff6b6b !important;
+}
+
 .schedule__day-item-main p {
   margin: 0.35rem 0 0;
   font-size: 0.82rem;
   color: var(--text-dim);
-}
-
-.schedule__day-del {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: #ff6b6b;
-  font-size: 0.75rem;
 }
 
 .schedule__empty {
@@ -550,6 +584,19 @@
 
   .schedule__time-row {
     grid-template-columns: 1fr;
+  }
+
+  .schedule__duration-select {
+    flex: 1 1 calc(50% - 0.25rem);
+  }
+
+  .schedule__modal-head {
+    align-items: flex-start;
+  }
+
+  .schedule__modal-head-actions {
+    flex-direction: column-reverse;
+    align-items: flex-end;
   }
 
   .schedule__toolbar-right {
