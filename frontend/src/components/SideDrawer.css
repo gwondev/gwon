@@ -102,13 +102,18 @@
 }
 
 .drawer__profile {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.4rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.drawer__profile-row {
+  display: flex;
   align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
 }
 .drawer__avatar {
-  grid-row: span 1;
+  flex: none;
   width: 46px;
   height: 46px;
   border-radius: 50%;
@@ -122,9 +127,13 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  flex: 1;
 }
 .drawer__profile-meta strong {
   font-size: 1.02rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .drawer__profile-meta span {
   font-size: 0.8rem;
@@ -134,10 +143,8 @@
   white-space: nowrap;
 }
 .drawer__profile-actions {
-  grid-column: 1 / -1;
   display: flex;
   gap: 0.6rem;
-  margin-top: 0.9rem;
 }
 .drawer__profile-actions .btn {
   flex: 1;
@@ -146,9 +153,7 @@
 }
 
 .drawer__link--admin .drawer__link-no,
-.drawer__link--admin .drawer__link-title,
-.drawer__link--chat-admin .drawer__link-no,
-.drawer__link--chat-admin .drawer__link-title {
+.drawer__link--admin .drawer__link-title {
   color: var(--accent);
 }
 .drawer__link--mypage .drawer__link-no,
@@ -176,4 +181,22 @@
   font-size: 0.84rem;
   line-height: 1.5;
   color: var(--text-dim);
+}
+.drawer__note--inline {
+  padding: 0.75rem 0.85rem;
+}
+.drawer__link--schedule .drawer__link-no,
+.drawer__link--schedule .drawer__link-title {
+  color: #86efac;
+}
+.drawer__link--schedule:hover .drawer__link-arrow {
+  color: #86efac;
+}
+.drawer__profile-role {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fca5a5;
 }

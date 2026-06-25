@@ -22,8 +22,26 @@ const SCHEMA = [
     name VARCHAR(255),
     picture VARCHAR(512),
     nickname VARCHAR(64),
-    role ENUM('GUEST','ADMIN') NOT NULL DEFAULT 'GUEST',
+    role ENUM('GUEST','ADMIN','SUPER_ADMIN') NOT NULL DEFAULT 'GUEST',
+    calendar_theme_color VARCHAR(32) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS calendar_events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    owner_id INT NOT NULL,
+    created_by INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    event_date DATE NOT NULL,
+    start_time TIME NULL,
+    end_time TIME NULL,
+    income_type ENUM('ALBA','WORK','SCHOLARSHIP') DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_calendar_owner_date (owner_id, event_date),
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   `CREATE TABLE IF NOT EXISTS projects (
@@ -152,6 +170,8 @@ async function seedDefaultSettings(conn) {
 async function runMigrations(conn) {
   const migrations = [
     "ALTER TABLE users ADD COLUMN role ENUM('GUEST','ADMIN') NOT NULL DEFAULT 'GUEST'",
+    "ALTER TABLE users MODIFY COLUMN role ENUM('GUEST','ADMIN','SUPER_ADMIN') NOT NULL DEFAULT 'GUEST'",
+    "ALTER TABLE users ADD COLUMN calendar_theme_color VARCHAR(32) DEFAULT NULL",
     "ALTER TABLE careers ADD COLUMN category VARCHAR(64) AFTER title",
     // 다중 분류 저장을 위한 컬럼 확장
     "ALTER TABLE projects MODIFY COLUMN category VARCHAR(255)",

@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
-import PortfolioChat from "../components/PortfolioChat";
+import QuickActions from "../components/QuickActions";
 import { SECTIONS, isCompetition, isProjectRecord } from "../lib/sections";
 import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
@@ -128,31 +128,10 @@ export default function RootPage() {
           </motion.p>
         </motion.section>
 
-        <PortfolioChat />
+        <QuickActions />
       </div>
 
-      <motion.button
-        className="overview-bar"
-        onClick={() => navigate("/overview")}
-        initial={{ opacity: 0, y: 28 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-        whileHover={{ y: -6 }}
-        whileTap={{ scale: 0.99 }}
-      >
-        <span className="overview-bar__sheen" aria-hidden />
-        <span className="overview-bar__center">
-          <span className="overview-bar__title">전체 포트폴리오 요약</span>
-          <span className="overview-bar__sub">
-            {truncatePreview(
-              "프로젝트·경력·스택을 한 페이지에서 펼쳐 보실 수 있습니다",
-              previewMax
-            )}
-          </span>
-        </span>
-      </motion.button>
-
-      <motion.div className="root__grid" variants={gridStagger} initial="hidden" animate="show">
+      <motion.div className="root__grid root__grid--sub" variants={gridStagger} initial="hidden" animate="show">
         {SECTIONS.map((s) => {
           const rows = previewRows(s.key, preview, techGroups);
           return (
@@ -161,7 +140,7 @@ export default function RootPage() {
               variants={cardRise}
               className="cat-card"
               onClick={() => navigate(s.path)}
-              whileHover={{ y: -12 }}
+              whileHover={{ y: -6, opacity: 0.92 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 320, damping: 26 }}
             >

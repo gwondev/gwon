@@ -64,7 +64,23 @@ function blankForm(dateKey = "") {
     startTime: "",
     endTime: "",
     incomeType: "",
+    repeatWeekly: false,
+    repeatWeeks: 4,
   };
+}
+
+function expandWeeklyDates(startKey, weeks) {
+  if (!startKey || !/^\d{4}-\d{2}-\d{2}$/.test(startKey)) return [];
+  const [y, m, d] = startKey.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  const count = Math.min(Math.max(Number(weeks) || 1, 1), 52);
+  const dates = [];
+  for (let i = 0; i < count; i++) {
+    const dt = new Date(start);
+    dt.setDate(start.getDate() + i * 7);
+    dates.push(toDateKey(dt));
+  }
+  return dates;
 }
 
 export default function ScheduleTab() {
@@ -213,31 +229,38 @@ export default function ScheduleTab() {
     setBusy(true);
     setErr(null);
     try {
+      const payload = {
+        ownerId,
+        title,
+        description: form.description.trim(),
+        eventDate: form.eventDate,
+        startTime: form.startTime || null,
+        endTime: form.endTime || null,
+        incomeType: form.incomeType || null,
+        repeatWeekly: form.repeatWeekly,
+        repeatWeeks: form.repeatWeekly ? form.repeatWeeks : 1,
+      };
+
       if (localMode) {
-        const item = {
-          id: Date.now(),
+        const dates = form.repeatWeekly
+          ? expandWeeklyDates(form.eventDate, form.repeatWeeks)
+          : [form.eventDate];
+        const items = dates.map((eventDate, i) => ({
+          id: Date.now() + i,
           ownerId,
           title,
           description: form.description.trim(),
-          eventDate: form.eventDate,
+          eventDate,
           startTime: form.startTime || null,
           endTime: form.endTime || null,
           incomeType: form.incomeType || null,
-        };
-        setEvents((prev) => [...prev, item]);
+        }));
+        setEvents((prev) => [...prev, ...items]);
       } else {
         await api("/calendar/events", {
           method: "POST",
           token,
-          body: {
-            ownerId,
-            title,
-            description: form.description.trim(),
-            eventDate: form.eventDate,
-            startTime: form.startTime || null,
-            endTime: form.endTime || null,
-            incomeType: form.incomeType || null,
-          },
+          body: payload,
         });
         await loadEvents();
       }
@@ -272,10 +295,7 @@ export default function ScheduleTab() {
   return (
     <div
       className="schedule"
-      style={{
-        "--cal-accent": theme.accent,
-        "--cal-soft": theme.soft,
-      }}
+      style={{ "--cal-accent": theme.accent }}
     >
       <div className="schedule__toolbar">
         <div className="schedule__toolbar-left">
@@ -396,6 +416,7 @@ export default function ScheduleTab() {
             form={form}
             setForm={setForm}
             busy={busy}
+            theme={theme}
             onClose={() => setAddOpen(false)}
             onSubmit={submitEvent}
           />
@@ -500,7 +521,18 @@ function DayCell({ date, events, isToday, isWeekend, onAdd, onExpand }) {
   );
 }
 
-function EventModal({ title, form, setForm, busy, onClose, onSubmit }) {
+function EventModal({ title, form, setForm, busy, theme, onClose, onSubmit }) {
+  const repeatDates = useMemo(() => {
+    if (!form.repeatWeekly) return form.eventDate ? [form.eventDate] : [];
+    return expandWeeklyDates(form.eventDate, form.repeatWeeks);
+  }, [form.eventDate, form.repeatWeekly, form.repeatWeeks]);
+
+  const pickerMonth = useMemo(() => {
+    if (!form.eventDate) return { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+    const [y, m] = form.eventDate.split("-").map(Number);
+    return { year: y, month: m };
+  }, [form.eventDate]);
+
   return (
     <motion.div
       className="schedule__overlay"
@@ -553,6 +585,48 @@ function EventModal({ title, form, setForm, busy, onClose, onSubmit }) {
               required
             />
           </div>
+
+          <MiniMonthPicker
+            year={pickerMonth.year}
+            month={pickerMonth.month}
+            selectedDates={repeatDates}
+            accent={theme.accent}
+            onPick={(dateKey) => setForm((f) => ({ ...f, eventDate: dateKey }))}
+          />
+
+          <label className="schedule__repeat-check">
+            <input
+              type="checkbox"
+              checked={form.repeatWeekly}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, repeatWeekly: e.target.checked }))
+              }
+            />
+            매주 반복
+          </label>
+
+          {form.repeatWeekly && (
+            <div className="schedule__repeat-weeks field">
+              <label htmlFor="ev-weeks">반복 주 수</label>
+              <input
+                id="ev-weeks"
+                type="number"
+                min={1}
+                max={52}
+                value={form.repeatWeeks}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    repeatWeeks: Math.min(52, Math.max(1, Number(e.target.value) || 1)),
+                  }))
+                }
+              />
+              <p className="schedule__hint">
+                시작일 기준 {form.repeatWeeks}주 동안 매주 같은 요일에 등록됩니다.
+              </p>
+            </div>
+          )}
+
           <div className="schedule__time-row">
             <div className="field">
               <label htmlFor="ev-start">시작 (선택)</label>
@@ -606,6 +680,46 @@ function EventModal({ title, form, setForm, busy, onClose, onSubmit }) {
         </form>
       </motion.div>
     </motion.div>
+  );
+}
+
+function MiniMonthPicker({ year, month, selectedDates, accent, onPick }) {
+  const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
+  const selectedSet = useMemo(() => new Set(selectedDates), [selectedDates]);
+  const todayKey = toDateKey(new Date());
+
+  return (
+    <div className="schedule__mini-cal">
+      <p className="schedule__mini-cal-label">
+        {year}년 {month}월
+      </p>
+      <div className="schedule__mini-weekdays">
+        {WEEKDAYS.map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+      <div className="schedule__mini-grid">
+        {grid.map((date, idx) => {
+          if (!date) {
+            return <span key={`e-${idx}`} className="schedule__mini-cell schedule__mini-cell--empty" />;
+          }
+          const key = toDateKey(date);
+          const isSelected = selectedSet.has(key);
+          const isStart = key === selectedDates[0];
+          return (
+            <button
+              key={key}
+              type="button"
+              className={`schedule__mini-cell ${isSelected ? "is-selected" : ""} ${isStart ? "is-start" : ""} ${key === todayKey ? "is-today" : ""}`}
+              style={isSelected ? { "--mini-accent": accent } : undefined}
+              onClick={() => onPick(key)}
+            >
+              {date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

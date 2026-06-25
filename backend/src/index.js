@@ -6,6 +6,7 @@ import adminRouter from "./routes/admin.js";
 import { crudRouter } from "./routes/crud.js";
 
 import chatRouter from "./routes/chat.js";
+import calendarRouter from "./routes/calendar.js";
 import techStackRouter from "./routes/tech-stack.js";
 
 const app = express();
@@ -29,6 +30,7 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/calendar", calendarRouter);
 app.use("/api/tech-stack", techStackRouter);
 app.use("/api/projects", crudRouter("projects"));
 app.use("/api/activities", crudRouter("activities"));

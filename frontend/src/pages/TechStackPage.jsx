@@ -209,7 +209,7 @@ export default function TechStackPage() {
 
       {!editMode ? (
         <section className="techstack__view">
-          {isAdmin && !localMode ? (
+          {isAdmin ? (
             <Reorder.Group axis="y" values={ordered} onReorder={handleReorder} className="techstack__stack">
               {ordered.map((g) => (
                 <TechStackGroupRow key={g._rid} group={g} sortable />

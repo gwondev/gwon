@@ -38,6 +38,17 @@
   box-shadow: 0 0 12px 2px var(--accent-soft);
 }
 
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.topbar__back {
+  padding: 0.38rem 0.75rem !important;
+  font-size: 0.78rem !important;
+}
+
 .hamburger {
   position: relative;
   width: 46px;
@@ -72,5 +83,9 @@
   .topbar__greet-text {
     font-size: calc(0.72rem - 1pt);
     gap: 0.4rem;
+  }
+  .topbar__back {
+    padding: 0.32rem 0.6rem !important;
+    font-size: 0.72rem !important;
   }
 }

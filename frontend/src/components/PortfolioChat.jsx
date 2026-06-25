@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import "./PortfolioChat.css";
 
-export default function PortfolioChat() {
+export default function PortfolioChat({ floating = false, onClose }) {
   const { token, isAuthed, localMode } = useAuth();
   const authedRequest = isAuthed && !localMode && token;
 
@@ -16,7 +16,9 @@ export default function PortfolioChat() {
   const [quota, setQuota] = useState(null);
   const logRef = useRef(null);
 
-  const visible = compact
+  const useCompact = compact && !floating;
+
+  const visible = useCompact
     ? messages.length >= 2
       ? messages.slice(-2)
       : messages
@@ -40,7 +42,7 @@ export default function PortfolioChat() {
     if (logRef.current && hasLog) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-  }, [messages, compact, busy, hasLog]);
+  }, [messages, useCompact, busy, hasLog]);
 
   const submitMessage = async (textOverride) => {
     const text = (textOverride ?? input).trim();
@@ -94,23 +96,31 @@ export default function PortfolioChat() {
 
   return (
     <motion.section
-      className="portfolio-chat"
-      initial={{ opacity: 0, y: 20 }}
+      className={`portfolio-chat ${floating ? "portfolio-chat--floating" : ""}`}
+      initial={{ opacity: 0, y: floating ? 0 : 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.75, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: floating ? 0.35 : 0.75, delay: floating ? 0 : 0.08, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="portfolio-chat__head">
         <div className="portfolio-chat__head-text">
-          <span className="portfolio-chat__title">저에 대해 질문해주세요!!</span>
+          <span className="portfolio-chat__title">
+            {floating ? "AI 챗봇" : "저에 대해 질문해주세요!!"}
+          </span>
         </div>
-        <button
-          type="button"
-          className="portfolio-chat__toggle"
-          hidden={!hasLog}
-          onClick={() => setCompact((c) => !c)}
-        >
-          {compact ? "전체 보기" : "간략화"}
-        </button>
+        {floating ? (
+          <button type="button" className="portfolio-chat__close" onClick={onClose} aria-label="닫기">
+            ✕
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="portfolio-chat__toggle"
+            hidden={!hasLog}
+            onClick={() => setCompact((c) => !c)}
+          >
+            {compact ? "전체 보기" : "간략화"}
+          </button>
+        )}
       </div>
 
       {guestExhausted && (
@@ -146,7 +156,7 @@ export default function PortfolioChat() {
       {hasLog && (
         <div
           ref={logRef}
-          className={`portfolio-chat__log ${compact ? "is-compact" : "is-full"}`}
+          className={`portfolio-chat__log ${useCompact ? "is-compact" : "is-full"}`}
         >
           {visible.map((m, i) => (
             <div

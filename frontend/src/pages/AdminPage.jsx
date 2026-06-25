@@ -37,6 +37,12 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [extraPrompt, setExtraPrompt] = useState("");
+  const [logs, setLogs] = useState([]);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [chatMsg, setChatMsg] = useState(null);
+
   useEffect(() => {
     if (!loading && !isAdmin) navigate("/");
   }, [loading, isAdmin, navigate]);
@@ -84,12 +90,33 @@ export default function AdminPage() {
     [token, localMode]
   );
 
+  const loadChat = useCallback(async () => {
+    if (localMode) {
+      setSystemPrompt("");
+      setExtraPrompt("");
+      setLogs([]);
+      return;
+    }
+    try {
+      const [promptData, logData] = await Promise.all([
+        api("/admin/chat-prompt", { token }),
+        api("/admin/chat-logs", { token }),
+      ]);
+      setSystemPrompt(promptData.systemPrompt || "");
+      setExtraPrompt(promptData.extraPrompt || "");
+      setLogs(logData.items || []);
+    } catch (e) {
+      setChatMsg({ type: "err", text: e.message });
+    }
+  }, [token, localMode]);
+
   useEffect(() => {
     if (isAdmin) {
       loadStats();
       loadUsers("");
+      loadChat();
     }
-  }, [isAdmin, loadStats, loadUsers]);
+  }, [isAdmin, loadStats, loadUsers, loadChat]);
 
   const search = (e) => {
     e.preventDefault();
@@ -123,16 +150,32 @@ export default function AdminPage() {
     }
   };
 
+  const saveChat = async (e) => {
+    e.preventDefault();
+    if (localMode) {
+      setChatMsg({ type: "ok", text: "로컬 모드 — 저장은 서버 배포 후 가능합니다." });
+      return;
+    }
+    setChatBusy(true);
+    setChatMsg(null);
+    try {
+      await api("/admin/chat-prompt", {
+        method: "PUT",
+        body: { systemPrompt, extraPrompt },
+        token,
+      });
+      setChatMsg({ type: "ok", text: "AI 프롬프트가 저장되었습니다." });
+    } catch (e2) {
+      setChatMsg({ type: "err", text: e2.message });
+    } finally {
+      setChatBusy(false);
+    }
+  };
+
   if (!isAdmin) return null;
 
   return (
     <PageTransition className="page admin">
-      <div className="admin__top">
-        <button type="button" className="admin__home" onClick={() => navigate("/")}>
-          메인 화면
-        </button>
-      </div>
-
       <motion.header
         className="admin__head"
         initial={{ opacity: 0, y: 18 }}
@@ -140,14 +183,13 @@ export default function AdminPage() {
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       >
         <div>
-          <span className="eyebrow">ADMIN · DATABASE</span>
-          <h1 className="section-title">관리자</h1>
-          <p className="lead admin__desc">DB 현황 조회와 회원 권한을 관리하는 전용 페이지입니다.</p>
+          <span className="eyebrow">ADMIN</span>
+          <h1 className="section-title">ADMIN 페이지</h1>
+          <p className="lead admin__desc">DB·회원 권한·AI 챗봇을 한곳에서 관리합니다.</p>
         </div>
         {stats && <span className="admin__db-badge">{stats.database}</span>}
       </motion.header>
 
-      {/* ── DB 요약 ── */}
       <section className="admin__section">
         <h2 className="admin__section-title">DB 요약</h2>
         {stats ? (
@@ -194,7 +236,6 @@ export default function AdminPage() {
         )}
       </section>
 
-      {/* ── 회원 관리 ── */}
       <section className="admin__section">
         <div className="admin__section-head">
           <h2 className="admin__section-title">회원 관리</h2>
@@ -268,6 +309,87 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="admin__section admin__section--chat">
+        <div className="admin__section-head">
+          <h2 className="admin__section-title">AI CHAT BOT</h2>
+        </div>
+        <p className="admin__prompt-desc">
+          메인 화면 챗봇 답변 규칙 · DB 저장 · 최근 로그 20건
+        </p>
+
+        <form className="admin__prompt-form" onSubmit={saveChat}>
+          <div className="admin__prompt-grid">
+            <label className="admin__prompt-label">
+              기본 규칙
+              <textarea
+                className="admin__prompt-area admin__prompt-area--sm"
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                rows={5}
+                placeholder="AI 기본 답변 규칙"
+              />
+            </label>
+            <label className="admin__prompt-label">
+              추가 지침
+              <textarea
+                className="admin__prompt-area admin__prompt-area--sm"
+                value={extraPrompt}
+                onChange={(e) => setExtraPrompt(e.target.value)}
+                rows={4}
+                placeholder="추가 지침 (선택)"
+              />
+            </label>
+          </div>
+          {chatMsg && (
+            <p className={`admin__prompt-msg ${chatMsg.type === "err" ? "is-err" : "is-ok"}`}>
+              {chatMsg.text}
+            </p>
+          )}
+          <button type="submit" className="btn btn-accent admin__prompt-save" disabled={chatBusy}>
+            {chatBusy ? "저장 중…" : "지침 저장"}
+          </button>
+        </form>
+
+        <div className="admin__chat-logs">
+          {localMode ? (
+            <p className="admin__chat-empty">로컬 모드 — 서버 배포 후 로그가 표시됩니다.</p>
+          ) : logs.length === 0 ? (
+            <p className="admin__chat-empty">아직 저장된 대화 로그가 없습니다.</p>
+          ) : (
+            <ul className="admin__log-list">
+              {logs.map((log) => (
+                <li key={log.id} className="admin__log">
+                  <div className="admin__log-top">
+                    <span
+                      className={`admin__log-user ${log.userType === "user" ? "is-user" : "is-guest"}`}
+                    >
+                      {log.userLabel}
+                    </span>
+                    <time className="admin__log-time">
+                      {new Date(log.createdAt).toLocaleString("ko-KR", {
+                        timeZone: "Asia/Seoul",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </time>
+                  </div>
+                  <p className="admin__log-q">
+                    <span className="admin__log-tag">Q</span>
+                    {log.question}
+                  </p>
+                  <p className="admin__log-a">
+                    <span className="admin__log-tag">A</span>
+                    {log.answer}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
     </PageTransition>
   );

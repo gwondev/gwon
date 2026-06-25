@@ -50,14 +50,6 @@
     gap: clamp(20px, 2.8vw, 36px);
   }
 
-  .root__masthead .hero {
-    flex: 0 0 clamp(200px, 34%, 360px);
-    align-items: flex-start;
-    justify-content: center;
-    text-align: left;
-    padding: clamp(16px, 2.5vh, 28px) 0 clamp(16px, 2.5vh, 28px);
-  }
-
   .root__masthead .hero__name {
     font-size: clamp(2.6rem, 4.2vw, 3.8rem);
     line-height: 1.05;
@@ -69,7 +61,15 @@
     letter-spacing: 0.14em;
   }
 
-  .root__masthead .portfolio-chat {
+  .root__masthead .hero {
+    flex: 0 0 clamp(200px, 34%, 360px);
+    align-items: flex-start;
+    justify-content: center;
+    text-align: left;
+    padding: clamp(16px, 2.5vh, 28px) 0 clamp(16px, 2.5vh, 28px);
+  }
+
+  .root__masthead .quick-actions {
     flex: 1;
     min-width: 0;
     align-self: stretch;
@@ -79,7 +79,41 @@
   }
 }
 
-/* ---- 한번에 보기: 가로 full-width 바 ---- */
+/* ---- 6개 섹션: 서브 톤 ---- */
+.root__grid--sub {
+  opacity: 0.88;
+}
+
+.root__grid--sub .cat-card {
+  opacity: 0.62;
+  filter: saturate(0.45) brightness(0.92);
+  border-color: rgba(255, 255, 255, 0.05);
+  background:
+    radial-gradient(140% 120% at 50% -20%, rgba(216, 193, 154, 0.03), transparent 55%),
+    linear-gradient(180deg, rgba(18, 18, 21, 0.85), rgba(12, 12, 14, 0.9));
+  box-shadow: none;
+}
+
+.root__grid--sub .cat-card:hover {
+  opacity: 0.82;
+  filter: saturate(0.62) brightness(0.98);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.root__grid--sub .cat-card__title {
+  color: var(--text-dim);
+}
+
+.root__grid--sub .cat-card__preview-item,
+.root__grid--sub .cat-card__preview-empty {
+  color: var(--text-faint);
+}
+
+.root__grid--sub .cat-card__preview-tag {
+  opacity: 0.55;
+}
+
+/* legacy overview bar styles kept for overview page if needed */
 .overview-bar {
   position: relative;
   overflow: hidden;
@@ -338,6 +372,10 @@
 @media (max-width: 899px) {
   .root__masthead .hero {
     padding-top: clamp(2px, 0.8vh, 10px);
+  }
+
+  .root__masthead {
+    align-items: center;
   }
 }
 

@@ -9,6 +9,19 @@ export function signToken(user) {
   });
 }
 
+export async function getUserRole(uid) {
+  const [rows] = await pool.query("SELECT role FROM users WHERE id = ?", [uid]);
+  return rows[0]?.role || null;
+}
+
+export function isSuperAdminRole(role) {
+  return role === "SUPER_ADMIN";
+}
+
+export function isCalendarAdminRole(role) {
+  return role === "ADMIN" || role === "SUPER_ADMIN";
+}
+
 // Bearer 토큰이 있으면 req.auth 설정 (없거나 무효면 게스트)
 export function optionalAuth(req, _res, next) {
   const header = req.headers.authorization || "";
@@ -36,24 +49,55 @@ export function requireAuth(req, res, next) {
   }
 }
 
-// 로그인 + ADMIN 권한까지 확인 (권한은 항상 DB 최신값으로 확인)
-export async function requireAdmin(req, res, next) {
+async function attachRole(req, res) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ error: "로그인이 필요합니다." });
+  if (!token) {
+    res.status(401).json({ error: "로그인이 필요합니다." });
+    return null;
+  }
   try {
     req.auth = jwt.verify(token, JWT_SECRET);
   } catch {
-    return res.status(401).json({ error: "유효하지 않은 토큰입니다." });
+    res.status(401).json({ error: "유효하지 않은 토큰입니다." });
+    return null;
   }
+  const role = await getUserRole(req.auth.uid);
+  if (!role) {
+    res.status(401).json({ error: "사용자를 찾을 수 없습니다." });
+    return null;
+  }
+  req.userRole = role;
+  return role;
+}
+
+// SUPER_ADMIN 전용 (메뉴 CRUD, 관리자 페이지)
+export async function requireSuperAdmin(req, res, next) {
   try {
-    const [rows] = await pool.query("SELECT role FROM users WHERE id = ?", [req.auth.uid]);
-    if (!rows[0]) return res.status(401).json({ error: "사용자를 찾을 수 없습니다." });
-    if (rows[0].role !== "ADMIN") {
-      return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+    const role = await attachRole(req, res);
+    if (!role) return;
+    if (!isSuperAdminRole(role)) {
+      return res.status(403).json({ error: "슈퍼 관리자 권한이 필요합니다." });
     }
     next();
   } catch (err) {
     next(err);
   }
 }
+
+// ADMIN 또는 SUPER_ADMIN (일정 추가·조회)
+export async function requireCalendarAdmin(req, res, next) {
+  try {
+    const role = await attachRole(req, res);
+    if (!role) return;
+    if (!isCalendarAdminRole(role)) {
+      return res.status(403).json({ error: "일정 관리 권한이 필요합니다." });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 하위 호환: 메뉴 CRUD는 SUPER_ADMIN만
+export const requireAdmin = requireSuperAdmin;

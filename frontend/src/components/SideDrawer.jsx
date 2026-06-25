@@ -20,7 +20,7 @@ const item = {
 };
 
 export default function SideDrawer({ open, onClose }) {
-  const { user, isAuthed, isAdmin, localMode, loginWithGoogle, logout } = useAuth();
+  const { user, isAuthed, isAdmin, isCalendarAdmin, localMode, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
 
   const go = (path) => {
@@ -90,6 +90,17 @@ export default function SideDrawer({ open, onClose }) {
                   <span className="drawer__link-arrow">→</span>
                 </motion.button>
               ))}
+              {isCalendarAdmin && (
+                <motion.button
+                  variants={item}
+                  className="drawer__link drawer__link--schedule"
+                  onClick={() => go("/schedule")}
+                >
+                  <span className="drawer__link-no">▣</span>
+                  <span className="drawer__link-title">일정관리</span>
+                  <span className="drawer__link-arrow">→</span>
+                </motion.button>
+              )}
               {isAdmin && (
                 <motion.button
                   variants={item}
@@ -97,51 +108,49 @@ export default function SideDrawer({ open, onClose }) {
                   onClick={() => go("/admin")}
                 >
                   <span className="drawer__link-no">★</span>
-                  <span className="drawer__link-title">관리자 · DB</span>
-                  <span className="drawer__link-arrow">→</span>
-                </motion.button>
-              )}
-              {isAdmin && (
-                <motion.button
-                  variants={item}
-                  className="drawer__link drawer__link--chat-admin"
-                  onClick={() => go("/admin/chat")}
-                >
-                  <span className="drawer__link-no">◆</span>
-                  <span className="drawer__link-title">AI 챗봇 관리</span>
+                  <span className="drawer__link-title">ADMIN 페이지</span>
                   <span className="drawer__link-arrow">→</span>
                 </motion.button>
               )}
             </motion.nav>
 
             <motion.div className="drawer__auth" variants={item} initial="hidden" animate="show">
-              {localMode ? (
-                <div className="drawer__note">
-                  <strong>로컬 미리보기 모드</strong>
-                  <span>
-                    구글 로그인 없이 전체 UI 를 확인하는 모드입니다. 실제 로그인·권한은 서버
-                    배포 환경에서 동작합니다.
-                  </span>
-                </div>
-              ) : isAuthed ? (
+              {isAuthed ? (
                 <div className="drawer__profile">
-                  <div className="drawer__avatar">
-                    {(user.nickname || user.name || "?").slice(0, 1)}
+                  <div className="drawer__profile-row">
+                    <div className="drawer__avatar">
+                      {(user.nickname || user.name || "?").slice(0, 1)}
+                    </div>
+                    <div className="drawer__profile-meta">
+                      <strong>{user.nickname || user.name}</strong>
+                      <span>{user.email}</span>
+                      {user.role && (
+                        <span className="drawer__profile-role">{user.role}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="drawer__profile-meta">
-                    <strong>{user.nickname || user.name}</strong>
-                    <span>{user.email}</span>
-                  </div>
-                  <div className="drawer__profile-actions">
-                    {!user.nickname && (
-                      <button className="btn btn-ghost" onClick={() => go("/setup-nickname")}>
-                        닉네임 설정
+                  {localMode ? (
+                    <div className="drawer__note drawer__note--inline">
+                      <strong>로컬 미리보기</strong>
+                      <span>SUPER ADMIN 권한으로 전체 UI를 확인하는 모드입니다.</span>
+                    </div>
+                  ) : (
+                    <div className="drawer__profile-actions">
+                      {!user.nickname && (
+                        <button className="btn btn-ghost" onClick={() => go("/setup-nickname")}>
+                          닉네임 설정
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => {
+                          logout();
+                        }}
+                      >
+                        로그아웃
                       </button>
-                    )}
-                    <button className="btn btn-ghost" onClick={() => { logout(); }}>
-                      로그아웃
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="drawer__login">

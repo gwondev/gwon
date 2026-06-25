@@ -1,22 +1,28 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import SideDrawer from "./SideDrawer";
 import "./TopBar.css";
 
+const BACK_PATHS = ["/mypage", "/schedule", "/admin"];
+
 export default function TopBar() {
-  const { user, isAuthed, localMode } = useAuth();
+  const { user, isAuthed } = useAuth();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const greeting = isAuthed
     ? `${user.nickname || user.name || "회원"}님 반갑습니다.`
     : "로그인해주세요";
 
-  // 실제 로그인 상태에서만 마이페이지로 이동, 그 외(로컬/비로그인)는 툴바 열기
+  const showBack = BACK_PATHS.some(
+    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`)
+  );
+
   const handleGreetClick = () => {
-    if (isAuthed && !localMode) navigate("/mypage");
+    if (isAuthed) navigate("/mypage");
     else setOpen(true);
   };
 
@@ -41,15 +47,22 @@ export default function TopBar() {
           </motion.span>
         </button>
 
-        <button
-          className={`hamburger ${open ? "is-open" : ""}`}
-          onClick={() => setOpen(true)}
-          aria-label="메뉴 열기"
-        >
-          <span />
-          <span />
-          <span />
-        </button>
+        <div className="topbar__right">
+          {showBack && (
+            <button type="button" className="page-back topbar__back" onClick={() => navigate("/")}>
+              메인 화면
+            </button>
+          )}
+          <button
+            className={`hamburger ${open ? "is-open" : ""}`}
+            onClick={() => setOpen(true)}
+            aria-label="메뉴 열기"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
       </header>
 
       <SideDrawer open={open} onClose={() => setOpen(false)} />

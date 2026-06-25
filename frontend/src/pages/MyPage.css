@@ -1,36 +1,21 @@
 .mypage {
-  padding-top: clamp(18px, 4vh, 40px);
+  padding-top: 0.65rem;
   padding-bottom: clamp(56px, 12vh, 140px);
 }
-.mypage__top {
-  display: flex;
-  justify-content: center;
-  margin-bottom: clamp(16px, 3vh, 28px);
-}
-.mypage__home {
-  padding: 0.55rem 1.1rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--line);
-  background: var(--bg-soft);
-  color: var(--accent);
-  font-size: 0.88rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  transition: border-color 0.35s var(--ease), background 0.35s var(--ease),
-    transform 0.35s var(--ease);
-}
-.mypage__home:hover {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
-  transform: translateY(-1px);
+.mypage__bar {
+  margin-bottom: 0.65rem;
 }
 .mypage__head {
-  margin-bottom: clamp(24px, 4vh, 40px);
-  text-align: center;
+  margin-bottom: clamp(16px, 3vh, 24px);
+  text-align: left;
 }
 .mypage__head .eyebrow {
   display: block;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.35rem;
+}
+.mypage__head .section-title {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  margin: 0;
 }
 
 .mypage__card {

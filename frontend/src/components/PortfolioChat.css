@@ -9,6 +9,41 @@
     linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
 }
 
+.portfolio-chat--floating {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  max-height: min(580px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 180% at 50% -20%, rgba(216, 193, 154, 0.056), transparent 55%),
+    linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
+}
+
+.portfolio-chat--floating .portfolio-chat__log.is-full {
+  max-height: min(340px, 42vh);
+  flex: 1;
+  min-height: 120px;
+}
+
+.portfolio-chat__close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.portfolio-chat__close:hover {
+  border-color: var(--accent-line);
+  color: var(--text);
+}
+
 .portfolio-chat__head {
   display: flex;
   align-items: flex-start;

@@ -4,7 +4,7 @@ import { api } from "../lib/api";
 const AuthContext = createContext(null);
 const TOKEN_KEY = "gwon_token";
 
-// 구글 클라이언트 ID 가 주입되지 않은 환경 = 로컬 미리보기 모드.
+// 구글 클라이언트 ID 가 주입되지 않은 환경 = 로컬 미리보기 모.
 // 실제 로그인 없이 "로컬 사용자" 로 전체 UI(관리자 화면 포함)를 확인할 수 있다.
 const LOCAL_MODE = !import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const LOCAL_USER = {
@@ -90,10 +90,12 @@ export function AuthProvider({ children }) {
     user,
     loading,
     localMode: LOCAL_MODE,
-    isAuthed: Boolean(user),
-    isSuperAdmin: user?.role === "SUPER_ADMIN",
-    isCalendarAdmin: user?.role === "ADMIN" || user?.role === "SUPER_ADMIN",
-    isAdmin: user?.role === "SUPER_ADMIN",
+    isAuthed: LOCAL_MODE || Boolean(user),
+    // 로컬 미리보기 = SUPER ADMIN 으로 전체 UI(관리·일정·CRUD) 확인
+    isSuperAdmin: LOCAL_MODE || user?.role === "SUPER_ADMIN",
+    isCalendarAdmin:
+      LOCAL_MODE || user?.role === "ADMIN" || user?.role === "SUPER_ADMIN",
+    isAdmin: LOCAL_MODE || user?.role === "SUPER_ADMIN",
     loginWithGoogle,
     updateNickname,
     logout,

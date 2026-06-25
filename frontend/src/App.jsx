@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import TopBar from "./components/TopBar";
 import SiteFooter from "./components/SiteFooter";
 import RootPage from "./pages/RootPage";
@@ -11,8 +11,8 @@ import CareerPage from "./pages/CareerPage";
 import OverviewPage from "./pages/OverviewPage";
 import NicknameSetupPage from "./pages/NicknameSetupPage";
 import MyPage from "./pages/MyPage";
+import SchedulePage from "./pages/SchedulePage";
 import AdminPage from "./pages/AdminPage";
-import ChatAdminPage from "./pages/ChatAdminPage";
 import ScrollToTop from "./components/ScrollToTop";
 
 export default function App() {
@@ -31,8 +31,9 @@ export default function App() {
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/setup-nickname" element={<NicknameSetupPage />} />
         <Route path="/mypage" element={<MyPage />} />
+        <Route path="/schedule" element={<SchedulePage />} />
         <Route path="/admin" element={<AdminPage />} />
-        <Route path="/admin/chat" element={<ChatAdminPage />} />
+        <Route path="/admin/chat" element={<Navigate to="/admin" replace />} />
         <Route path="*" element={<RootPage />} />
       </Routes>
       <SiteFooter />

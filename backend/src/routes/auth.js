@@ -7,7 +7,12 @@ const router = Router();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// .env.production -> ADMIN_EMAILS (쉼표 구분) 에 포함된 이메일은 로그인 시 ADMIN 으로 승격
+// .env.production -> SUPER_ADMIN_EMAILS / ADMIN_EMAILS (쉼표 구분) 로그인 시 승격
+const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .split(",")
   .map((s) => s.trim().toLowerCase())
@@ -21,6 +26,7 @@ function publicUser(row) {
     picture: row.picture,
     nickname: row.nickname,
     role: row.role || "GUEST",
+    calendarThemeColor: row.calendar_theme_color || null,
   };
 }
 
@@ -49,9 +55,15 @@ router.post("/google", async (req, res) => {
       [p.sub, p.email, p.name, p.picture]
     );
 
-    // ADMIN_EMAILS 에 등록된 이메일이면 ADMIN 으로 승격 (강등은 하지 않음)
-    if (p.email && ADMIN_EMAILS.includes(p.email.toLowerCase())) {
-      await pool.query("UPDATE users SET role = 'ADMIN' WHERE google_sub = ?", [p.sub]);
+    // SUPER_ADMIN_EMAILS → SUPER_ADMIN, ADMIN_EMAILS → ADMIN (강등하지 않음)
+    const email = p.email?.toLowerCase();
+    if (email && SUPER_ADMIN_EMAILS.includes(email)) {
+      await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [p.sub]);
+    } else if (email && ADMIN_EMAILS.includes(email)) {
+      await pool.query(
+        "UPDATE users SET role = 'ADMIN' WHERE google_sub = ? AND role != 'SUPER_ADMIN'",
+        [p.sub]
+      );
     }
 
     const [rows] = await pool.query("SELECT * FROM users WHERE google_sub = ?", [p.sub]);
