@@ -293,7 +293,14 @@ export default function ScheduleTab() {
       `/calendar/events?ownerIds=${selectedOwnerIds.join(",")}&year=${viewYear}&month=${viewMonth}`,
       { token }
     );
-    setEvents((data.items || []).map((e) => enrichEvent(e, owners)));
+    const items = data.items || [];
+    // 진단 로그: 캘린더가 비어 보일 때 원인 파악용 (브라우저 콘솔에서 확인)
+    console.log(
+      `[calendar] loadEvents ${viewYear}-${viewMonth} ` +
+        `selected=[${selectedOwnerIds.join(",")}] resolved=[${(data.ownerIds || []).join(",")}] ` +
+        `received=${items.length} dates=[${items.map((e) => e.eventDate).join(",")}]`
+    );
+    setEvents(items.map((e) => enrichEvent(e, owners)));
   }, [token, localMode, selectedOwnerIds, viewYear, viewMonth, owners]);
 
   useEffect(() => {

@@ -544,6 +544,20 @@ router.get("/events", requireCalendarAdmin, async (req, res, next) => {
     const filteredRows = rows.filter((row) =>
       resolveEventOwnerIds(row).some((id) => ownerIds.includes(id))
     );
+
+    console.log(
+      `[calendar] GET /events uid=${actorId} role=${actorRole} ${year}-${String(month).padStart(2, "0")} ` +
+        `requested=[${requested.join(",")}] resolved=[${ownerIds.join(",")}] visible=[${visibleOwnerIds.join(",")}] ` +
+        `rawRows=${rows.length} filtered=${filteredRows.length}` +
+        (rows.length && !filteredRows.length
+          ? ` | WARN: ${rows.length}건 조회됐으나 ownerIds 필터에서 모두 제외됨 ` +
+            `(rowOwners=[${rows.map((r) => r.owner_id).join(",")}] sharedRaw=[${rows.map((r) => r.shared_owner_ids).join("|")}])`
+          : "") +
+        (filteredRows.length
+          ? ` dates=[${filteredRows.map((r) => String(r.event_date).slice(0, 10)).join(",")}]`
+          : "")
+    );
+
     const participantIds = filteredRows.flatMap((row) => resolveEventOwnerIds(row));
     const nameMap = await buildOwnerNameMap(participantIds);
     const items = filteredRows.map((row) =>

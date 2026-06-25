@@ -13,6 +13,10 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   charset: "utf8mb4",
+  // DATE 컬럼을 'YYYY-MM-DD' 문자열로 그대로 받는다.
+  // (Date 객체로 받으면 서버 타임존에 따라 toISOString() 시 하루가 밀려
+  //  캘린더 날짜 매칭이 어긋나는 문제가 생긴다.)
+  dateStrings: ["DATE"],
 });
 
 // ── 최근 DB 쿼리 로그(메모리 링버퍼) ─────────────────────────────────
