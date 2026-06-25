@@ -16,37 +16,89 @@ const pool = mysql.createPool({
 });
 
 // ── 최근 DB 쿼리 로그(메모리 링버퍼) ─────────────────────────────────
-const DB_LOG_MAX = 120;
+// 전체 쿼리(SELECT 포함)와 쓰기 작업(INSERT/UPDATE/DELETE)을 분리 보관한다.
+// 분리하는 이유: 관리자 페이지를 열 때 자체 SELECT가 다량 발생하여 다른 페이지에서
+// 일어난 INSERT/DELETE 가 단일 버퍼의 최근 N개 밖으로 밀려나 안 보이던 문제 해결.
+const DB_LOG_MAX = 200;
+const DB_WRITE_LOG_MAX = 80;
 const dbLogBuffer = [];
+const dbWriteBuffer = [];
 
 function summarizeSql(sql) {
   return String(sql || "")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 180);
+    .slice(0, 220);
+}
+
+function parseSqlVerb(sql) {
+  const m = String(sql || "").trimStart().match(/^([a-zA-Z]+)/);
+  return m ? m[1].toUpperCase() : "OTHER";
+}
+
+const WRITE_VERBS = new Set(["INSERT", "UPDATE", "DELETE", "REPLACE"]);
+
+function parseSqlTable(sql, verb) {
+  const text = String(sql || "");
+  let m = null;
+  if (verb === "INSERT" || verb === "REPLACE") {
+    m = text.match(/\binto\s+`?([a-zA-Z0-9_]+)`?/i);
+  } else if (verb === "UPDATE") {
+    m = text.match(/\bupdate\s+`?([a-zA-Z0-9_]+)`?/i);
+  } else if (verb === "DELETE") {
+    m = text.match(/\bfrom\s+`?([a-zA-Z0-9_]+)`?/i);
+  }
+  return m ? m[1] : null;
 }
 
 function recordDbLog(entry) {
   dbLogBuffer.push(entry);
   if (dbLogBuffer.length > DB_LOG_MAX) dbLogBuffer.shift();
-  const tag = entry.ok ? "[db:ok]" : "[db:ERR]";
-  const msg = `${tag} ${entry.ms}ms ${entry.sql}${entry.error ? ` :: ${entry.error}` : ""}`;
-  if (entry.ok) console.log(msg);
-  else console.error(msg);
+
+  if (entry.isWrite) {
+    dbWriteBuffer.push(entry);
+    if (dbWriteBuffer.length > DB_WRITE_LOG_MAX) dbWriteBuffer.shift();
+  }
+
+  const tag = entry.ok ? `[db:${entry.verb}]` : `[db:${entry.verb}:ERR]`;
+  const rows = entry.rows != null ? ` rows=${entry.rows}` : "";
+  const msg = `${tag} ${entry.ms}ms${rows} ${entry.sql}${entry.error ? ` :: ${entry.error}` : ""}`;
+  if (!entry.ok) console.error(msg);
+  else if (entry.isWrite) console.log(msg); // 쓰기 작업은 항상 눈에 띄게 출력
+  else console.log(msg);
 }
 
 export function getRecentDbLogs(limit = 20) {
   return dbLogBuffer.slice(-limit).reverse();
 }
 
+export function getRecentDbWrites(limit = 30) {
+  return dbWriteBuffer.slice(-limit).reverse();
+}
+
+function affectedRowsOf(result) {
+  // mysql2: [rowsOrHeader, fields]
+  const head = Array.isArray(result) ? result[0] : null;
+  if (head && typeof head === "object" && "affectedRows" in head) {
+    return Number(head.affectedRows);
+  }
+  return null;
+}
+
 function wrapQuery(rawFn, target) {
   return async function loggedQuery(sql, params) {
     const started = Date.now();
     const sqlText = typeof sql === "string" ? sql : sql?.sql || "";
+    const verb = parseSqlVerb(sqlText);
+    const isWrite = WRITE_VERBS.has(verb);
     try {
       const result = await rawFn.call(target, sql, params);
       recordDbLog({
         ok: true,
+        verb,
+        isWrite,
+        table: isWrite ? parseSqlTable(sqlText, verb) : null,
+        rows: isWrite ? affectedRowsOf(result) : null,
         sql: summarizeSql(sqlText),
         ms: Date.now() - started,
         at: new Date().toISOString(),
@@ -55,6 +107,10 @@ function wrapQuery(rawFn, target) {
     } catch (err) {
       recordDbLog({
         ok: false,
+        verb,
+        isWrite,
+        table: isWrite ? parseSqlTable(sqlText, verb) : null,
+        rows: null,
         sql: summarizeSql(sqlText),
         ms: Date.now() - started,
         at: new Date().toISOString(),

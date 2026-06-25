@@ -33,6 +33,7 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState(null);
   const [dbLogs, setDbLogs] = useState([]);
+  const [dbWrites, setDbWrites] = useState([]);
   const [q, setQ] = useState("");
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -64,14 +65,19 @@ export default function AdminPage() {
   const loadDbLogs = useCallback(async () => {
     if (localMode) {
       setDbLogs([
-        { ok: true, ms: 2, sql: "SELECT 1", at: new Date().toISOString() },
-        { ok: true, ms: 5, sql: "SELECT COUNT(*) FROM calendar_events", at: new Date().toISOString() },
+        { ok: true, verb: "SELECT", ms: 2, sql: "SELECT 1", at: new Date().toISOString() },
+        { ok: true, verb: "SELECT", ms: 5, sql: "SELECT COUNT(*) FROM calendar_events", at: new Date().toISOString() },
+      ]);
+      setDbWrites([
+        { ok: true, verb: "INSERT", table: "calendar_events", rows: 1, ms: 4, sql: "INSERT INTO calendar_events ...", at: new Date().toISOString() },
+        { ok: true, verb: "DELETE", table: "calendar_events", rows: 2, ms: 3, sql: "DELETE FROM calendar_events WHERE series_id = ?", at: new Date().toISOString() },
       ]);
       return;
     }
     try {
       const data = await api("/admin/db-logs", { token });
       setDbLogs(data.items || []);
+      setDbWrites(data.writes || []);
     } catch {
       /* DB 로그는 부가 정보이므로 실패해도 무시 */
     }
@@ -251,7 +257,7 @@ export default function AdminPage() {
 
             <div className="admin__dblogs">
               <div className="admin__dblogs-head">
-                <h3 className="admin__dblogs-title">DB 로그 (최근 20개)</h3>
+                <h3 className="admin__dblogs-title">쓰기 작업 (INSERT · UPDATE · DELETE)</h3>
                 <button
                   type="button"
                   className="btn btn-ghost admin__dblogs-refresh"
@@ -259,6 +265,44 @@ export default function AdminPage() {
                 >
                   새로고침
                 </button>
+              </div>
+              {dbWrites.length === 0 ? (
+                <p className="admin__dblogs-empty">아직 기록된 쓰기 작업이 없습니다.</p>
+              ) : (
+                <ul className="admin__dblogs-list">
+                  {dbWrites.map((log, i) => (
+                    <li
+                      key={`w-${log.at}-${i}`}
+                      className={`admin__dblog admin__dblog--write ${log.ok ? "is-ok" : "is-err"}`}
+                    >
+                      <span className={`admin__dblog-verb admin__dblog-verb--${(log.verb || "").toLowerCase()}`}>
+                        {log.verb}
+                      </span>
+                      <span className="admin__dblog-table">{log.table || "-"}</span>
+                      <span className="admin__dblog-rows">
+                        {log.rows != null ? `${log.rows}행` : "-"}
+                      </span>
+                      <code className="admin__dblog-sql">
+                        {log.sql}
+                        {log.error ? ` :: ${log.error}` : ""}
+                      </code>
+                      <time className="admin__dblog-time">
+                        {new Date(log.at).toLocaleTimeString("ko-KR", {
+                          timeZone: "Asia/Seoul",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
+                      </time>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="admin__dblogs">
+              <div className="admin__dblogs-head">
+                <h3 className="admin__dblogs-title">전체 쿼리 로그 (최근 20개)</h3>
               </div>
               {dbLogs.length === 0 ? (
                 <p className="admin__dblogs-empty">표시할 DB 로그가 없습니다.</p>

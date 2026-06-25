@@ -1,5 +1,5 @@
 import { Router } from "express";
-import pool, { getRecentDbLogs } from "../db.js";
+import pool, { getRecentDbLogs, getRecentDbWrites } from "../db.js";
 import { requireSuperAdmin } from "../auth-middleware.js";
 
 import { getSetting, setSetting } from "../lib/settings.js";
@@ -46,8 +46,13 @@ router.get("/stats", requireSuperAdmin, async (req, res) => {
 });
 
 // GET /api/admin/db-logs -> 최근 DB 쿼리 로그 (메모리)
+//  - items  : 전체 쿼리(SELECT 포함) 최근 20개
+//  - writes : INSERT/UPDATE/DELETE 만 모은 최근 30개 (SELECT 에 묻히지 않음)
 router.get("/db-logs", requireSuperAdmin, async (_req, res) => {
-  res.json({ items: getRecentDbLogs(20) });
+  res.json({
+    items: getRecentDbLogs(20),
+    writes: getRecentDbWrites(30),
+  });
 });
 
 // GET /api/admin/users?q=검색어  -> 회원 목록 / 이름·닉네임·이메일 검색

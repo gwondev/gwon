@@ -621,6 +621,11 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
         })
       );
       await conn.commit();
+      console.log(
+        `[calendar] POST /events uid=${actorId} owners=[${ownerIds.join(",")}] ` +
+          `inserted=${created.length} series=${created[0]?.seriesId || "?"} ` +
+          `span=${spanDays} repeat=${repeatWeeks} title="${title}"`
+      );
       res.status(201).json({ items: created, item: created[0] });
     } catch (err) {
       await conn.rollback();
@@ -720,9 +725,46 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       ...location,
     };
 
+    // ── 작업 계획 산정 ────────────────────────────────────────────────
+    // 기존 시리즈 행 id (날짜순) 을 새 날짜 목록과 1:1 매칭한다.
+    const reuseIds = seriesRows.slice(0, newDates.length).map((r) => r.id); // UPDATE 대상
+    const insertCount = Math.max(0, newDates.length - seriesRows.length);   // 추가 INSERT 수
+    const deleteIds = seriesRows.slice(newDates.length).map((r) => r.id);   // 삭제 대상
+
+    // ── 무결성 검사 ──────────────────────────────────────────────────
+    // UPDATE 와 DELETE 대상 id 가 겹치면 절대 안 됨 (데이터 유실 방지)
+    const reuseSet = new Set(reuseIds);
+    const overlap = deleteIds.filter((id) => reuseSet.has(id));
+    if (overlap.length) {
+      console.error(`[calendar] PUT integrity ABORT: update/delete id 충돌 ${overlap.join(",")}`);
+      return res.status(500).json({ error: "내부 무결성 오류로 수정을 중단했습니다. (데이터는 보존됨)" });
+    }
+    // 정상 편집에서는 시리즈 전체가 삭제될 수 없다 (최소 1개는 유지/갱신)
+    if (newDates.length === 0 || (seriesRows.length > 0 && reuseIds.length === 0)) {
+      console.error(`[calendar] PUT integrity ABORT: 갱신 대상 0개 (전체 삭제 위험)`);
+      return res.status(400).json({ error: "유효한 날짜가 없어 수정을 중단했습니다." });
+    }
+
+    const willDelete = deleteIds.length;
+    const isShrink =
+      spanDays < (Number(existing.series_span_days) || 1) ||
+      repeatWeeks < (Number(existing.series_repeat_weeks) || 1);
+
     console.log(
-      `[calendar] PUT /events/${req.params.id} uid=${actorId} existingSeries=${existing.series_id || "(none)"} existingRows=${seriesRows.length} newDates=${newDates.length} title="${title}"`
+      `[calendar] PUT /events/${req.params.id} uid=${actorId} series=${seriesId} ` +
+        `existingRows=${seriesRows.length} newDates=${newDates.length} ` +
+        `plan{update:${reuseIds.length}, insert:${insertCount}, delete:${willDelete}} ` +
+        `span:${existing.series_span_days || 1}->${spanDays} repeat:${existing.series_repeat_weeks || 1}->${repeatWeeks} ` +
+        `title="${title}"`
     );
+
+    // 삭제가 발생하는데 사용자가 기간/반복을 줄인 것이 아니라면 경고 로그 (원인 추적용)
+    if (willDelete > 0 && !isShrink) {
+      console.warn(
+        `[calendar] PUT WARN: ${willDelete}개 행이 삭제 예정이나 기간/반복 축소가 감지되지 않음. ` +
+          `deleteIds=${deleteIds.join(",")} (기존 시리즈 행 수가 기간/반복 설정보다 많았음)`
+      );
+    }
 
     const conn = await pool.getConnection();
     try {
@@ -746,20 +788,27 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       }
 
       // 3) 날짜가 줄어든 경우 남는 기존 행만 삭제
-      if (seriesRows.length > newDates.length) {
-        const extraIds = seriesRows.slice(newDates.length).map((r) => r.id);
-        const placeholders = extraIds.map(() => "?").join(", ");
-        await conn.query(
+      if (deleteIds.length) {
+        const placeholders = deleteIds.map(() => "?").join(", ");
+        const [delResult] = await conn.query(
           `DELETE FROM calendar_events WHERE id IN (${placeholders})`,
-          extraIds
+          deleteIds
         );
+        // 무결성 검사: 의도한 개수만큼만 삭제되었는지 확인
+        if (Number(delResult.affectedRows) !== deleteIds.length) {
+          throw new Error(
+            `삭제 행 수 불일치 (예상 ${deleteIds.length}, 실제 ${delResult.affectedRows})`
+          );
+        }
       }
 
       await conn.commit();
-      console.log(`[calendar] PUT done series=${seriesId} kept/updated=${Math.min(newDates.length, seriesRows.length)} inserted=${Math.max(0, newDates.length - seriesRows.length)} deleted=${Math.max(0, seriesRows.length - newDates.length)}`);
+      console.log(
+        `[calendar] PUT OK series=${seriesId} updated=${reuseIds.length} inserted=${insertCount} deleted=${deleteIds.length}`
+      );
     } catch (e) {
       await conn.rollback();
-      console.error(`[calendar] PUT FAILED -> rollback (data preserved): ${e.code || e.message}`);
+      console.error(`[calendar] PUT FAILED -> rollback (데이터 보존): ${e.code || e.message}`);
       throw e;
     } finally {
       conn.release();
@@ -809,13 +858,19 @@ router.delete("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     }
 
     const seriesId = existing.series_id;
+    let result;
     if (seriesId) {
-      await pool.query("DELETE FROM calendar_events WHERE series_id = ?", [seriesId]);
+      [result] = await pool.query("DELETE FROM calendar_events WHERE series_id = ?", [seriesId]);
     } else {
-      await pool.query("DELETE FROM calendar_events WHERE id = ?", [req.params.id]);
+      [result] = await pool.query("DELETE FROM calendar_events WHERE id = ?", [req.params.id]);
     }
+    console.log(
+      `[calendar] DELETE /events/${req.params.id} uid=${actorId} ` +
+        `series=${seriesId || "(none)"} deleted=${result?.affectedRows ?? "?"}`
+    );
     res.status(204).end();
   } catch (err) {
+    console.error(`[calendar] DELETE /events/${req.params.id} error: ${err.code || err.message}`);
     next(err);
   }
 });
