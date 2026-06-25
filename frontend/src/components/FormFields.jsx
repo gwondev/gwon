@@ -325,6 +325,7 @@ export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
         return (
           <div key={f.name} className={`field ${f.span ? "span-2" : ""}`}>
             <label htmlFor={fid}>{f.label}</label>
+            {f.hint && <p className="field__hint">{f.hint}</p>}
             {f.type === "period" ? (
               <PeriodInput id={fid} value={form[f.name]} onChange={(v) => set(f.name, v)} />
             ) : f.type === "period-ymd" ? (
@@ -362,6 +363,16 @@ export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
               />
             ) : f.type === "media" ? (
               <MediaEditor value={form[f.name]} onChange={(v) => set(f.name, v)} />
+            ) : f.type === "checkbox" ? (
+              <label className="field-checkbox">
+                <input
+                  id={fid}
+                  type="checkbox"
+                  checked={form[f.name] === "1" || form[f.name] === true}
+                  onChange={(e) => set(f.name, e.target.checked ? "1" : "0")}
+                />
+                <span>메인에 노출</span>
+              </label>
             ) : (
               <input
                 id={fid}

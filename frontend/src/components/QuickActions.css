@@ -19,8 +19,8 @@
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  width: clamp(104px, 22vw, 138px);
-  height: clamp(104px, 22vw, 138px);
+  width: clamp(118px, 24vw, 158px);
+  height: clamp(118px, 24vw, 158px);
   border-radius: 50%;
   border: 1px solid var(--accent-line);
   background:
@@ -132,8 +132,8 @@
   }
 
   .quick-actions__btn {
-    width: clamp(118px, 11vw, 148px);
-    height: clamp(118px, 11vw, 148px);
+    width: clamp(132px, 12.5vw, 168px);
+    height: clamp(132px, 12.5vw, 168px);
   }
 }
 
@@ -145,7 +145,7 @@
 
 @media (max-width: 380px) {
   .quick-actions__btn {
-    width: clamp(96px, 28vw, 112px);
-    height: clamp(96px, 28vw, 112px);
+    width: clamp(108px, 30vw, 128px);
+    height: clamp(108px, 30vw, 128px);
   }
 }

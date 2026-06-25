@@ -70,6 +70,25 @@
 .adder__grid .span-2 {
   grid-column: 1 / -1;
 }
+.field__hint {
+  margin: -0.15rem 0 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+.field-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.field-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+}
 .adder__actions {
   display: flex;
   justify-content: flex-end;

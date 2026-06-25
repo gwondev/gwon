@@ -1,9 +1,93 @@
+import { splitTags } from "./media";
+
 // 프로젝트 카드 제목: 팀명(주제명)
 export function formatProjectHeadline(item) {
   const team = String(item?.team_name || "").trim();
   const title = String(item?.title || "").trim();
   if (team && title) return `${team}(${title})`;
   return team || title;
+}
+
+/** 기간 문자열에서 연도 2자리 추출 (활동 미리보기용) */
+export function extractPeriodYearShort(period) {
+  if (!period) return "";
+  const match = String(period).match(/(\d{4})/);
+  return match ? match[1].slice(-2) : "";
+}
+
+export function formatActivityPreview(item) {
+  const title = String(item?.title || "").trim();
+  const yy = extractPeriodYearShort(item?.period);
+  return yy ? `${title} (${yy})` : title;
+}
+
+export function formatCompetitionPreview(item) {
+  const team = String(item?.team_name || item?.title || "").trim().toUpperCase();
+  const award = String(item?.award || "").trim();
+  return award ? `${team}(${award})` : team;
+}
+
+function parseYmd(raw) {
+  const [y = "", m = "1", d = "1"] = String(raw || "").trim().split(".");
+  const year = parseInt(y, 10);
+  const month = parseInt(m, 10) || 1;
+  const day = parseInt(d, 10) || 1;
+  if (!year) return null;
+  return new Date(year, month - 1, day);
+}
+
+/** 경력 기간 → "N개월" */
+export function formatCareerDurationMonths(period) {
+  if (!period) return "";
+  const [startRaw = "", endRaw = ""] = period.split("~").map((s) => s.trim());
+  const start = parseYmd(startRaw);
+  if (!start) return "";
+  const end = endRaw ? parseYmd(endRaw) : new Date();
+  if (!end) return "";
+
+  let months =
+    (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+  if (months < 1) months = 1;
+  return `${months}개월`;
+}
+
+export function formatCareerPreview(item) {
+  const title = String(item?.title || "").trim();
+  const span = formatCareerDurationMonths(item?.period);
+  return span ? `${title} (${span})` : title;
+}
+
+const PROJECT_PREVIEW_CATEGORY_OVERRIDES = {
+  그린아이: ["IoT", "AI"],
+  greeneye: ["IoT", "AI"],
+  greenegye: ["IoT", "AI"],
+  tress: ["AI", "ROBOT"],
+  move: ["IoT", "웹"],
+  devsign: ["웹"],
+};
+
+function resolveProjectPreviewTags(item) {
+  const raw = String(item?.team_name || item?.title || "").trim();
+  const key = raw.toLowerCase();
+  const direct = PROJECT_PREVIEW_CATEGORY_OVERRIDES[key];
+  if (direct) return direct;
+
+  const fuzzy = Object.entries(PROJECT_PREVIEW_CATEGORY_OVERRIDES).find(
+    ([k]) => key.includes(k) || k.includes(key)
+  );
+  if (fuzzy) return fuzzy[1];
+
+  return splitTags(item?.category);
+}
+
+export function formatProjectPreviewLine(item) {
+  const team = String(item?.team_name || item?.title || "").trim().toUpperCase();
+  const tags = resolveProjectPreviewTags(item).map((t) => String(t).trim().toUpperCase()).filter(Boolean);
+  return tags.length ? `${team}(${tags.join(", ")})` : team;
+}
+
+export function isHomeFeatured(item) {
+  return item?.home_featured === 1 || item?.home_featured === "1" || item?.home_featured === true;
 }
 
 // 경력 기간 미리보기: "2026.05.01 ~ 2026.09.03" -> "26.05~26.09"

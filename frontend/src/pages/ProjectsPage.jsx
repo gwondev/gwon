@@ -11,6 +11,13 @@ import { formatProjectHeadline } from "../lib/format";
 const FIELDS = [
   { name: "title", label: "주제명", required: true, placeholder: "예: 실시간이동관리시스템" },
   { name: "category", label: "분류 (여러 개 선택 가능)", type: "multiselect", span: true, options: PROJECT_CATEGORIES },
+  {
+    name: "home_featured",
+    label: "메인 포트폴리오 노출",
+    type: "checkbox",
+    span: true,
+    hint: "메인 페이지에는 대표 프로젝트 2개만 노출됩니다. 가장 메인이 되는 프로젝트부터 선택해 주세요.",
+  },
   { name: "host", label: "주관처", placeholder: "예: 교내 캡스톤" },
   { name: "team_name", label: "팀명", placeholder: "예: 팀 GWON" },
   { name: "members", label: "팀원", span: true, placeholder: "예: 이성권, 홍길동, 김철수" },

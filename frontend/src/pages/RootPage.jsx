@@ -7,8 +7,13 @@ import { SECTIONS, isCompetition, isProjectRecord } from "../lib/sections";
 import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
 import { api } from "../lib/api";
-import { formatCareerPeriodPreview } from "../lib/format";
-import { splitTags } from "../lib/media";
+import {
+  formatActivityPreview,
+  formatCareerPreview,
+  formatCompetitionPreview,
+  formatProjectPreviewLine,
+  isHomeFeatured,
+} from "../lib/format";
 import "./RootPage.css";
 
 const RESOURCE_BY_KEY = {
@@ -37,21 +42,12 @@ function truncatePreview(text, max) {
   return `${s.slice(0, max)}...`;
 }
 
-const PREVIEW = {
-  competitions: (it) => (it.team_name || it.title) + (it.award ? ` (${it.award})` : ""),
-  activities: (it) => it.title,
-  certifications: (it) => it.title + (it.score ? ` (${it.score})` : ""),
-  career: (it) => {
-    const span = formatCareerPeriodPreview(it.period);
-    return it.title + (span ? ` (${span})` : "");
-  },
-};
-
 function previewRows(key, preview, techGroups) {
   if (key === "techstack") {
     return techGroups.map((g) => ({
-      kind: "text",
-      text: `[${g.group}] ${g.items.map(formatTechItemLabel).join(", ")}`,
+      kind: "tech",
+      group: String(g.group || "").trim().toUpperCase(),
+      items: g.items.map(formatTechItemLabel).join(", ").toUpperCase(),
     }));
   }
 
@@ -60,18 +56,49 @@ function previewRows(key, preview, techGroups) {
     key === "competitions"
       ? pool.filter(isCompetition)
       : key === "projects"
-        ? pool.filter(isProjectRecord)
+        ? (() => {
+            const projects = pool.filter(isProjectRecord);
+            const featured = projects.filter(isHomeFeatured);
+            return (featured.length ? featured : projects).slice(0, 2);
+          })()
         : preview[key] || [];
 
   if (key === "projects") {
     return items.map((it) => ({
-      kind: "project",
-      team: String(it.team_name || "").trim() || String(it.title || "").trim(),
-      tags: splitTags(it.category),
+      kind: "text",
+      text: formatProjectPreviewLine(it),
     }));
   }
 
-  return items.map((it) => ({ kind: "text", text: PREVIEW[key](it) }));
+  if (key === "competitions") {
+    return items.map((it) => ({
+      kind: "text",
+      text: formatCompetitionPreview(it),
+    }));
+  }
+
+  if (key === "activities") {
+    return items.map((it) => ({
+      kind: "text",
+      text: formatActivityPreview(it),
+    }));
+  }
+
+  if (key === "career") {
+    return items.map((it) => ({
+      kind: "text",
+      text: formatCareerPreview(it),
+    }));
+  }
+
+  if (key === "certifications") {
+    return items.map((it) => ({
+      kind: "text",
+      text: it.title + (it.score ? ` (${it.score})` : ""),
+    }));
+  }
+
+  return items.map((it) => ({ kind: "text", text: String(it.title || "") }));
 }
 
 const heroStagger = {
@@ -148,22 +175,15 @@ export default function RootPage() {
               <span className="cat-card__body">
                 <span className="cat-card__title">{s.title}</span>
                 <span className="cat-card__divider" aria-hidden />
-                <span className="cat-card__preview">
+                <span className="cat-card__preview cat-card__preview--grid">
                   {rows.length > 0 ? (
                     rows.map((row, i) =>
-                      row.kind === "project" ? (
-                        <span
-                          className="cat-card__preview-item cat-card__preview-item--project"
-                          key={`${s.key}-${i}`}
-                        >
-                          <span className="cat-card__preview-team">
-                            {truncatePreview(row.team, previewMax)}
+                      row.kind === "tech" ? (
+                        <span className="cat-card__preview-item cat-card__preview-item--tech" key={`${s.key}-${i}`}>
+                          <span className="cat-card__preview-tech-group">[{row.group}]</span>
+                          <span className="cat-card__preview-tech-items">
+                            {truncatePreview(row.items, previewMax)}
                           </span>
-                          {row.tags.map((tag) => (
-                            <span className="cat-card__preview-tag" key={tag}>
-                              {tag}
-                            </span>
-                          ))}
                         </span>
                       ) : (
                         <span className="cat-card__preview-item" key={`${s.key}-${i}`}>

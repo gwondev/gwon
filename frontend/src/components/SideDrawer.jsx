@@ -20,7 +20,7 @@ const item = {
 };
 
 export default function SideDrawer({ open, onClose }) {
-  const { user, isAuthed, isAdmin, isCalendarAdmin, localMode, loginWithGoogle, logout } = useAuth();
+  const { user, isAuthed, isAdmin, localMode, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
 
   const go = (path) => {
@@ -90,17 +90,15 @@ export default function SideDrawer({ open, onClose }) {
                   <span className="drawer__link-arrow">→</span>
                 </motion.button>
               ))}
-              {isCalendarAdmin && (
-                <motion.button
-                  variants={item}
-                  className="drawer__link drawer__link--schedule"
-                  onClick={() => go("/schedule")}
-                >
-                  <span className="drawer__link-no">▣</span>
-                  <span className="drawer__link-title">일정관리</span>
-                  <span className="drawer__link-arrow">→</span>
-                </motion.button>
-              )}
+              <motion.button
+                variants={item}
+                className="drawer__link drawer__link--schedule"
+                onClick={() => go("/schedule")}
+              >
+                <span className="drawer__link-no">▣</span>
+                <span className="drawer__link-title">일정관리</span>
+                <span className="drawer__link-arrow">→</span>
+              </motion.button>
               {isAdmin && (
                 <motion.button
                   variants={item}

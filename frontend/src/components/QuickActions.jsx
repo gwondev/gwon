@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAuth } from "../context/AuthContext";
 import PortfolioChat from "./PortfolioChat";
 import "./QuickActions.css";
 
@@ -10,7 +9,6 @@ const ACTIONS = [
     id: "schedule",
     label: "일정관리",
     sub: "캘린더 · 일정 등록",
-    adminOnly: true,
     glyph: "calendar",
   },
   {
@@ -29,8 +27,8 @@ const ACTIONS = [
 
 function ActionGlyph({ type }) {
   const props = {
-    width: 22,
-    height: 22,
+    width: 26,
+    height: 26,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
@@ -69,10 +67,7 @@ function ActionGlyph({ type }) {
 
 export default function QuickActions() {
   const navigate = useNavigate();
-  const { isCalendarAdmin } = useAuth();
   const [chatOpen, setChatOpen] = useState(false);
-
-  const visible = ACTIONS.filter((a) => !a.adminOnly || isCalendarAdmin);
 
   const handleClick = (id) => {
     if (id === "chat") {
@@ -91,7 +86,7 @@ export default function QuickActions() {
   return (
     <div className={`quick-actions ${chatOpen ? "is-chat-open" : ""}`}>
       <div className="quick-actions__buttons" role="toolbar" aria-label="빠른 이동">
-        {visible.map((action, i) => (
+        {ACTIONS.map((action, i) => (
           <motion.button
             key={action.id}
             type="button"

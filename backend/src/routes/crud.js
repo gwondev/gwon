@@ -4,7 +4,7 @@ import { requireAdmin } from "../auth-middleware.js";
 
 // 테이블별 허용 컬럼 (화이트리스트) -> SQL 인젝션/오타 방지
 const RESOURCES = {
-  projects: ["title", "category", "host", "team_name", "members", "award", "period", "url", "github_url", "description", "media"],
+  projects: ["title", "category", "host", "team_name", "members", "award", "period", "url", "github_url", "description", "media", "home_featured"],
   activities: ["title", "organization", "role", "period", "description", "media"],
   certifications: ["title", "issuer", "acquired", "score", "description", "media"],
   careers: ["title", "category", "position", "period", "description", "media"],
@@ -35,11 +35,31 @@ export function crudRouter(table) {
   const pick = (body) => {
     const data = {};
     for (const col of columns) {
-      if (body[col] !== undefined && body[col] !== null && String(body[col]).trim() !== "") {
+      if (body[col] === undefined || body[col] === null) continue;
+      if (col === "home_featured") {
+        data[col] = body[col] === true || body[col] === 1 || body[col] === "1" ? 1 : 0;
+        continue;
+      }
+      if (String(body[col]).trim() !== "") {
         data[col] = String(body[col]);
       }
     }
     return data;
+  };
+
+  const capHomeFeatured = async (data, excludeId = null) => {
+    if (table !== "projects" || Number(data.home_featured) !== 1) return;
+    const params = excludeId != null ? [excludeId] : [];
+    const exclude = excludeId != null ? " AND id <> ?" : "";
+    const [rows] = await pool.query(
+      `SELECT id FROM projects WHERE home_featured = 1${exclude} ORDER BY sort_order ASC, id ASC`,
+      params
+    );
+    if (rows.length < 2) return;
+    const drop = rows.slice(0, rows.length - 1);
+    for (const row of drop) {
+      await pool.query("UPDATE projects SET home_featured = 0 WHERE id = ?", [row.id]);
+    }
   };
 
   const fetchOne = async (id) => {
@@ -88,6 +108,7 @@ export function crudRouter(table) {
     try {
       const data = pick(req.body || {});
       if (!data.title) return res.status(400).json({ error: "제목(title)은 필수입니다." });
+      await capHomeFeatured(data);
       const [[{ nextOrder }]] = await pool.query(
         `SELECT COALESCE(MIN(sort_order), 0) - 1 AS nextOrder FROM \`${table}\``
       );
@@ -110,6 +131,7 @@ export function crudRouter(table) {
       const data = pick(req.body || {});
       const keys = Object.keys(data);
       if (keys.length === 0) return res.status(400).json({ error: "수정할 내용이 없습니다." });
+      await capHomeFeatured(data, req.params.id);
       await pool.query(
         `UPDATE \`${table}\` SET ${keys.map((k) => `\`${k}\` = ?`).join(", ")} WHERE id = ?`,
         [...keys.map((k) => data[k]), req.params.id]
