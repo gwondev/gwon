@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import Picker from "react-mobile-picker";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import {
@@ -106,6 +105,9 @@ function blankForm(dateKey = "", ownerId = null) {
     startTime: "",
     endTime: "",
     appointmentType: "",
+    locationName: "",
+    locationLat: null,
+    locationLng: null,
     spanDays: 1,
     repeatWeeks: 1,
   };
@@ -120,6 +122,9 @@ function formFromEvent(ev) {
     startTime: ev.startTime || "",
     endTime: ev.endTime || "",
     appointmentType: ev.appointmentType || (ev.incomeType ? "MONEY" : ""),
+    locationName: ev.locationName || "",
+    locationLat: ev.locationLat ?? null,
+    locationLng: ev.locationLng ?? null,
     spanDays: ev.spanDays || 1,
     repeatWeeks: ev.repeatWeeks || 1,
   };
@@ -416,6 +421,9 @@ export default function ScheduleTab() {
           endTime: form.endTime || null,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
+          locationName: form.locationName?.trim() || null,
+          locationLat: form.locationLat,
+          locationLng: form.locationLng,
           ownerIds: form.ownerIds,
           spanDays: form.spanDays,
           repeatWeeks: form.repeatWeeks,
@@ -452,6 +460,9 @@ export default function ScheduleTab() {
           endTime: form.endTime || null,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
+          locationName: form.locationName?.trim() || null,
+          locationLat: form.locationLat,
+          locationLng: form.locationLng,
           spanDays: form.spanDays,
           repeatWeeks: form.repeatWeeks,
         };
@@ -475,6 +486,9 @@ export default function ScheduleTab() {
             endTime: form.endTime || null,
             incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
             appointmentType: form.appointmentType || null,
+            locationName: form.locationName?.trim() || null,
+            locationLat: form.locationLat,
+            locationLng: form.locationLng,
           }));
           setEvents((prev) => [...prev, ...items]);
         } else {
@@ -842,10 +856,10 @@ function EventBubble({
       )}
       {isMoney && <span className="schedule__money-icon" aria-hidden>₩</span>}
       {isDrink && <span className="schedule__drink-icon" aria-hidden>🍺</span>}
+      <span className="schedule__bubble-title">{event.title}</span>
       {showTime && event.startTime && (
         <span className="schedule__bubble-time">{formatEventTime(event)}</span>
       )}
-      <span className="schedule__bubble-title">{event.title}</span>
     </span>
   );
 }
@@ -943,50 +957,163 @@ function AutoGrowTextarea({ id, value, onChange, placeholder }) {
   );
 }
 
-function parseTimeValue(v) {
-  if (!v || !/^\d{2}:\d{2}$/.test(v)) return { hour: "09", minute: "00" };
-  const [hour, minute] = v.split(":");
-  return { hour, minute };
+function shortenLocationName(name) {
+  if (!name) return "";
+  const parts = name.split(",").map((s) => s.trim()).filter(Boolean);
+  return parts.slice(0, 2).join(", ");
+}
+
+function mapsLink(lat, lng) {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+
+function LocationPicker({ value, onChange }) {
+  const { token, localMode } = useAuth();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const wrapRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const runSearch = useCallback(
+    async (q) => {
+      const trimmed = q.trim();
+      if (trimmed.length < 2) {
+        setResults([]);
+        return;
+      }
+      setSearching(true);
+      try {
+        if (localMode) {
+          const url = new URL("https://nominatim.openstreetmap.org/search");
+          url.searchParams.set("format", "json");
+          url.searchParams.set("q", trimmed);
+          url.searchParams.set("limit", "6");
+          url.searchParams.set("countrycodes", "kr");
+          const resp = await fetch(url, { headers: { Accept: "application/json" } });
+          const data = await resp.json();
+          setResults(
+            (Array.isArray(data) ? data : []).map((row) => ({
+              name: row.display_name,
+              lat: Number(row.lat),
+              lng: Number(row.lon),
+            }))
+          );
+        } else {
+          const data = await api(`/calendar/places?q=${encodeURIComponent(trimmed)}`, { token });
+          setResults(data.items || []);
+        }
+        setOpen(true);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    },
+    [token, localMode]
+  );
+
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    if (!query.trim() || value?.locationName) {
+      setResults([]);
+      return undefined;
+    }
+    debounceRef.current = setTimeout(() => runSearch(query), 350);
+    return () => clearTimeout(debounceRef.current);
+  }, [query, value?.locationName, runSearch]);
+
+  const clearLocation = () => {
+    onChange({ locationName: "", locationLat: null, locationLng: null });
+    setQuery("");
+    setResults([]);
+    setOpen(false);
+  };
+
+  const pickLocation = (item) => {
+    onChange({
+      locationName: item.name,
+      locationLat: item.lat,
+      locationLng: item.lng,
+    });
+    setQuery("");
+    setResults([]);
+    setOpen(false);
+  };
+
+  if (value?.locationName && value.locationLat != null && value.locationLng != null) {
+    return (
+      <div className="field schedule__location-field">
+        <label>모임 위치</label>
+        <div className="schedule__location-selected">
+          <span className="schedule__location-pin" aria-hidden>
+            📍
+          </span>
+          <span className="schedule__location-name" title={value.locationName}>
+            {shortenLocationName(value.locationName)}
+          </span>
+          <button type="button" className="schedule__location-clear" onClick={clearLocation} aria-label="위치 삭제">
+            ✕
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="field schedule__location-field" ref={wrapRef}>
+      <label htmlFor="ev-location">모임 위치 (선택)</label>
+      <div className="schedule__location-search">
+        <span className="schedule__location-pin" aria-hidden>
+          📍
+        </span>
+        <input
+          id="ev-location"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="장소 검색"
+          autoComplete="off"
+        />
+        {searching && <span className="schedule__location-loading">…</span>}
+      </div>
+      {open && results.length > 0 && (
+        <ul className="schedule__location-results">
+          {results.map((item, idx) => (
+            <li key={`${item.lat}-${item.lng}-${idx}`}>
+              <button type="button" onClick={() => pickLocation(item)}>
+                {shortenLocationName(item.name)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 function MobileTimePicker({ label, value, onChange }) {
-  const parsed = parseTimeValue(value);
-  const [pickerValue, setPickerValue] = useState(parsed);
-  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")), []);
-  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")), []);
-
-  useEffect(() => {
-    setPickerValue(parseTimeValue(value));
-  }, [value]);
-
   return (
     <div className="field">
       <label>{label}</label>
-      <div className="schedule__time-wheel-wrap">
-        <Picker
-          className="schedule__time-wheel"
-          value={pickerValue}
-          onChange={(next) => {
-            setPickerValue(next);
-            onChange(`${next.hour}:${next.minute}`);
-          }}
-        >
-          <Picker.Column name="hour">
-            {hours.map((h) => (
-              <Picker.Item key={h} value={h}>
-                {h}시
-              </Picker.Item>
-            ))}
-          </Picker.Column>
-          <Picker.Column name="minute">
-            {minutes.map((m) => (
-              <Picker.Item key={m} value={m}>
-                {m}분
-              </Picker.Item>
-            ))}
-          </Picker.Column>
-        </Picker>
-      </div>
+      <input
+        type="time"
+        step={600}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
@@ -1145,6 +1272,14 @@ function EventModal({
               onChange={(v) => setForm((f) => ({ ...f, endTime: v }))}
             />
           </div>
+          <LocationPicker
+            value={{
+              locationName: form.locationName,
+              locationLat: form.locationLat,
+              locationLng: form.locationLng,
+            }}
+            onChange={(loc) => setForm((f) => ({ ...f, ...loc }))}
+          />
           <div className="schedule__time-empty-btns">
             <button type="button" className="btn btn-ghost" onClick={() => setForm((f) => ({ ...f, startTime: "", endTime: "" }))}>
               종일 일정으로
@@ -1268,6 +1403,17 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
                       <span className="schedule__day-item-owner">{ev.ownerName}</span>
                     )}
                     <span className="schedule__day-item-time">{formatEventTime(ev)}</span>
+                    {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
+                      <a
+                        className="schedule__day-item-location"
+                        href={mapsLink(ev.locationLat, ev.locationLng)}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={ev.locationName}
+                      >
+                        📍 {shortenLocationName(ev.locationName)}
+                      </a>
+                    )}
                     {ev.description && <p>{ev.description}</p>}
                   </div>
                   <div className="schedule__day-item-actions">

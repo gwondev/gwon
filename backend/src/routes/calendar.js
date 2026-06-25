@@ -75,6 +75,9 @@ function publicEvent(row) {
     startTime: row.start_time ? String(row.start_time).slice(0, 5) : null,
     endTime: row.end_time ? String(row.end_time).slice(0, 5) : null,
     incomeType: row.income_type || null,
+    locationName: row.location_name || null,
+    locationLat: row.location_lat != null ? Number(row.location_lat) : null,
+    locationLng: row.location_lng != null ? Number(row.location_lng) : null,
     ownerName: row.owner_name || row.owner_nickname || null,
     ownerThemeColor: row.owner_theme_color || null,
     createdAt: row.created_at,
@@ -229,8 +232,8 @@ async function insertEvent(conn, data) {
   const [result] = await conn.query(
     `INSERT INTO calendar_events
      (owner_id, created_by, shared_owner_ids, series_id, series_start_date, series_end_date, series_span_days, series_repeat_weeks,
-      appointment_type, title, description, event_date, start_time, end_time, income_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      appointment_type, location_name, location_lat, location_lng, title, description, event_date, start_time, end_time, income_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.ownerId,
       data.actorId,
@@ -241,6 +244,9 @@ async function insertEvent(conn, data) {
       data.seriesSpanDays || 1,
       data.seriesRepeatWeeks || 1,
       data.appointmentType || null,
+      data.locationName || null,
+      data.locationLat ?? null,
+      data.locationLng ?? null,
       data.title,
       data.description || null,
       data.eventDate,
@@ -280,6 +286,70 @@ async function createSeriesEvents(conn, data) {
   }
   return created;
 }
+
+function parseLocationFields(body, existing = null) {
+  if (body.locationName === undefined && body.locationLat === undefined && body.locationLng === undefined) {
+    if (!existing) return { locationName: null, locationLat: null, locationLng: null };
+    return {
+      locationName: existing.location_name || null,
+      locationLat: existing.location_lat != null ? Number(existing.location_lat) : null,
+      locationLng: existing.location_lng != null ? Number(existing.location_lng) : null,
+    };
+  }
+
+  const locationName = body.locationName ? String(body.locationName).trim() : null;
+  const locationLat =
+    body.locationLat != null && body.locationLat !== "" ? Number(body.locationLat) : null;
+  const locationLng =
+    body.locationLng != null && body.locationLng !== "" ? Number(body.locationLng) : null;
+
+  if (locationName && (!Number.isFinite(locationLat) || !Number.isFinite(locationLng))) {
+    throw Object.assign(new Error("위치 좌표가 올바르지 않습니다."), { status: 400 });
+  }
+
+  if (!locationName) {
+    return { locationName: null, locationLat: null, locationLng: null };
+  }
+
+  return { locationName, locationLat, locationLng };
+}
+
+// GET /api/calendar/places?q=
+router.get("/places", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    if (q.length < 2) return res.json({ items: [] });
+
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("format", "json");
+    url.searchParams.set("q", q);
+    url.searchParams.set("limit", "6");
+    url.searchParams.set("addressdetails", "0");
+    url.searchParams.set("countrycodes", "kr");
+
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "gwon-portfolio-calendar/1.0 (contact: portfolio)",
+      },
+    });
+
+    if (!resp.ok) {
+      return res.status(502).json({ error: "장소 검색에 실패했습니다." });
+    }
+
+    const data = await resp.json();
+    const items = (Array.isArray(data) ? data : []).map((row) => ({
+      name: row.display_name,
+      lat: Number(row.lat),
+      lng: Number(row.lon),
+    }));
+
+    res.json({ items });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/calendar/owners
 router.get("/owners", requireCalendarAdmin, async (req, res, next) => {
@@ -448,6 +518,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const appointmentType = body.appointmentType ? String(body.appointmentType).toUpperCase() : null;
     const spanDays = Math.min(Math.max(Number(body.spanDays) || 1, 1), 31);
     const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks) || 1, 1), 52);
+    const location = parseLocationFields(body);
 
     if (!title) return res.status(400).json({ error: "일정명은 필수입니다." });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
@@ -482,6 +553,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
         appointmentType,
         spanDays,
         repeatWeeks,
+        ...location,
       });
       const ownerNameMap = await buildOwnerNameMap(ownerIds);
       const created = rows.map((row) =>
@@ -535,6 +607,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       : existing.appointment_type;
     const spanDays = Math.min(Math.max(Number(body.spanDays ?? existing.series_span_days ?? 1) || 1, 1), 31);
     const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks ?? existing.series_repeat_weeks ?? 1) || 1, 1), 52);
+    const location = parseLocationFields(body, existing);
     const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
     const ownerIds = requestedOwnerIds.length
       ? await resolveOwnerIds(req, requestedOwnerIds)
@@ -572,6 +645,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
         spanDays,
         repeatWeeks,
         seriesId,
+        ...location,
       });
       createdRow = rows[0];
       await conn.commit();

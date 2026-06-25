@@ -39,6 +39,9 @@ const SCHEMA = [
     series_span_days INT DEFAULT NULL,
     series_repeat_weeks INT DEFAULT NULL,
     appointment_type ENUM('MONEY','DRINK') DEFAULT NULL,
+    location_name VARCHAR(255) DEFAULT NULL,
+    location_lat DECIMAL(10, 7) DEFAULT NULL,
+    location_lng DECIMAL(10, 7) DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     event_date DATE NOT NULL,
@@ -208,6 +211,9 @@ async function runMigrations(conn) {
     "ALTER TABLE calendar_events ADD COLUMN series_span_days INT DEFAULT NULL AFTER series_end_date",
     "ALTER TABLE calendar_events ADD COLUMN series_repeat_weeks INT DEFAULT NULL AFTER series_span_days",
     "ALTER TABLE calendar_events ADD COLUMN appointment_type ENUM('MONEY','DRINK') DEFAULT NULL AFTER series_repeat_weeks",
+    "ALTER TABLE calendar_events ADD COLUMN location_name VARCHAR(255) DEFAULT NULL AFTER appointment_type",
+    "ALTER TABLE calendar_events ADD COLUMN location_lat DECIMAL(10, 7) DEFAULT NULL AFTER location_name",
+    "ALTER TABLE calendar_events ADD COLUMN location_lng DECIMAL(10, 7) DEFAULT NULL AFTER location_lat",
   ];
   for (const sql of migrations) {
     try {
