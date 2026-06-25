@@ -26,6 +26,63 @@ export function formatEventTime(event) {
   return event.endTime ? `${event.startTime}–${event.endTime}` : event.startTime;
 }
 
+export const COIN_ICON = "🪙";
+
+function hexToRgb(hex) {
+  const raw = hex.replace("#", "");
+  const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+  const num = Number.parseInt(full, 16);
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  };
+}
+
+function rgbToHex(r, g, b) {
+  return `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+}
+
+export function blendAccentColors(colorIds) {
+  const accents = colorIds
+    .map((id) => getThemeById(id).accent)
+    .filter(Boolean);
+  if (accents.length <= 1) {
+    return { accent: accents[0] || getThemeById("red").accent, isJoint: false };
+  }
+
+  const [a, b] = accents.map(hexToRgb);
+  const accent = rgbToHex((a.r + b.r) / 2, (a.g + b.g) / 2, (a.b + b.b) / 2);
+  return {
+    accent,
+    isJoint: true,
+    gradient: `linear-gradient(120deg, ${accents[0]} 0%, ${accents[0]} 46%, ${accents[1]} 54%, ${accents[1]} 100%)`,
+    borderGradient: `linear-gradient(120deg, ${accents[0]}, ${accents[1]})`,
+  };
+}
+
+export function getEventTheme(event, owners = []) {
+  const ownerIds = [event.ownerId, ...(event.coOwnerIds || [])].filter(
+    (id, idx, arr) => id != null && arr.indexOf(id) === idx
+  );
+  const colorIds = ownerIds.map((id) => {
+    if (id === event.ownerId && event.ownerThemeColor) return event.ownerThemeColor;
+    const owner = owners.find((o) => o.id === id);
+    return owner?.calendarThemeColor || "red";
+  });
+  const blended = blendAccentColors(colorIds);
+  if (!blended.isJoint) return blended;
+
+  const accents = colorIds.map((id) => getThemeById(id).accent);
+  return {
+    ...blended,
+    accentA: accents[0],
+    accentB: accents[1] || accents[0],
+    gradient: `linear-gradient(120deg, color-mix(in srgb, ${accents[0]} 34%, rgba(255,255,255,0.05)) 0%, color-mix(in srgb, ${accents[0]} 34%, rgba(255,255,255,0.05)) 46%, color-mix(in srgb, ${accents[1]} 34%, rgba(255,255,255,0.05)) 54%, color-mix(in srgb, ${accents[1]} 34%, rgba(255,255,255,0.05)) 100%)`,
+    borderGradient: `linear-gradient(120deg, ${accents[0]}, ${accents[1]})`,
+  };
+}
+
 export function roleLabel(role) {
   if (role === "SUPER_ADMIN") return "슈퍼 관리자 (SUPER ADMIN)";
   if (role === "ADMIN") return "관리자 (ADMIN)";
