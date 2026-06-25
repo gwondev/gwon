@@ -42,13 +42,3 @@ export function filterTitle(owners) {
   if (owners.length === 1) return `${ownerLabel(owners[0])}의 일정`;
   return `${owners.map(ownerLabel).join(", ")}의 일정`;
 }
-
-export function jointOwnerTitle(ownerIds, owners) {
-  const labels = ownerIds
-    .map((id) => owners.find((o) => o.id === id))
-    .filter(Boolean)
-    .map(ownerLabel);
-  if (!labels.length) return "명의";
-  if (labels.length === 1) return `${labels[0]} 명의`;
-  return `${labels.join(" · ")} 공동명의`;
-}

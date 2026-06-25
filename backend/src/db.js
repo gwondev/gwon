@@ -32,6 +32,7 @@ const SCHEMA = [
     id INT AUTO_INCREMENT PRIMARY KEY,
     owner_id INT NOT NULL,
     created_by INT NOT NULL,
+    shared_owner_ids TEXT DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     event_date DATE NOT NULL,
@@ -194,7 +195,7 @@ async function runMigrations(conn) {
     "ALTER TABLE projects ADD COLUMN github_url VARCHAR(512) AFTER url",
     "ALTER TABLE projects ADD COLUMN home_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER sort_order",
     "ALTER TABLE users ADD COLUMN calendar_filter_owner_ids TEXT DEFAULT NULL",
-    "ALTER TABLE calendar_events ADD COLUMN co_owner_ids VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE calendar_events ADD COLUMN shared_owner_ids TEXT DEFAULT NULL AFTER created_by",
   ];
   for (const sql of migrations) {
     try {

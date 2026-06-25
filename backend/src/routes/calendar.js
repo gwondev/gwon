@@ -22,33 +22,35 @@ const THEME_COLORS = [
   "pink",
 ];
 
-function parseCoOwnerIds(raw) {
+function parseJsonOwnerIds(raw) {
   if (!raw) return [];
-  if (Array.isArray(raw)) {
-    return [...new Set(raw.map(Number).filter((n) => Number.isFinite(n) && n > 0))];
-  }
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return [...new Set(parsed.map(Number).filter((n) => Number.isFinite(n) && n > 0))];
-    }
+    if (!Array.isArray(parsed)) return [];
+    return [...new Set(parsed.map(Number).filter((n) => Number.isFinite(n) && n > 0))];
   } catch {
-    /* fall through */
+    return [];
   }
-  return [...new Set(String(raw).split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0))];
 }
 
-function serializeCoOwnerIds(ids) {
-  const unique = [...new Set(ids.map(Number).filter((n) => Number.isFinite(n) && n > 0))];
-  return unique.length ? unique.join(",") : null;
+function normalizeOwnerIds(ids) {
+  if (!Array.isArray(ids)) return [];
+  return [...new Set(ids.map(Number).filter((n) => Number.isFinite(n) && n > 0))];
+}
+
+function resolveEventOwnerIds(row) {
+  const ids = parseJsonOwnerIds(row.shared_owner_ids);
+  if (ids.length) return ids;
+  return [row.owner_id];
 }
 
 function publicEvent(row) {
-  const coOwnerIds = parseCoOwnerIds(row.co_owner_ids);
+  const sharedOwnerIds = resolveEventOwnerIds(row);
   return {
     id: row.id,
     ownerId: row.owner_id,
-    coOwnerIds,
+    sharedOwnerIds,
+    sharedOwnerNames: row.sharedOwnerNames || [],
     createdBy: row.created_by,
     title: row.title,
     description: row.description || "",
@@ -75,35 +77,10 @@ async function canManageOwner(actorId, actorRole, ownerId) {
 }
 
 async function canManageEvent(actorId, actorRole, eventRow) {
-  const coOwners = parseCoOwnerIds(eventRow.co_owner_ids);
-  if (eventRow.owner_id === actorId || eventRow.created_by === actorId || coOwners.includes(actorId)) {
-    return true;
-  }
+  if (eventRow.owner_id === actorId || eventRow.created_by === actorId) return true;
+  if (resolveEventOwnerIds(eventRow).includes(actorId)) return true;
   if (!isSuperAdminRole(actorRole)) return false;
   return canManageOwner(actorId, actorRole, eventRow.owner_id);
-}
-
-async function resolveOwnerIdsForEvent(req, requestedOwnerIds, fallbackOwnerId) {
-  const actorId = req.auth.uid;
-  const actorRole = req.userRole || (await getUserRole(actorId));
-  const raw = Array.isArray(requestedOwnerIds) ? requestedOwnerIds : [];
-  const ids = [...new Set(raw.map(Number).filter((n) => Number.isFinite(n) && n > 0))];
-  const primary = ids.length ? ids[0] : fallbackOwnerId || actorId;
-
-  if (!(await canManageOwner(actorId, actorRole, primary))) {
-    throw Object.assign(new Error("해당 사용자의 일정에 접근할 수 없습니다."), { status: 403 });
-  }
-
-  for (const id of ids.slice(1)) {
-    if (id !== actorId && !(await canManageOwner(actorId, actorRole, id))) {
-      throw Object.assign(new Error("공동명의 대상에 접근할 수 없습니다."), { status: 403 });
-    }
-  }
-
-  return {
-    ownerId: primary,
-    coOwnerIds: ids.slice(1),
-  };
 }
 
 async function resolveOwnerId(req, requestedOwnerId) {
@@ -153,6 +130,33 @@ async function resolveOwnerIds(req, requestedOwnerIds) {
   return ids;
 }
 
+async function getVisibleOwnerIds(actorId, actorRole) {
+  if (!isSuperAdminRole(actorRole)) return [actorId];
+  const [rows] = await pool.query(
+    `SELECT id, role FROM users
+     WHERE role IN ('ADMIN', 'SUPER_ADMIN')
+     ORDER BY id ASC`
+  );
+  return rows
+    .filter((u) => u.role !== "SUPER_ADMIN" || u.id === actorId)
+    .map((u) => u.id);
+}
+
+async function buildOwnerNameMap(ownerIds) {
+  const ids = normalizeOwnerIds(ownerIds);
+  if (!ids.length) return new Map();
+  const placeholders = ids.map(() => "?").join(", ");
+  const [rows] = await pool.query(
+    `SELECT id, name, nickname, email FROM users WHERE id IN (${placeholders})`,
+    ids
+  );
+  const map = new Map();
+  for (const row of rows) {
+    map.set(row.id, row.nickname || row.name || row.email || `#${row.id}`);
+  }
+  return map;
+}
+
 function expandEventDates(eventDate, spanDays, repeatWeeks) {
   const span = Math.min(Math.max(Number(spanDays) || 1, 1), 31);
   const weeks = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52);
@@ -174,12 +178,12 @@ function expandEventDates(eventDate, spanDays, repeatWeeks) {
 async function insertEvent(conn, data) {
   const [result] = await conn.query(
     `INSERT INTO calendar_events
-     (owner_id, co_owner_ids, created_by, title, description, event_date, start_time, end_time, income_type)
+     (owner_id, created_by, shared_owner_ids, title, description, event_date, start_time, end_time, income_type)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.ownerId,
-      serializeCoOwnerIds(data.coOwnerIds || []),
       data.actorId,
+      JSON.stringify(data.sharedOwnerIds || [data.ownerId]),
       data.title,
       data.description || null,
       data.eventDate,
@@ -225,22 +229,12 @@ router.get("/owners", requireCalendarAdmin, async (req, res, next) => {
       return res.json({ items, selfId: actorId });
     }
 
-    const [rows] = await pool.query(
+    const [selfRows] = await pool.query(
       `SELECT id, name, nickname, email, role, calendar_theme_color AS calendarThemeColor
-       FROM users
-       WHERE role = 'ADMIN' OR id = ?
-       ORDER BY FIELD(role, 'SUPER_ADMIN', 'ADMIN'), id ASC`,
+       FROM users WHERE id = ?`,
       [actorId]
     );
-    const items = rows.map((u) => ({
-      id: u.id,
-      name: u.name,
-      nickname: u.nickname,
-      email: u.email,
-      role: u.role,
-      calendarThemeColor: u.calendarThemeColor,
-    }));
-    return res.json({ items, selfId: actorId });
+    res.json({ items: selfRows, selfId: actorId });
   } catch (err) {
     next(err);
   }
@@ -311,31 +305,41 @@ router.get("/events", requireCalendarAdmin, async (req, res, next) => {
     const legacyId = req.query.ownerId ? [Number(req.query.ownerId)] : [];
     const requested = queryIds.length ? queryIds : legacyId;
     const ownerIds = await resolveOwnerIds(req, requested);
+    const actorId = req.auth.uid;
+    const actorRole = req.userRole || (await getUserRole(actorId));
+    const visibleOwnerIds = await getVisibleOwnerIds(actorId, actorRole);
 
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const endDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
 
-    const placeholders = ownerIds.map(() => "?").join(", ");
-    const coOwnerClauses = ownerIds.map(() => "FIND_IN_SET(?, e.co_owner_ids)").join(" OR ");
+    const placeholders = visibleOwnerIds.map(() => "?").join(", ");
     const [rows] = await pool.query(
       `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
               u.calendar_theme_color AS owner_theme_color
        FROM calendar_events e
        JOIN users u ON u.id = e.owner_id
-       WHERE e.event_date BETWEEN ? AND ?
-         AND (
-           e.owner_id IN (${placeholders})
-           ${coOwnerClauses ? `OR ${coOwnerClauses}` : ""}
-         )
+       WHERE e.owner_id IN (${placeholders}) AND e.event_date BETWEEN ? AND ?
        ORDER BY e.event_date ASC,
          CASE WHEN e.start_time IS NULL THEN 0 ELSE 1 END,
          e.start_time ASC,
          e.id ASC`,
-      [startDate, endDate, ...ownerIds, ...ownerIds]
+      [...visibleOwnerIds, startDate, endDate]
     );
 
-    res.json({ items: rows.map(publicEvent), ownerIds });
+    const filteredRows = rows.filter((row) =>
+      resolveEventOwnerIds(row).some((id) => ownerIds.includes(id))
+    );
+    const participantIds = filteredRows.flatMap((row) => resolveEventOwnerIds(row));
+    const nameMap = await buildOwnerNameMap(participantIds);
+    const items = filteredRows.map((row) =>
+      publicEvent({
+        ...row,
+        sharedOwnerNames: resolveEventOwnerIds(row).map((id) => nameMap.get(id) || `#${id}`),
+      })
+    );
+
+    res.json({ items, ownerIds });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
@@ -363,8 +367,11 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
       return res.status(400).json({ error: "incomeType 이 올바르지 않습니다." });
     }
 
-    const ownerIds = Array.isArray(body.ownerIds) ? body.ownerIds : [body.ownerId];
-    const { ownerId, coOwnerIds } = await resolveOwnerIdsForEvent(req, ownerIds, body.ownerId);
+    const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
+    const ownerIds = requestedOwnerIds.length
+      ? await resolveOwnerIds(req, requestedOwnerIds)
+      : [await resolveOwnerId(req, body.ownerId)];
+    const ownerId = ownerIds[0];
     const actorId = req.auth.uid;
     const dates = expandEventDates(eventDate, spanDays, repeatWeeks);
 
@@ -375,7 +382,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
       for (const date of dates) {
         const row = await insertEvent(conn, {
           ownerId,
-          coOwnerIds,
+          sharedOwnerIds: ownerIds,
           actorId,
           title,
           description,
@@ -426,9 +433,6 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const incomeType = body.incomeType !== undefined
       ? (body.incomeType ? String(body.incomeType).toUpperCase() : null)
       : undefined;
-    const ownerIds = body.ownerIds !== undefined
-      ? (Array.isArray(body.ownerIds) ? body.ownerIds : [body.ownerId])
-      : undefined;
 
     if (title === "") return res.status(400).json({ error: "일정명은 필수입니다." });
     if (eventDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
@@ -447,14 +451,6 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     if (endTime !== undefined) { updates.push("end_time = ?"); values.push(endTime); }
     if (incomeType !== undefined) { updates.push("income_type = ?"); values.push(incomeType); }
 
-    if (ownerIds !== undefined) {
-      const resolved = await resolveOwnerIdsForEvent(req, ownerIds, existing.owner_id);
-      updates.push("owner_id = ?");
-      values.push(resolved.ownerId);
-      updates.push("co_owner_ids = ?");
-      values.push(serializeCoOwnerIds(resolved.coOwnerIds));
-    }
-
     if (updates.length === 0) {
       return res.status(400).json({ error: "수정할 내용이 없습니다." });
     }
@@ -470,7 +466,14 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
        WHERE e.id = ?`,
       [req.params.id]
     );
-    res.json({ item: publicEvent(rows[0]) });
+    const row = rows[0];
+    const ownerNameMap = await buildOwnerNameMap(resolveEventOwnerIds(row));
+    res.json({
+      item: publicEvent({
+        ...row,
+        sharedOwnerNames: resolveEventOwnerIds(row).map((id) => ownerNameMap.get(id) || `#${id}`),
+      }),
+    });
   } catch (err) {
     next(err);
   }
