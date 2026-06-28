@@ -39,6 +39,7 @@ const MIME_EXT = {
   "video/mp4": "mp4",
   "video/webm": "webm",
   "video/quicktime": "mov",
+  "application/pdf": "pdf",
 };
 
 function dataUrlMime(dataUrl) {
@@ -50,6 +51,7 @@ function extFromDataUrl(dataUrl) {
   const mime = dataUrlMime(dataUrl);
   if (MIME_EXT[mime]) return MIME_EXT[mime];
   if (mime.startsWith("video/")) return "mp4";
+  if (mime === "application/pdf") return "pdf";
   return "jpg";
 }
 
@@ -98,7 +100,7 @@ function MediaRow({ row, onSave }) {
     setValue(row.displayName);
   }, [row.displayName]);
 
-  const src = row.media.video || row.media.image || "";
+  const src = row.media.video || row.media.image || row.media.pdf || "";
 
   const commit = async () => {
     const next = value.trim();
@@ -117,7 +119,9 @@ function MediaRow({ row, onSave }) {
   return (
     <div className="datacard">
       <div className="datacard__thumb">
-        {row.media.video ? (
+        {row.media.pdf ? (
+          <span className="datacard__pdf">PDF</span>
+        ) : row.media.video ? (
           <video src={row.media.video} muted playsInline />
         ) : row.media.image ? (
           <img src={row.media.image} alt={value} />
@@ -136,10 +140,7 @@ function MediaRow({ row, onSave }) {
           placeholder="이름"
           aria-label="자료 이름"
         />
-        <div className="datacard__sub">
-          <span className="datacard__src">{row.itemTitle}</span>
-          {savedFlash && <span className="datacard__saved">저장됨</span>}
-        </div>
+        {savedFlash && <span className="datacard__saved">저장됨</span>}
         {row.media.caption && <p className="datacard__caption">{row.media.caption}</p>}
         <button type="button" className="datacard__download" onClick={handleDownload} disabled={!src}>
           ↓ 다운로드
@@ -152,25 +153,33 @@ function MediaRow({ row, onSave }) {
 function DataSection({ table, title, desc }) {
   const { items, loading, error, update } = useResource(table);
 
-  const rows = [];
-  let imgN = 0;
-  let vidN = 0;
+  // 항목(프로젝트 등)별로 묶고, 번호는 항목 안에서 따로 매긴다.
+  const groups = [];
+  let totalCount = 0;
   for (const item of items) {
     const list = parseMedia(item.media);
+    let imgN = 0;
+    let vidN = 0;
+    let pdfN = 0;
+    const rows = [];
     list.forEach((media, mediaIndex) => {
-      if (!media || (!media.image && !media.video)) return;
-      const isVideo = Boolean(media.video);
-      const kindIndex = isVideo ? ++vidN : ++imgN;
+      if (!media || (!media.image && !media.video && !media.pdf)) return;
+      const isPdf = Boolean(media.pdf);
+      const isVideo = !isPdf && Boolean(media.video);
+      const kindIndex = isPdf ? ++pdfN : isVideo ? ++vidN : ++imgN;
       rows.push({
         key: `${item.id}:${mediaIndex}`,
         itemId: item.id,
-        itemTitle: item.title || `#${item.id}`,
         mediaIndex,
         media,
-        kindLabel: isVideo ? "동영상" : "사진",
+        kindLabel: isPdf ? "PDF" : isVideo ? "동영상" : "사진",
         displayName: mediaDisplayName(media, kindIndex),
       });
     });
+    if (rows.length > 0) {
+      totalCount += rows.length;
+      groups.push({ item, rows });
+    }
   }
 
   const handleSave = async (row, newName) => {
@@ -184,7 +193,7 @@ function DataSection({ table, title, desc }) {
     <section className="datasection">
       <header className="datasection__head">
         <h2 className="datasection__title">{title}</h2>
-        <span className="datasection__count">{rows.length}개 자료</span>
+        <span className="datasection__count">{totalCount}개 자료</span>
       </header>
       <p className="datasection__desc">{desc}</p>
 
@@ -192,12 +201,22 @@ function DataSection({ table, title, desc }) {
         <div className="state">불러오는 중…</div>
       ) : error ? (
         <div className="state">목록을 불러오지 못했습니다.</div>
-      ) : rows.length === 0 ? (
-        <div className="state">저장된 사진·영상이 없습니다.</div>
+      ) : groups.length === 0 ? (
+        <div className="state">저장된 사진·영상·PDF가 없습니다.</div>
       ) : (
-        <div className="datasection__grid">
-          {rows.map((row) => (
-            <MediaRow key={row.key} row={row} onSave={handleSave} />
+        <div className="datasection__groups">
+          {groups.map((g) => (
+            <div className="datagroup" key={g.item.id}>
+              <div className="datagroup__head">
+                <span className="datagroup__title">{g.item.title || `#${g.item.id}`}</span>
+                <span className="datagroup__count">{g.rows.length}</span>
+              </div>
+              <div className="datasection__grid">
+                {g.rows.map((row) => (
+                  <MediaRow key={row.key} row={row} onSave={handleSave} />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

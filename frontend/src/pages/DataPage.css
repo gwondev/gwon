@@ -68,10 +68,40 @@
   line-height: 1.55;
 }
 
+.datasection__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+.datagroup__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+}
+.datagroup__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.datagroup__count {
+  flex: none;
+  min-width: 1.3rem;
+  text-align: center;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
 .datasection__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.7rem;
 }
 
 .datacard {
@@ -85,11 +115,17 @@
 
 .datacard__thumb {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1 / 1;
   background: #0c0c0e;
   display: grid;
   place-items: center;
   overflow: hidden;
+}
+.datacard__pdf {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #e2574c;
 }
 .datacard__thumb img,
 .datacard__thumb video {
@@ -117,19 +153,19 @@
 .datacard__body {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.7rem 0.75rem 0.85rem;
+  gap: 0.4rem;
+  padding: 0.5rem 0.55rem 0.6rem;
 }
 
 .datacard__name {
   width: 100%;
-  padding: 0.45rem 0.6rem;
+  padding: 0.38rem 0.5rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--bg);
   color: var(--text);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 .datacard__name:focus {
@@ -168,14 +204,14 @@
 }
 
 .datacard__download {
-  margin-top: 0.1rem;
-  padding: 0.5rem 0.7rem;
+  margin-top: 0.05rem;
+  padding: 0.4rem 0.5rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--accent-line);
   background: rgba(216, 193, 154, 0.12);
   color: var(--accent);
   font: inherit;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.3s var(--ease), transform 0.2s var(--ease);
@@ -191,8 +227,8 @@
 
 @media (max-width: 560px) {
   .datasection__grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.7rem;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.55rem;
   }
   .data-page__head {
     flex-direction: column;

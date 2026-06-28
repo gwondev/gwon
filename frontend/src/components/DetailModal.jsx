@@ -88,7 +88,23 @@ export default function DetailModal({ open, onClose, title, media = [], children
                           else if (info.offset.x > 60) go(-1);
                         }}
                       >
-                        {current?.video ? (
+                        {current?.pdf ? (
+                          <div className="detail-modal__pdf">
+                            <iframe
+                              src={current.pdf}
+                              title={current.name || current.caption || "PDF"}
+                              className="detail-modal__pdf-frame"
+                            />
+                            <a
+                              className="detail-modal__pdf-open"
+                              href={current.pdf}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              새 탭에서 PDF 열기 ↗
+                            </a>
+                          </div>
+                        ) : current?.video ? (
                           <video
                             src={current.video}
                             controls

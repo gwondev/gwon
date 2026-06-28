@@ -12,7 +12,7 @@ export function parseMedia(raw) {
 }
 
 export function hasMediaContent(m) {
-  return Boolean(m && (m.image || m.video || (m.caption && m.caption.trim())));
+  return Boolean(m && (m.image || m.video || m.pdf || (m.caption && m.caption.trim())));
 }
 
 export function stringifyMedia(list) {
@@ -22,15 +22,18 @@ export function stringifyMedia(list) {
       name: m.name || "",
       image: m.image || "",
       video: m.video || "",
+      pdf: m.pdf || "",
       caption: m.caption || "",
     }));
   // 빈 배열도 "[]" 로 저장해야 전부 삭제 시 서버 반영됨 (pick() 가 빈 문자열은 건너뜀)
   return JSON.stringify(cleaned);
 }
 
-// 이름이 없으면 저장 순서 기준 임시 이름을 만든다 (사진1, 동영상1 …)
+// 이름이 없으면 저장 순서 기준 임시 이름을 만든다 (사진1, 동영상1, PDF1 …)
 export function mediaKindLabel(m) {
-  return m?.video ? "동영상" : "사진";
+  if (m?.pdf) return "PDF";
+  if (m?.video) return "동영상";
+  return "사진";
 }
 
 export function mediaDisplayName(m, indexByKind) {

@@ -3,6 +3,21 @@ import { fileToCompressedDataUrl } from "../lib/image";
 import { fileToVideoDataUrl } from "../lib/video";
 import { parseMedia, stringifyMedia, splitTags } from "../lib/media";
 
+const MAX_PDF_BYTES = 12 * 1024 * 1024;
+
+function fileToPdfDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (file.size > MAX_PDF_BYTES) {
+      reject(new Error("PDF는 12MB 이하만 업로드할 수 있습니다."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function blankForm(fields) {
   return fields.reduce((acc, f) => ({ ...acc, [f.name]: "" }), {});
 }
@@ -222,14 +237,17 @@ function MediaEditor({ value, onChange }) {
       for (const f of files) {
         if (f.type.startsWith("image/")) {
           const image = await fileToCompressedDataUrl(f);
-          additions.push({ image, caption: "" });
+          additions.push({ image, caption: "", name: "" });
         } else if (f.type.startsWith("video/")) {
           const video = await fileToVideoDataUrl(f);
-          additions.push({ video, caption: "" });
+          additions.push({ video, caption: "", name: "" });
+        } else if (f.type === "application/pdf") {
+          const pdf = await fileToPdfDataUrl(f);
+          additions.push({ pdf, caption: "", name: f.name?.replace(/\.pdf$/i, "") || "" });
         }
       }
       if (!additions.length) {
-        alert("사진 또는 영상 파일만 추가할 수 있습니다.");
+        alert("사진, 영상, PDF 파일만 추가할 수 있습니다.");
         return;
       }
       setList([...list, ...additions]);
@@ -259,7 +277,9 @@ function MediaEditor({ value, onChange }) {
         {list.map((m, i) => (
           <div className="media-editor__item" key={i}>
             <div className="media-editor__thumb">
-              {m.video ? (
+              {m.pdf ? (
+                <span className="media-editor__pdf-badge">PDF</span>
+              ) : m.video ? (
                 <video src={m.video} muted playsInline />
               ) : m.image ? (
                 <img src={m.image} alt="" />
@@ -271,7 +291,9 @@ function MediaEditor({ value, onChange }) {
               <input
                 className="media-editor__name"
                 value={m.name || ""}
-                placeholder={`이름 (예: 수상사진) · 미입력 시 ${m.video ? "동영상" : "사진"}${i + 1}`}
+                placeholder={`이름 (예: 수상사진) · 미입력 시 ${
+                  m.pdf ? "PDF" : m.video ? "동영상" : "사진"
+                }${i + 1}`}
                 onChange={(e) => updateName(i, e.target.value)}
               />
               <textarea
@@ -306,10 +328,10 @@ function MediaEditor({ value, onChange }) {
         ))}
       </div>
       <label className="media-editor__upload">
-        {busy ? "미디어 처리 중…" : "＋ 사진·영상 추가 (여러 개 가능)"}
+        {busy ? "미디어 처리 중…" : "＋ 사진·영상·PDF 추가 (여러 개 가능)"}
         <input
           type="file"
-          accept="image/*,video/mp4,video/webm,video/quicktime"
+          accept="image/*,video/mp4,video/webm,video/quicktime,application/pdf"
           multiple
           hidden
           disabled={busy}

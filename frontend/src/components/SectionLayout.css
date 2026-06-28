@@ -519,16 +519,16 @@
 }
 .media-editor__item {
   display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 0.7rem;
-  padding: 0.6rem;
+  grid-template-columns: 68px 1fr;
+  gap: 0.6rem;
+  padding: 0.5rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--bg-soft);
 }
 .media-editor__thumb {
-  width: 96px;
-  height: 96px;
+  width: 68px;
+  height: 68px;
   border-radius: var(--radius-sm, 10px);
   overflow: hidden;
   display: grid;
@@ -536,7 +536,13 @@
   background: var(--bg);
   border: 1px solid var(--line);
   color: var(--text-faint);
-  font-size: 0.7rem;
+  font-size: 0.66rem;
+}
+.media-editor__pdf-badge {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #e2574c;
 }
 .media-editor__thumb img,
 .media-editor__thumb video {
