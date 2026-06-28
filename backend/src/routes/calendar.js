@@ -3,6 +3,7 @@ import pool from "../db.js";
 import {
   requireCalendarAdmin,
   isSuperAdminRole,
+  isCalendarAdminRole,
   getUserRole,
 } from "../auth-middleware.js";
 
@@ -85,19 +86,20 @@ function publicEvent(row) {
   };
 }
 
+// ADMIN·SUPER_ADMIN 은 캘린더 안에서 서로 동등한 "공동 작업자"로 취급한다.
 async function canManageOwner(actorId, actorRole, ownerId) {
   if (actorId === ownerId) return true;
-  if (!isSuperAdminRole(actorRole)) return false;
+  if (!isCalendarAdminRole(actorRole)) return false;
   const [rows] = await pool.query("SELECT id, role FROM users WHERE id = ?", [ownerId]);
   const owner = rows[0];
   if (!owner) return false;
-  return owner.role === "ADMIN" || owner.id === actorId;
+  return isCalendarAdminRole(owner.role);
 }
 
 async function canManageEvent(actorId, actorRole, eventRow) {
   if (eventRow.owner_id === actorId || eventRow.created_by === actorId) return true;
   if (resolveEventOwnerIds(eventRow).includes(actorId)) return true;
-  if (!isSuperAdminRole(actorRole)) return false;
+  if (!isCalendarAdminRole(actorRole)) return false;
   return canManageOwner(actorId, actorRole, eventRow.owner_id);
 }
 
@@ -171,11 +173,10 @@ async function resolveOwnerIds(req, requestedOwnerIds) {
 
 async function canViewOwner(actorId, actorRole, ownerId) {
   if (actorId === ownerId) return true;
-  if (isSuperAdminRole(actorRole)) return canManageOwner(actorId, actorRole, ownerId);
-  if (actorRole !== "ADMIN") return false;
+  if (!isCalendarAdminRole(actorRole)) return false;
   const [rows] = await pool.query("SELECT id, role FROM users WHERE id = ?", [ownerId]);
   const target = rows[0];
-  return Boolean(target && target.role === "SUPER_ADMIN");
+  return Boolean(target && isCalendarAdminRole(target.role));
 }
 
 async function resolveViewOwnerIds(req, requestedOwnerIds) {
@@ -196,24 +197,13 @@ async function resolveViewOwnerIds(req, requestedOwnerIds) {
 }
 
 async function getVisibleOwnerIds(actorId, actorRole) {
-  if (actorRole === "ADMIN") {
-    const [rows] = await pool.query(
-      `SELECT id, role FROM users
-       WHERE role = 'SUPER_ADMIN' OR id = ?
-       ORDER BY FIELD(role, 'SUPER_ADMIN', 'ADMIN', 'GUEST'), id ASC`,
-      [actorId]
-    );
-    return rows.map((u) => u.id);
-  }
-  if (!isSuperAdminRole(actorRole)) return [actorId];
+  if (!isCalendarAdminRole(actorRole)) return [actorId];
   const [rows] = await pool.query(
-    `SELECT id, role FROM users
+    `SELECT id FROM users
      WHERE role IN ('ADMIN', 'SUPER_ADMIN')
-     ORDER BY id ASC`
+     ORDER BY FIELD(role, 'SUPER_ADMIN', 'ADMIN'), id ASC`
   );
-  return rows
-    .filter((u) => u.role !== "SUPER_ADMIN" || u.id === actorId)
-    .map((u) => u.id);
+  return rows.map((u) => u.id);
 }
 
 async function buildOwnerNameMap(ownerIds) {
@@ -412,35 +402,23 @@ router.get("/owners", requireCalendarAdmin, async (req, res, next) => {
     const actorId = req.auth.uid;
     const actorRole = req.userRole || (await getUserRole(actorId));
 
-    if (isSuperAdminRole(actorRole)) {
+    // ADMIN·SUPER_ADMIN 모두 캘린더 안에서는 동일하게 전체 공동 작업자 목록을 본다.
+    if (isCalendarAdminRole(actorRole)) {
       const [rows] = await pool.query(
         `SELECT id, name, nickname, email, role, calendar_theme_color AS calendarThemeColor
          FROM users
          WHERE role IN ('ADMIN', 'SUPER_ADMIN')
          ORDER BY FIELD(role, 'SUPER_ADMIN', 'ADMIN'), id ASC`
       );
-      const items = rows
-        .filter((u) => u.role !== "SUPER_ADMIN" || u.id === actorId)
-        .map((u) => ({
-          id: u.id,
-          name: u.name,
-          nickname: u.nickname,
-          email: u.email,
-          role: u.role,
-          calendarThemeColor: u.calendarThemeColor,
-        }));
+      const items = rows.map((u) => ({
+        id: u.id,
+        name: u.name,
+        nickname: u.nickname,
+        email: u.email,
+        role: u.role,
+        calendarThemeColor: u.calendarThemeColor,
+      }));
       return res.json({ items, selfId: actorId });
-    }
-
-    if (actorRole === "ADMIN") {
-      const [rows] = await pool.query(
-        `SELECT id, name, nickname, email, role, calendar_theme_color AS calendarThemeColor
-         FROM users
-         WHERE id = ? OR role = 'SUPER_ADMIN'
-         ORDER BY FIELD(role, 'SUPER_ADMIN', 'ADMIN', 'GUEST'), id ASC`,
-        [actorId]
-      );
-      return res.json({ items: rows, selfId: actorId });
     }
 
     const [selfRows] = await pool.query(

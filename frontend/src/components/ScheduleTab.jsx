@@ -326,7 +326,8 @@ export default function ScheduleTab() {
       setErr(null);
       try {
         const ownerList = await loadOwners();
-        const ids = await loadFilter(ownerList, ownerList[0]?.id ?? user.id);
+        // 저장된 필터가 없으면 "달력을 보는 본인" 일정을 기본으로 보여준다.
+        const ids = await loadFilter(ownerList, user.id);
         if (alive) setSelectedOwnerIds(ids.length ? ids : [user.id]);
       } catch (e) {
         if (alive) setErr(e.message);
@@ -538,10 +539,10 @@ export default function ScheduleTab() {
       const uid = selfId ?? user?.id;
       if (ev.ownerId === uid) return true;
       if (ev.sharedOwnerIds?.includes(uid)) return true;
-      if (isSuperAdmin) return true;
+      if (isCalendarAdmin) return true;
       return false;
     },
-    [selfId, user?.id, isSuperAdmin]
+    [selfId, user?.id, isCalendarAdmin]
   );
 
   const deleteEvent = async (id) => {
@@ -625,7 +626,7 @@ export default function ScheduleTab() {
   const monthLabel = `${viewYear}년 ${viewMonth}월`;
   const monthKey = `${viewYear}-${String(viewMonth).padStart(2, "0")}`;
   const todayKey = toDateKey(today);
-  const canPickOwner = isSuperAdmin && owners.length > 1;
+  const canPickOwner = isCalendarAdmin && owners.length > 1;
 
   return (
     <div className="schedule" style={{ "--cal-accent": theme.accent }}>
@@ -862,6 +863,7 @@ export default function ScheduleTab() {
 function EventBubble({
   event,
   showTime,
+  showLabel = true,
   onClick,
   connectedPrev,
   connectedNext,
@@ -876,22 +878,23 @@ function EventBubble({
   const isMoney = event.appointmentType === "MONEY" || (!event.appointmentType && Boolean(event.incomeType));
   const isDrink = event.appointmentType === "DRINK";
   const isAllDay = !event.startTime;
+  const showCheck = deleteMode && selectable && showLabel;
   return (
     <span
-      className={`schedule__bubble ${connectedPrev ? "is-cont-prev" : ""} ${connectedNext ? "is-cont-next" : ""} ${isAllDay ? "is-all-day" : ""} ${deleteMode && selected ? "is-pick-selected" : ""} ${deleteMode && selectable ? "is-pickable" : ""}`}
+      className={`schedule__bubble ${connectedPrev ? "is-cont-prev" : ""} ${connectedNext ? "is-cont-next" : ""} ${isAllDay ? "is-all-day" : ""} ${deleteMode && selected ? "is-pick-selected" : ""} ${showCheck ? "is-pickable" : ""} ${showLabel ? "" : "is-continuation"}`}
       style={{ "--cal-accent": bubbleTheme.accent }}
       onClick={onClick}
       role="presentation"
     >
-      {deleteMode && selectable && (
+      {showCheck && (
         <span className={`schedule__bubble-check ${selected ? "is-checked" : ""}`} aria-hidden>
           {selected ? "✓" : ""}
         </span>
       )}
-      {isMoney && <span className="schedule__money-icon" aria-hidden>₩</span>}
-      {isDrink && <span className="schedule__drink-icon" aria-hidden>🍺</span>}
-      <span className="schedule__bubble-title">{event.title}</span>
-      {showTime && event.startTime && (
+      {showLabel && isMoney && <span className="schedule__money-icon" aria-hidden>₩</span>}
+      {showLabel && isDrink && <span className="schedule__drink-icon" aria-hidden>🍺</span>}
+      {showLabel && <span className="schedule__bubble-title">{event.title}</span>}
+      {showLabel && showTime && event.startTime && (
         <span className="schedule__bubble-time">{formatEventTime(event)}</span>
       )}
     </span>
@@ -931,11 +934,14 @@ function DayCell({
           const seriesKey = eventSeriesKey(ev);
           const selectable = canManageEvent(ev);
           const selected = selectedSeriesKeys.has(seriesKey);
+          // 띠가 이어지는 중간 칸에서는 라벨을 숨기고, 주(週)의 첫 칸(일요일)에서만 다시 보여준다.
+          const showLabel = !prev || date.getDay() === 0;
           return (
             <EventBubble
               key={seriesKey}
               event={ev}
               showTime
+              showLabel={showLabel}
               connectedPrev={prev}
               connectedNext={next}
               deleteMode={deleteMode}
