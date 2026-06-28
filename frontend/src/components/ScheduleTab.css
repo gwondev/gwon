@@ -297,7 +297,9 @@
 .schedule__cell {
   --cell-pad-x: 0.28rem;
   min-height: 112px;
-  padding: 0.3rem var(--cell-pad-x) 0.36rem;
+  /* 좌우 패딩 0: 버블이 칸 경계 끝까지 닿아야 옆 칸과 이어진다.
+     안쪽 여백은 버블/날짜 요소의 margin 으로 따로 준다. */
+  padding: 0.3rem 0 0.36rem;
   border: none;
   border-bottom: 1px solid var(--line);
   background: transparent;
@@ -338,6 +340,7 @@
 .schedule__day-num {
   width: 1.3rem;
   height: 1.3rem;
+  margin-left: var(--cell-pad-x);
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -364,7 +367,8 @@
   justify-content: flex-start;
   gap: 0.2rem;
   min-width: 0;
-  width: 100%;
+  /* 기본은 칸 안쪽으로 살짝 들어가게(양옆 margin). 이어지는 쪽은 margin 0 으로 칸 끝까지. */
+  margin: 0 var(--cell-pad-x);
   box-sizing: border-box;
   padding: 0.07rem 0.3rem;
   border-radius: 999px;
@@ -414,25 +418,20 @@
   background: rgba(255, 255, 255, 0.22);
 }
 
-/* 여러 날에 걸친 일정: 달력 칸 경계를 실제로 넘어 이어지도록 칸 안쪽 여백만큼 밖으로 흘려보낸다. */
+/* 여러 날에 걸친 일정: 이어지는 쪽 margin 을 0 으로 만들어 칸 경계 끝까지 닿게 한다.
+   칸 사이에는 간격·세로선이 없으므로, 양옆 칸의 띠가 경계에서 딱 맞물려 하나로 이어진다. */
 .schedule__bubble.is-cont-prev {
-  margin-left: calc(var(--cell-pad-x) * -1);
-  width: calc(100% + var(--cell-pad-x));
+  margin-left: 0;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   border-left: none;
 }
 
 .schedule__bubble.is-cont-next {
-  margin-right: calc(var(--cell-pad-x) * -1);
-  width: calc(100% + var(--cell-pad-x));
+  margin-right: 0;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   border-right: none;
-}
-
-.schedule__bubble.is-cont-prev.is-cont-next {
-  width: calc(100% + (var(--cell-pad-x) * 2));
 }
 
 /* 이어지는 구간(라벨 없음)은 텍스트 없이 막대만 채워 연속 띠처럼 보이게 한다. */
@@ -497,7 +496,7 @@
 
 .schedule__more {
   align-self: stretch;
-  width: 100%;
+  margin: 0 var(--cell-pad-x);
   box-sizing: border-box;
   text-align: center;
   padding: 0.05rem 0.4rem;
@@ -1036,7 +1035,7 @@
   .schedule__cell {
     --cell-pad-x: 0.2rem;
     min-height: 88px;
-    padding: 0.24rem var(--cell-pad-x) 0.3rem;
+    padding: 0.24rem 0 0.3rem;
     gap: 0.12rem;
   }
 
@@ -1131,7 +1130,7 @@
   .schedule__cell {
     --cell-pad-x: 0.34rem;
     min-height: 124px;
-    padding: 0.36rem var(--cell-pad-x) 0.4rem;
+    padding: 0.36rem 0 0.4rem;
   }
 
   .schedule__day-num {
