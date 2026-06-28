@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import QuickActions from "../components/QuickActions";
+import { useAuth } from "../context/AuthContext";
 import { SECTIONS, isCompetition } from "../lib/sections";
 import { useTechStack } from "../lib/useTechStack";
 import { usePortfolioPreview } from "../lib/usePortfolioPreview";
@@ -140,12 +141,30 @@ export default function RootPage() {
   const navigate = useNavigate();
   const { preview } = usePortfolioPreview();
   const { groups: techGroups } = useTechStack();
+  const { isSuperAdmin } = useAuth();
 
   return (
     <PageTransition className="page root">
       <div className="root__masthead">
         <motion.section className="hero" variants={heroStagger} initial="hidden" animate="show">
-          <motion.h1 className="display hero__name" variants={rise}>
+          <motion.h1
+            className={`display hero__name ${isSuperAdmin ? "hero__name--admin" : ""}`}
+            variants={rise}
+            onClick={isSuperAdmin ? () => navigate("/data") : undefined}
+            role={isSuperAdmin ? "button" : undefined}
+            tabIndex={isSuperAdmin ? 0 : undefined}
+            onKeyDown={
+              isSuperAdmin
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigate("/data");
+                    }
+                  }
+                : undefined
+            }
+            title={isSuperAdmin ? "데이터 보관함 열기" : undefined}
+          >
             이성권
           </motion.h1>
           <motion.p className="hero__lead" variants={rise}>

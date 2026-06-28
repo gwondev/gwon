@@ -113,6 +113,9 @@ export default function DetailModal({ open, onClose, title, media = [], children
                     )}
                   </div>
 
+                  {current?.name && current.name.trim() && (
+                    <p className="detail-modal__media-name">{current.name.trim()}</p>
+                  )}
                   {current?.caption && (
                     <p className="detail-modal__caption">{current.caption}</p>
                   )}

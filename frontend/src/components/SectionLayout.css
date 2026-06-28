@@ -550,6 +550,21 @@
   gap: 0.45rem;
   min-width: 0;
 }
+.media-editor__name {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+.media-editor__name:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
 .media-editor__caption {
   width: 100%;
   min-height: 54px;

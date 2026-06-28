@@ -143,6 +143,13 @@
   right: 12px;
 }
 
+.detail-modal__media-name {
+  margin: 0 0 0.15rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
 .detail-modal__caption {
   margin: 0;
   font-size: 0.92rem;

@@ -13,6 +13,7 @@ import NicknameSetupPage from "./pages/NicknameSetupPage";
 import MyPage from "./pages/MyPage";
 import SchedulePage from "./pages/SchedulePage";
 import AdminPage from "./pages/AdminPage";
+import DataPage from "./pages/DataPage";
 import ScrollToTop from "./components/ScrollToTop";
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/schedule" element={<SchedulePage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/data" element={<DataPage />} />
         <Route path="/admin/chat" element={<Navigate to="/admin" replace />} />
         <Route path="*" element={<RootPage />} />
       </Routes>

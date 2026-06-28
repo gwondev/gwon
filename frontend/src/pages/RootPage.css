@@ -33,6 +33,13 @@
   background-clip: text;
   color: transparent;
 }
+.hero__name--admin {
+  cursor: pointer;
+  transition: filter 0.3s var(--ease);
+}
+.hero__name--admin:hover {
+  filter: drop-shadow(0 0 14px rgba(216, 193, 154, 0.45));
+}
 .hero__lead {
   max-width: none;
   margin: 0 auto;

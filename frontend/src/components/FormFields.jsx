@@ -242,6 +242,8 @@ function MediaEditor({ value, onChange }) {
 
   const updateCaption = (i, caption) =>
     setList(list.map((m, j) => (j === i ? { ...m, caption } : m)));
+  const updateName = (i, name) =>
+    setList(list.map((m, j) => (j === i ? { ...m, name } : m)));
   const removeAt = (i) => setList(list.filter((_, j) => j !== i));
   const move = (i, dir) => {
     const j = i + dir;
@@ -266,6 +268,12 @@ function MediaEditor({ value, onChange }) {
               )}
             </div>
             <div className="media-editor__fields">
+              <input
+                className="media-editor__name"
+                value={m.name || ""}
+                placeholder={`이름 (예: 수상사진) · 미입력 시 ${m.video ? "동영상" : "사진"}${i + 1}`}
+                onChange={(e) => updateName(i, e.target.value)}
+              />
               <textarea
                 className="media-editor__caption"
                 value={m.caption || ""}
