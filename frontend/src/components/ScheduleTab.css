@@ -446,17 +446,17 @@
   line-height: 1;
 }
 
-/* 아이콘은 em 기준으로 글자보다 작게 → 어느 화면에서도 막대 높이를 넘지 않는다. */
+/* 아이콘은 em 기준으로 글자보다 확실히 작게 → 막대 높이를 넘지 않고 글자보다 작게 유지. */
 .schedule__money-icon {
   display: inline-grid;
   place-items: center;
-  width: 0.82em;
-  height: 0.82em;
-  margin-right: 0.08rem;
+  width: 0.62em;
+  height: 0.62em;
+  margin-right: 0.06rem;
   border-radius: 50%;
   background: #facc15;
   color: #111827;
-  font-size: 0.62em;
+  font-size: 0.42em;
   font-weight: 800;
   line-height: 1;
   flex: none;
@@ -466,13 +466,13 @@
 .schedule__drink-icon {
   display: inline-grid;
   place-items: center;
-  width: 0.82em;
-  height: 0.82em;
-  margin-right: 0.08rem;
+  width: 0.62em;
+  height: 0.62em;
+  margin-right: 0.06rem;
   border-radius: 50%;
   background: #f59e0b;
   color: #111827;
-  font-size: 0.55em;
+  font-size: 0.4em;
   line-height: 1;
   flex: none;
   align-self: center;
@@ -772,6 +772,8 @@
   font-weight: 700;
   color: var(--text);
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex: none;
 }
 
 .schedule__duration-select {

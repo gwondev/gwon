@@ -7,7 +7,6 @@ import {
   eventSeriesKey,
   expandEventDates,
   filterTitle,
-  formatShortDateKey,
   ownerLabel,
   REPEAT_PRESETS,
   repeatPresetById,
@@ -1351,7 +1350,12 @@ function EventModal({
           </div>
 
           <div className="schedule__date-row">
-            <span className="schedule__date-display">{formatShortDateKey(form.eventDate)}</span>
+            <span className="schedule__date-display">
+              {formatDateDot(form.eventDate)}
+              {form.spanDays > 1
+                ? ` ~ ${formatDateDot(shiftDateKey(form.eventDate, form.spanDays - 1))}`
+                : ""}
+            </span>
             <select
               className="schedule__duration-select"
               value={form.spanDays}
