@@ -222,7 +222,7 @@ async function buildOwnerNameMap(ownerIds) {
 }
 
 function expandEventDates(eventDate, spanDays, repeatWeeks) {
-  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 31);
+  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 366);
   const weeks = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52);
   const [y, m, d] = eventDate.split("-").map(Number);
   const start = new Date(y, m - 1, d);
@@ -563,7 +563,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const endTime = body.endTime ? String(body.endTime).trim() : null;
     const incomeType = body.incomeType ? String(body.incomeType).toUpperCase() : null;
     const appointmentType = body.appointmentType ? String(body.appointmentType).toUpperCase() : null;
-    const spanDays = Math.min(Math.max(Number(body.spanDays) || 1, 1), 31);
+    const spanDays = Math.min(Math.max(Number(body.spanDays) || 1, 1), 366);
     const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks) || 1, 1), 52);
     const location = parseLocationFields(body);
 
@@ -660,7 +660,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const appointmentType = body.appointmentType !== undefined
       ? (body.appointmentType ? String(body.appointmentType).toUpperCase() : null)
       : existing.appointment_type;
-    const spanDays = Math.min(Math.max(Number(body.spanDays ?? existing.series_span_days ?? 1) || 1, 1), 31);
+    const spanDays = Math.min(Math.max(Number(body.spanDays ?? existing.series_span_days ?? 1) || 1, 1), 366);
     const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks ?? existing.series_repeat_weeks ?? 1) || 1, 1), 52);
     const location = parseLocationFields(body, existing);
     const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);

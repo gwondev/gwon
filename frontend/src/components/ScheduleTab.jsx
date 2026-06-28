@@ -77,6 +77,38 @@ function shiftDateKey(dateKey, delta) {
   return toDateKey(dt);
 }
 
+const MAX_TOTAL_SPAN_DAYS = 366;
+
+// 시작일 기준 N개월 뒤의 같은 날짜까지를 "연속 일수"로 환산 (실제 달력 기준)
+function monthsToSpanDays(startKey, months) {
+  if (!startKey || !/^\d{4}-\d{2}-\d{2}$/.test(startKey)) return 1;
+  const [y, m, d] = startKey.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  const end = new Date(y, m - 1 + Number(months || 0), d);
+  const days = Math.round((end - start) / 86400000) + 1;
+  return Math.min(Math.max(days, 1), MAX_TOTAL_SPAN_DAYS);
+}
+
+// (선택값, 커스텀 숫자, 시작일) → 실제 연속 일수
+function spanChoiceToDays(choice, customNum, startKey) {
+  const n = Math.max(1, Number(customNum) || 1);
+  if (choice === "cd") return Math.min(n, MAX_TOTAL_SPAN_DAYS);
+  if (choice === "cw") return Math.min(n * 7, MAX_TOTAL_SPAN_DAYS);
+  if (choice === "cm") return monthsToSpanDays(startKey, n);
+  if (typeof choice === "string" && choice.startsWith("w")) {
+    return Math.min(Number(choice.slice(1)) * 7, MAX_TOTAL_SPAN_DAYS);
+  }
+  return Math.min(Math.max(Number(choice) || 1, 1), MAX_TOTAL_SPAN_DAYS);
+}
+
+// 저장된 일수(spanDays) → 셀렉트 초기 선택값
+function daysToSpanChoice(days) {
+  const d = Math.max(1, Number(days) || 1);
+  if (d <= 14) return String(d);
+  if (d % 7 === 0 && d / 7 <= 4) return `w${d / 7}`;
+  return "cd";
+}
+
 function timeToMinute(v) {
   if (!v || !/^\d{2}:\d{2}$/.test(v)) return null;
   const [h, m] = v.split(":").map(Number);
@@ -1204,6 +1236,31 @@ function EventModal({
   );
   const [quickPreset, setQuickPreset] = useState(null);
 
+  const [spanChoice, setSpanChoice] = useState(() => daysToSpanChoice(form.spanDays));
+  const [spanCustom, setSpanCustom] = useState(() =>
+    daysToSpanChoice(form.spanDays) === "cd" ? form.spanDays || 1 : 1
+  );
+  const isCustomSpan = spanChoice === "cd" || spanChoice === "cw" || spanChoice === "cm";
+
+  const handleSpanChoice = useCallback(
+    (val) => {
+      setSpanChoice(val);
+      const days = spanChoiceToDays(val, spanCustom, form.eventDate);
+      setForm((f) => ({ ...f, spanDays: days }));
+    },
+    [spanCustom, form.eventDate, setForm]
+  );
+
+  const handleSpanCustom = useCallback(
+    (num) => {
+      const n = Math.max(1, Number(num) || 1);
+      setSpanCustom(n);
+      const days = spanChoiceToDays(spanChoice, n, form.eventDate);
+      setForm((f) => ({ ...f, spanDays: days }));
+    },
+    [spanChoice, form.eventDate, setForm]
+  );
+
   const applyQuickDuration = useCallback(
     (hours) => {
       const start = /^\d{2}:\d{2}$/.test(form.startTime || "") ? form.startTime : "09:00";
@@ -1358,18 +1415,43 @@ function EventModal({
             </span>
             <select
               className="schedule__duration-select"
-              value={form.spanDays}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, spanDays: Number(e.target.value) }))
-              }
+              value={spanChoice}
+              onChange={(e) => handleSpanChoice(e.target.value)}
               aria-label="기간"
             >
-              {spanOptions.map((n) => (
-                <option key={n} value={n}>
-                  {spanDaysLabel(n)}
-                </option>
-              ))}
+              <optgroup label="일 단위">
+                {spanOptions.map((n) => (
+                  <option key={`d${n}`} value={String(n)}>
+                    {spanDaysLabel(n)}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="주 단위">
+                <option value="w2">2주간</option>
+                <option value="w3">3주간</option>
+                <option value="w4">4주간</option>
+              </optgroup>
+              <optgroup label="직접 입력">
+                <option value="cd">N일 직접입력</option>
+                <option value="cw">N주 직접입력</option>
+                <option value="cm">N개월 직접입력</option>
+              </optgroup>
             </select>
+            {isCustomSpan && (
+              <div className="schedule__span-custom">
+                <input
+                  type="number"
+                  min="1"
+                  max={spanChoice === "cm" ? 12 : spanChoice === "cw" ? 52 : 366}
+                  value={spanCustom}
+                  onChange={(e) => handleSpanCustom(e.target.value)}
+                  aria-label="기간 직접 입력 숫자"
+                />
+                <span className="schedule__span-custom-unit">
+                  {spanChoice === "cd" ? "일" : spanChoice === "cw" ? "주" : "개월"}
+                </span>
+              </div>
+            )}
             <select
               className="schedule__duration-select"
               value={form.repeatPreset}

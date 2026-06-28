@@ -54,7 +54,7 @@ export function repeatWeeksLabel(n, presetId) {
 
 export function expandEventDates(eventDate, spanDays, repeatWeeks) {
   if (!eventDate || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return [];
-  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 31);
+  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 366);
   const weeks = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52);
   const [y, m, d] = eventDate.split("-").map(Number);
   const start = new Date(y, m - 1, d);
