@@ -914,7 +914,7 @@ function DayCell({
   canManageEvent,
   onToggleSelect,
 }) {
-  const maxVisible = 5;
+  const maxVisible = 4;
   const uniqueEvents = dedupeEventsBySeries(events);
   const visible = uniqueEvents.slice(0, maxVisible);
   const hiddenCount = Math.max(0, uniqueEvents.length - maxVisible);

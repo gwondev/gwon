@@ -84,7 +84,21 @@ export function eventSeriesKey(ev) {
   return ev.seriesId || `single-${ev.id}`;
 }
 
-/** 연속·반복 일정은 시리즈당 하나만 표시 */
+export function isMultiDayEvent(ev) {
+  return (Number(ev?.spanDays) || 1) > 1;
+}
+
+// 정렬 우선순위: 1) 1일 이상(멀티데이)  2) 종일  3) 시간 있는 일정
+function eventSortRank(ev) {
+  if (isMultiDayEvent(ev)) return 0;
+  if (!ev.startTime) return 1;
+  return 2;
+}
+
+/**
+ * 연속·반복 일정은 시리즈당 하나만 표시.
+ * 멀티데이 일정을 항상 맨 위 같은 줄에 두어, 칸을 넘어가는 띠가 끊기지 않고 이어지게 한다.
+ */
 export function dedupeEventsBySeries(events) {
   const map = new Map();
   for (const ev of events) {
@@ -92,12 +106,29 @@ export function dedupeEventsBySeries(events) {
     if (!map.has(key)) map.set(key, ev);
   }
   return [...map.values()].sort((a, b) => {
-    const da = a.seriesStartDate || a.eventDate;
-    const db = b.seriesStartDate || b.eventDate;
-    if (da !== db) return da.localeCompare(db);
-    if (a.startTime && !b.startTime) return -1;
-    if (!a.startTime && b.startTime) return 1;
-    if (!a.startTime && !b.startTime) return a.id - b.id;
-    return (a.startTime || "").localeCompare(b.startTime || "");
+    const ra = eventSortRank(a);
+    const rb = eventSortRank(b);
+    if (ra !== rb) return ra - rb;
+
+    // 멀티데이끼리는 모든 칸에서 동일한 줄 순서를 유지해야 띠가 정렬된다.
+    if (ra === 0) {
+      const da = a.seriesStartDate || a.eventDate;
+      const db = b.seriesStartDate || b.eventDate;
+      if (da !== db) return da.localeCompare(db);
+      return eventSeriesKey(a).localeCompare(eventSeriesKey(b));
+    }
+
+    // 종일끼리는 시작일·id 순
+    if (ra === 1) {
+      const da = a.seriesStartDate || a.eventDate;
+      const db = b.seriesStartDate || b.eventDate;
+      if (da !== db) return da.localeCompare(db);
+      return a.id - b.id;
+    }
+
+    // 시간 있는 일정끼리는 시작 시간이 빠른 순
+    const t = (a.startTime || "").localeCompare(b.startTime || "");
+    if (t !== 0) return t;
+    return a.id - b.id;
   });
 }
