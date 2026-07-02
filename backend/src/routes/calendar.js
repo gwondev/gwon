@@ -65,6 +65,16 @@ function publicEvent(row) {
     spanDays: Number(row.series_span_days) || 1,
     repeatWeeks: Number(row.series_repeat_weeks) || 1,
     weekdays: normalizeWeekdays(row.series_weekdays),
+    repeat: row.series_repeat_freq
+      ? {
+          freq: row.series_repeat_freq,
+          interval: Number(row.series_repeat_interval) || 1,
+          weekdays: normalizeWeekdays(row.series_weekdays),
+          until: row.series_repeat_until
+            ? String(row.series_repeat_until).slice(0, 10)
+            : null,
+        }
+      : null,
     appointmentType: row.appointment_type || null,
     sharedOwnerIds,
     sharedOwnerNames: row.sharedOwnerNames || [],
@@ -306,12 +316,108 @@ function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays, endDate) {
   return [...dates].sort();
 }
 
+function addMonths(date, n) {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  return d;
+}
+
+function normalizeRepeat(repeat) {
+  if (!repeat || typeof repeat !== "object" || !repeat.freq) return null;
+  const freq = String(repeat.freq);
+  if (!["daily", "weekly", "monthly", "yearly"].includes(freq)) return null;
+  return {
+    freq,
+    interval: Math.min(Math.max(Number(repeat.interval) || 1, 1), 99),
+    weekdays: normalizeWeekdays(repeat.weekdays),
+    until: repeat.until && /^\d{4}-\d{2}-\d{2}/.test(String(repeat.until))
+      ? String(repeat.until).slice(0, 10)
+      : null,
+  };
+}
+
+// 통합 날짜 생성기 (프론트 calendarUtils.expandOccurrences 와 동일 규칙)
+function expandOccurrences(spec) {
+  const start = parseDateKey(spec && spec.startDate);
+  if (!start) return [];
+  const dates = new Set();
+  const repeat = normalizeRepeat(spec && spec.repeat);
+
+  if (!repeat) {
+    const end = parseDateKey(spec && spec.endDate) || start;
+    if (end < start) return [dateKeyOf(start)];
+    const dt = new Date(start);
+    let guard = 0;
+    while (dt <= end && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt.setDate(dt.getDate() + 1);
+      guard += 1;
+    }
+    return [...dates].sort();
+  }
+
+  const interval = repeat.interval;
+  const until = parseDateKey(repeat.until) || start;
+  if (until < start) return [dateKeyOf(start)];
+
+  if (repeat.freq === "daily") {
+    const dt = new Date(start);
+    let guard = 0;
+    while (dt <= until && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt.setDate(dt.getDate() + interval);
+      guard += 1;
+    }
+  } else if (repeat.freq === "weekly") {
+    const wd = repeat.weekdays.length ? repeat.weekdays : [start.getDay()];
+    const wdSet = new Set(wd);
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() - start.getDay());
+    let guard = 0;
+    for (let w = 0; guard < MAX_EXPAND_DAYS; w += interval) {
+      const base = new Date(weekStart);
+      base.setDate(weekStart.getDate() + w * 7);
+      if (base > until) break;
+      for (let day = 0; day < 7; day++) {
+        const dt = new Date(base);
+        dt.setDate(base.getDate() + day);
+        if (!wdSet.has(dt.getDay())) continue;
+        if (dt < start || dt > until) continue;
+        dates.add(dateKeyOf(dt));
+      }
+      guard += 1;
+    }
+  } else if (repeat.freq === "monthly") {
+    let guard = 0;
+    let dt = new Date(start);
+    while (dt <= until && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt = addMonths(start, (guard + 1) * interval);
+      guard += 1;
+    }
+  } else if (repeat.freq === "yearly") {
+    const dt = new Date(start);
+    let guard = 0;
+    while (dt <= until && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt.setFullYear(dt.getFullYear() + interval);
+      guard += 1;
+    }
+  }
+  return [...dates].sort();
+}
+
 async function insertEvent(conn, data) {
   const [result] = await conn.query(
     `INSERT INTO calendar_events
      (owner_id, created_by, shared_owner_ids, series_id, series_start_date, series_end_date, series_span_days, series_repeat_weeks, series_weekdays,
+      series_repeat_freq, series_repeat_interval, series_repeat_until,
       appointment_type, location_name, location_lat, location_lng, title, description, event_date, start_time, end_time, income_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.ownerId,
       data.actorId,
@@ -322,6 +428,9 @@ async function insertEvent(conn, data) {
       data.seriesSpanDays || 1,
       data.seriesRepeatWeeks || 1,
       data.seriesWeekdays && data.seriesWeekdays.length ? data.seriesWeekdays.join(",") : null,
+      data.repeat?.freq || null,
+      data.repeat?.freq ? data.repeat.interval || 1 : null,
+      data.repeat?.until || null,
       data.appointmentType || null,
       data.locationName || null,
       data.locationLat ?? null,
@@ -350,6 +459,7 @@ async function updateEventRow(conn, id, data) {
     `UPDATE calendar_events SET
        owner_id = ?, shared_owner_ids = ?, series_id = ?,
        series_start_date = ?, series_end_date = ?, series_span_days = ?, series_repeat_weeks = ?, series_weekdays = ?,
+       series_repeat_freq = ?, series_repeat_interval = ?, series_repeat_until = ?,
        appointment_type = ?, location_name = ?, location_lat = ?, location_lng = ?,
        title = ?, description = ?, event_date = ?, start_time = ?, end_time = ?, income_type = ?
      WHERE id = ?`,
@@ -362,6 +472,9 @@ async function updateEventRow(conn, id, data) {
       data.seriesSpanDays || 1,
       data.seriesRepeatWeeks || 1,
       data.seriesWeekdays && data.seriesWeekdays.length ? data.seriesWeekdays.join(",") : null,
+      data.repeat?.freq || null,
+      data.repeat?.freq ? data.repeat.interval || 1 : null,
+      data.repeat?.until || null,
       data.appointmentType || null,
       data.locationName || null,
       data.locationLat ?? null,
@@ -378,8 +491,9 @@ async function updateEventRow(conn, id, data) {
 }
 
 async function createSeriesEvents(conn, data) {
-  const weekdays = normalizeWeekdays(data.weekdays);
-  const dates = expandEventDates(data.eventDate, data.spanDays, data.repeatWeeks, weekdays, data.endDate);
+  const repeat = normalizeRepeat(data.repeat);
+  const weekdays = repeat?.freq === "weekly" ? repeat.weekdays : [];
+  const dates = expandOccurrences({ startDate: data.eventDate, endDate: data.endDate, repeat });
   if (!dates.length) {
     throw Object.assign(new Error("유효한 날짜가 없습니다."), { status: 400 });
   }
@@ -394,9 +508,10 @@ async function createSeriesEvents(conn, data) {
       seriesId,
       seriesStartDate,
       seriesEndDate,
-      seriesSpanDays: data.spanDays,
-      seriesRepeatWeeks: data.repeatWeeks,
+      seriesSpanDays: dates.length,
+      seriesRepeatWeeks: 1,
       seriesWeekdays: weekdays,
+      repeat,
     });
     created.push(row);
   }
@@ -634,9 +749,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const endTime = body.endTime ? String(body.endTime).trim() : null;
     const incomeType = body.incomeType ? String(body.incomeType).toUpperCase() : null;
     const appointmentType = body.appointmentType ? String(body.appointmentType).toUpperCase() : null;
-    const spanDays = Math.min(Math.max(Number(body.spanDays) || 1, 1), 366);
-    const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks) || 1, 1), 52);
-    const weekdays = normalizeWeekdays(body.weekdays);
+    const repeat = normalizeRepeat(body.repeat);
     const endDate = body.endDate ? toDateKey(body.endDate) : null;
     const location = parseLocationFields(body);
 
@@ -650,7 +763,8 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
       return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
     }
-    if (startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
+    // 같은 날 시간 지정일 때만 순서 검증 (종료일이 다르면 종일/다일에 걸친 것으로 허용)
+    if (!endDate && startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
       return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
     }
 
@@ -674,10 +788,8 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
         endTime,
         incomeType,
         appointmentType,
-        spanDays,
-        repeatWeeks,
-        weekdays,
         endDate,
+        repeat,
         ...location,
       });
       const ownerNameMap = await buildOwnerNameMap(ownerIds);
@@ -691,7 +803,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
       console.log(
         `[calendar] POST /events uid=${actorId} owners=[${ownerIds.join(",")}] ` +
           `inserted=${created.length} series=${created[0]?.seriesId || "?"} ` +
-          `span=${spanDays} repeat=${repeatWeeks} title="${title}"`
+          `repeat=${repeat?.freq || "none"} title="${title}"`
       );
       res.status(201).json({ items: created, item: created[0] });
     } catch (err) {
@@ -735,12 +847,19 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const appointmentType = body.appointmentType !== undefined
       ? (body.appointmentType ? String(body.appointmentType).toUpperCase() : null)
       : existing.appointment_type;
-    const spanDays = Math.min(Math.max(Number(body.spanDays ?? existing.series_span_days ?? 1) || 1, 1), 366);
-    const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks ?? existing.series_repeat_weeks ?? 1) || 1, 1), 52);
-    const weekdays = normalizeWeekdays(
-      body.weekdays !== undefined ? body.weekdays : existing.series_weekdays
-    );
-    const endDate = body.endDate ? toDateKey(body.endDate) : null;
+    const repeat = body.repeat !== undefined
+      ? normalizeRepeat(body.repeat)
+      : (existing.series_repeat_freq
+          ? normalizeRepeat({
+              freq: existing.series_repeat_freq,
+              interval: existing.series_repeat_interval,
+              weekdays: existing.series_weekdays,
+              until: existing.series_repeat_until,
+            })
+          : null);
+    const endDate = body.endDate !== undefined
+      ? (body.endDate ? toDateKey(body.endDate) : null)
+      : (existing.series_end_date ? String(existing.series_end_date).slice(0, 10) : null);
     const location = parseLocationFields(body, existing);
     const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
     const ownerIds = requestedOwnerIds.length
@@ -758,7 +877,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
       return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
     }
-    if (startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
+    if (!endDate && !repeat && startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
       return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
     }
 
@@ -766,7 +885,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const seriesId = existing.series_id || makeSeriesId();
 
     // 새로 적용할 날짜 목록
-    const newDates = expandEventDates(eventDate, spanDays, repeatWeeks, weekdays, endDate);
+    const newDates = expandOccurrences({ startDate: eventDate, endDate: repeat ? null : endDate, repeat });
     if (!newDates.length) {
       return res.status(400).json({ error: "유효한 날짜가 없습니다." });
     }
@@ -791,9 +910,10 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       seriesId,
       seriesStartDate,
       seriesEndDate,
-      seriesSpanDays: spanDays,
-      seriesRepeatWeeks: repeatWeeks,
-      seriesWeekdays: weekdays,
+      seriesSpanDays: newDates.length,
+      seriesRepeatWeeks: 1,
+      seriesWeekdays: repeat?.freq === "weekly" ? repeat.weekdays : [],
+      repeat,
       ...location,
     };
 
@@ -818,23 +938,20 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     }
 
     const willDelete = deleteIds.length;
-    const isShrink =
-      spanDays < (Number(existing.series_span_days) || 1) ||
-      repeatWeeks < (Number(existing.series_repeat_weeks) || 1);
+    const isShrink = newDates.length < seriesRows.length;
 
     console.log(
       `[calendar] PUT /events/${req.params.id} uid=${actorId} series=${seriesId} ` +
         `existingRows=${seriesRows.length} newDates=${newDates.length} ` +
         `plan{update:${reuseIds.length}, insert:${insertCount}, delete:${willDelete}} ` +
-        `span:${existing.series_span_days || 1}->${spanDays} repeat:${existing.series_repeat_weeks || 1}->${repeatWeeks} ` +
-        `title="${title}"`
+        `repeat:${repeat?.freq || "none"} title="${title}"`
     );
 
-    // 삭제가 발생하는데 사용자가 기간/반복을 줄인 것이 아니라면 경고 로그 (원인 추적용)
+    // 삭제가 발생하는데 개수가 줄어든 것이 아니라면 경고 로그 (원인 추적용)
     if (willDelete > 0 && !isShrink) {
       console.warn(
-        `[calendar] PUT WARN: ${willDelete}개 행이 삭제 예정이나 기간/반복 축소가 감지되지 않음. ` +
-          `deleteIds=${deleteIds.join(",")} (기존 시리즈 행 수가 기간/반복 설정보다 많았음)`
+        `[calendar] PUT WARN: ${willDelete}개 행이 삭제 예정이나 축소가 감지되지 않음. ` +
+          `deleteIds=${deleteIds.join(",")}`
       );
     }
 

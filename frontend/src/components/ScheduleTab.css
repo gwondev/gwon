@@ -892,6 +892,262 @@
   color: #f87171;
 }
 
+/* ── 종일 토글 ── */
+.schedule__allday-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.schedule__allday-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.schedule__allday-btn.is-active {
+  background: var(--cal-accent, #ef4444);
+  border-color: transparent;
+  color: #fff;
+}
+
+.schedule__allday-check {
+  width: 0.9em;
+  text-align: center;
+  font-size: 0.8em;
+}
+
+.schedule__allday-start {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── 날짜/시간 휠 영역 ── */
+.schedule__when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  overflow: hidden;
+}
+
+.schedule__when-block {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.schedule__when-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.schedule__repeat-until {
+  flex: 1 1 100%;
+}
+
+/* ── 휠 피커 ── */
+.wheel-group {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.wheel {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 5.5rem;
+}
+
+.wheel__scroll {
+  position: relative;
+  height: 170px;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
+}
+
+.wheel__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.wheel__pad {
+  height: 68px;
+  flex: none;
+}
+
+.wheel__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  width: 100%;
+  scroll-snap-align: center;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: color 0.15s var(--ease), transform 0.15s var(--ease), opacity 0.15s var(--ease);
+  opacity: 0.55;
+}
+
+.wheel__item.is-sel {
+  color: var(--text);
+  font-weight: 800;
+  transform: scale(1.12);
+  opacity: 1;
+}
+
+.wheel__center {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 68px;
+  height: 34px;
+  border-top: 1px solid var(--cal-accent, #ef4444);
+  border-bottom: 1px solid var(--cal-accent, #ef4444);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.wheel__suffix {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+/* ── 반복 토글/패널 ── */
+.schedule__repeat-toggle {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.schedule__repeat-toggle.is-active {
+  background: var(--cal-accent, #ef4444);
+  border-color: transparent;
+  color: #fff;
+}
+
+.schedule__repeat-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  overflow: hidden;
+  padding: 0.2rem 0.1rem;
+}
+
+.schedule__freq-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.schedule__freq-btn {
+  padding: 0.5rem 0;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.schedule__freq-btn.is-active {
+  background: var(--cal-accent, #ef4444);
+  border-color: transparent;
+  color: #fff;
+}
+
+.schedule__interval-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.schedule__interval-label,
+.schedule__interval-suffix {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.schedule__stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  padding: 0.15rem;
+}
+
+.schedule__stepper button {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+
+.schedule__stepper button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.schedule__stepper-val {
+  min-width: 3.2rem;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
 .schedule__repeatmode {
   display: flex;
   align-items: center;

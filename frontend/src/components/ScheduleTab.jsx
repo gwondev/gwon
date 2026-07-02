@@ -5,17 +5,14 @@ import { api } from "../lib/api";
 import {
   dedupeEventsBySeries,
   eventSeriesKey,
-  expandEventDates,
+  expandOccurrences,
   filterTitle,
   ownerLabel,
-  REPEAT_PRESETS,
-  repeatPresetById,
-  repeatPresetFromWeeks,
-  repeatWeeksLabel,
-  spanDaysLabel,
   normalizeWeekdays,
-  weekdaysLabel,
   WEEKDAY_LABELS,
+  REPEAT_FREQS,
+  repeatFreqById,
+  repeatSummary,
 } from "../lib/calendarUtils";
 import {
   CALENDAR_THEME_COLORS,
@@ -25,7 +22,6 @@ import {
 import "./ScheduleTab.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-const MAX_SPAN_DAYS = 14;
 
 const MOCK_OWNERS = [
   { id: 0, name: "이성권", nickname: "이성권", role: "SUPER_ADMIN", calendarThemeColor: "red" },
@@ -80,38 +76,6 @@ function shiftDateKey(dateKey, delta) {
   return toDateKey(dt);
 }
 
-const MAX_TOTAL_SPAN_DAYS = 366;
-
-// 시작일 기준 N개월 뒤의 같은 날짜까지를 "연속 일수"로 환산 (실제 달력 기준)
-function monthsToSpanDays(startKey, months) {
-  if (!startKey || !/^\d{4}-\d{2}-\d{2}$/.test(startKey)) return 1;
-  const [y, m, d] = startKey.split("-").map(Number);
-  const start = new Date(y, m - 1, d);
-  const end = new Date(y, m - 1 + Number(months || 0), d);
-  const days = Math.round((end - start) / 86400000) + 1;
-  return Math.min(Math.max(days, 1), MAX_TOTAL_SPAN_DAYS);
-}
-
-// (선택값, 커스텀 숫자, 시작일) → 실제 연속 일수
-function spanChoiceToDays(choice, customNum, startKey) {
-  const n = Math.max(1, Number(customNum) || 1);
-  if (choice === "cd") return Math.min(n, MAX_TOTAL_SPAN_DAYS);
-  if (choice === "cw") return Math.min(n * 7, MAX_TOTAL_SPAN_DAYS);
-  if (choice === "cm") return monthsToSpanDays(startKey, n);
-  if (typeof choice === "string" && choice.startsWith("w")) {
-    return Math.min(Number(choice.slice(1)) * 7, MAX_TOTAL_SPAN_DAYS);
-  }
-  return Math.min(Math.max(Number(choice) || 1, 1), MAX_TOTAL_SPAN_DAYS);
-}
-
-// 저장된 일수(spanDays) → 셀렉트 초기 선택값
-function daysToSpanChoice(days) {
-  const d = Math.max(1, Number(days) || 1);
-  if (d <= 14) return String(d);
-  if (d % 7 === 0 && d / 7 <= 4) return `w${d / 7}`;
-  return "cd";
-}
-
 function timeToMinute(v) {
   if (!v || !/^\d{2}:\d{2}$/.test(v)) return null;
   const [h, m] = v.split(":").map(Number);
@@ -139,45 +103,50 @@ function buildMonthGrid(year, month) {
 }
 
 function blankForm(dateKey = "", ownerId = null) {
+  const start = dateKey || "";
   return {
     ownerIds: ownerId != null ? [ownerId] : [],
     title: "",
     description: "",
-    eventDate: dateKey,
-    startTime: "",
-    endTime: "",
+    eventDate: start,
+    allDay: false,
+    startTime: "09:00",
+    endTime: "18:00",
+    endDate: start,
     appointmentType: "",
     locationName: "",
     locationLat: null,
     locationLng: null,
-    spanDays: 1,
-    repeatWeeks: 1,
-    repeatPreset: "1w",
+    repeatOn: false,
+    repeatFreq: "weekly",
+    repeatInterval: 1,
     weekdays: [],
-    repeatMode: "weeks",
-    endDate: "",
+    repeatUntil: start,
   };
 }
 
 function formFromEvent(ev) {
-  const repeatWeeks = ev.repeatWeeks || 1;
+  const start = ev.seriesStartDate || ev.eventDate;
+  const repeat = ev.repeat && ev.repeat.freq ? ev.repeat : null;
+  const allDay = !ev.startTime;
   return {
     ownerIds: ev.sharedOwnerIds?.length ? [...ev.sharedOwnerIds] : [ev.ownerId],
     title: ev.title || "",
     description: ev.description || "",
-    eventDate: ev.seriesStartDate || ev.eventDate,
-    startTime: ev.startTime || "",
-    endTime: ev.endTime || "",
+    eventDate: start,
+    allDay,
+    startTime: ev.startTime || "09:00",
+    endTime: ev.endTime || "18:00",
+    endDate: repeat ? start : (ev.seriesEndDate || ev.eventDate || start),
     appointmentType: ev.appointmentType || (ev.incomeType ? "MONEY" : ""),
     locationName: ev.locationName || "",
     locationLat: ev.locationLat ?? null,
     locationLng: ev.locationLng ?? null,
-    spanDays: ev.spanDays || 1,
-    repeatWeeks,
-    repeatPreset: repeatPresetFromWeeks(repeatWeeks),
-    weekdays: normalizeWeekdays(ev.weekdays),
-    repeatMode: normalizeWeekdays(ev.weekdays).length ? "until" : "weeks",
-    endDate: normalizeWeekdays(ev.weekdays).length ? (ev.seriesEndDate || "") : "",
+    repeatOn: !!repeat,
+    repeatFreq: repeat?.freq || "weekly",
+    repeatInterval: repeat?.interval || 1,
+    weekdays: normalizeWeekdays(repeat?.weekdays),
+    repeatUntil: repeat?.until || ev.seriesEndDate || start,
   };
 }
 
@@ -264,8 +233,8 @@ export default function ScheduleTab() {
   const seriesDateSet = useMemo(() => {
     const set = new Set();
     for (const ev of displayEvents) {
-      // 요일 반복 일정은 칸마다 개별 표시(띠로 잇지 않음)
-      if ((ev.weekdays?.length || 0) > 0) continue;
+      // 반복 일정은 칸마다 개별 표시(띠로 잇지 않음). 비반복 연속 구간만 띠로 연결
+      if (ev.repeat?.freq) continue;
       set.add(`${eventSeriesKey(ev)}::${ev.eventDate}`);
     }
     return set;
@@ -473,9 +442,23 @@ export default function ScheduleTab() {
     if (!title) return setErr("일정명을 입력해주세요.");
     setBusy(true);
     setErr(null);
-    const endDate = form.repeatMode === "until" ? (form.endDate || null) : null;
+
+    const allDay = form.allDay;
+    const startTime = allDay ? null : (form.startTime || null);
+    const endTime = allDay ? null : (form.endTime || null);
+    const repeat = form.repeatOn
+      ? {
+          freq: form.repeatFreq,
+          interval: Math.max(1, Number(form.repeatInterval) || 1),
+          weekdays: form.repeatFreq === "weekly" ? normalizeWeekdays(form.weekdays) : [],
+          until: form.repeatUntil || null,
+        }
+      : null;
+    const endDate = repeat ? null : (form.endDate || null);
+    const sameDay = !form.endDate || form.endDate === form.eventDate;
+
     try {
-      if (form.startTime && form.endTime && timeToMinute(form.endTime) <= timeToMinute(form.startTime)) {
+      if (!allDay && !repeat && sameDay && startTime && endTime && timeToMinute(endTime) <= timeToMinute(startTime)) {
         setErr("종료 시간은 시작 시간보다 뒤로 설정해주세요.");
         setBusy(false);
         return;
@@ -485,29 +468,19 @@ export default function ScheduleTab() {
           title,
           description: form.description.trim(),
           eventDate: form.eventDate,
-          startTime: form.startTime || null,
-          endTime: form.endTime || null,
+          startTime,
+          endTime,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
-          locationName: form.locationName?.trim() || null,
-          locationLat: form.locationLat,
-          locationLng: form.locationLng,
           ownerIds: form.ownerIds,
-          spanDays: form.spanDays,
-          repeatWeeks: form.repeatWeeks,
-          weekdays: form.weekdays,
           endDate,
+          repeat,
         };
         if (localMode) {
           setEvents((prev) =>
             prev.map((ev) =>
               ev.id === editId
-                ? {
-                    ...ev,
-                    ...payload,
-                    startTime: payload.startTime,
-                    endTime: payload.endTime,
-                  }
+                ? { ...ev, ...payload, startTime, endTime, weekdays: repeat?.weekdays || [] }
                 : ev
             )
           );
@@ -526,28 +499,22 @@ export default function ScheduleTab() {
           title,
           description: form.description.trim(),
           eventDate: form.eventDate,
-          startTime: form.startTime || null,
-          endTime: form.endTime || null,
+          startTime,
+          endTime,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
-          locationName: form.locationName?.trim() || null,
-          locationLat: form.locationLat,
-          locationLng: form.locationLng,
-          spanDays: form.spanDays,
-          repeatWeeks: form.repeatWeeks,
-          weekdays: form.weekdays,
           endDate,
+          repeat,
         };
 
         if (localMode) {
-          const dates = expandEventDates(form.eventDate, form.spanDays, form.repeatWeeks, form.weekdays, endDate);
+          const dates = expandOccurrences({ startDate: form.eventDate, endDate, repeat });
           const owner = owners.find((o) => o.id === ownerIds[0]) || owners[0];
           const sharedOwners = owners.filter((o) => ownerIds.includes(o.id));
           const sharedOwnerNames = sharedOwners.map((o) => ownerLabel(o));
           const seriesId = `local-${Date.now()}`;
           const seriesStartDate = dates[0];
           const seriesEndDate = dates[dates.length - 1];
-          const weekdays = normalizeWeekdays(form.weekdays);
           const items = dates.map((eventDate, i) => ({
             id: Date.now() + i,
             ownerId: ownerIds[0],
@@ -558,19 +525,16 @@ export default function ScheduleTab() {
             seriesId,
             seriesStartDate,
             seriesEndDate,
-            spanDays: form.spanDays,
-            repeatWeeks: form.repeatWeeks,
-            weekdays,
+            spanDays: dates.length,
+            weekdays: repeat?.weekdays || [],
+            repeat,
             title,
             description: form.description.trim(),
             eventDate,
-            startTime: form.startTime || null,
-            endTime: form.endTime || null,
+            startTime,
+            endTime,
             incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
             appointmentType: form.appointmentType || null,
-            locationName: form.locationName?.trim() || null,
-            locationLat: form.locationLat,
-            locationLng: form.locationLng,
           }));
           setEvents((prev) => [...prev, ...items]);
         } else {
@@ -989,7 +953,7 @@ function DayCell({
       <div className="schedule__bubbles">
         {visible.map((ev) => {
           const seriesKey = eventSeriesKey(ev);
-          const isDiscrete = (ev.weekdays?.length || 0) > 0;
+          const isDiscrete = !!ev.repeat?.freq;
           const prev = !isDiscrete && seriesDateSet.has(`${seriesKey}::${shiftDateKey(dateKey, -1)}`);
           const next = !isDiscrete && seriesDateSet.has(`${seriesKey}::${shiftDateKey(dateKey, 1)}`);
           const selectable = canManageEvent(ev);
@@ -1067,182 +1031,133 @@ function mapsLink(lat, lng) {
   return `https://www.google.com/maps?q=${lat},${lng}`;
 }
 
-function LocationPicker({ value, onChange }) {
-  const { token, localMode } = useAuth();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const wrapRef = useRef(null);
-  const debounceRef = useRef(null);
+const WHEEL_ITEM_H = 34;
+
+function rangeArr(start, end) {
+  const out = [];
+  for (let i = start; i < end; i++) out.push(i);
+  return out;
+}
+
+function parseFormDate(v) {
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const [y, m, d] = v.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function WheelColumn({ items, value, onChange, ariaLabel, suffix }) {
+  const ref = useRef(null);
+  const settleRef = useRef(null);
+  const idx = Math.max(0, items.findIndex((it) => String(it.value) === String(value)));
 
   useEffect(() => {
-    const onDocClick = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
+    const el = ref.current;
+    if (!el) return;
+    const target = idx * WHEEL_ITEM_H;
+    if (Math.abs(el.scrollTop - target) > 1) el.scrollTop = target;
+  }, [idx]);
 
-  const runSearch = useCallback(
-    async (q) => {
-      const trimmed = q.trim();
-      if (trimmed.length < 2) {
-        setResults([]);
-        return;
-      }
-      setSearching(true);
-      try {
-        if (localMode) {
-          const url = new URL("https://nominatim.openstreetmap.org/search");
-          url.searchParams.set("format", "json");
-          url.searchParams.set("q", trimmed);
-          url.searchParams.set("limit", "6");
-          url.searchParams.set("countrycodes", "kr");
-          const resp = await fetch(url, { headers: { Accept: "application/json" } });
-          const data = await resp.json();
-          setResults(
-            (Array.isArray(data) ? data : []).map((row) => ({
-              name: row.display_name,
-              lat: Number(row.lat),
-              lng: Number(row.lon),
-            }))
-          );
-        } else {
-          const data = await api(`/calendar/places?q=${encodeURIComponent(trimmed)}`, { token });
-          setResults(data.items || []);
-        }
-        setOpen(true);
-      } catch {
-        setResults([]);
-      } finally {
-        setSearching(false);
-      }
-    },
-    [token, localMode]
-  );
-
-  useEffect(() => {
-    clearTimeout(debounceRef.current);
-    if (!query.trim() || value?.locationName) {
-      setResults([]);
-      return undefined;
-    }
-    debounceRef.current = setTimeout(() => runSearch(query), 350);
-    return () => clearTimeout(debounceRef.current);
-  }, [query, value?.locationName, runSearch]);
-
-  const clearLocation = () => {
-    onChange({ locationName: "", locationLat: null, locationLng: null });
-    setQuery("");
-    setResults([]);
-    setOpen(false);
+  const handleScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    clearTimeout(settleRef.current);
+    settleRef.current = setTimeout(() => {
+      const i = Math.min(Math.max(Math.round(el.scrollTop / WHEEL_ITEM_H), 0), items.length - 1);
+      const target = i * WHEEL_ITEM_H;
+      if (Math.abs(el.scrollTop - target) > 1) el.scrollTo({ top: target, behavior: "smooth" });
+      const v = items[i]?.value;
+      if (v != null && String(v) !== String(value)) onChange(v);
+    }, 110);
   };
-
-  const pickLocation = (item) => {
-    onChange({
-      locationName: item.name,
-      locationLat: item.lat,
-      locationLng: item.lng,
-    });
-    setQuery("");
-    setResults([]);
-    setOpen(false);
-  };
-
-  if (value?.locationName && value.locationLat != null && value.locationLng != null) {
-    return (
-      <div className="field schedule__location-field">
-        <label>모임 위치</label>
-        <div className="schedule__location-selected">
-          <span className="schedule__location-pin" aria-hidden>
-            📍
-          </span>
-          <span className="schedule__location-name" title={value.locationName}>
-            {shortenLocationName(value.locationName)}
-          </span>
-          <button type="button" className="schedule__location-clear" onClick={clearLocation} aria-label="위치 삭제">
-            ✕
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="field schedule__location-field" ref={wrapRef}>
-      <label htmlFor="ev-location">모임 위치 (선택)</label>
-      <div className="schedule__location-search">
-        <span className="schedule__location-pin" aria-hidden>
-          📍
-        </span>
-        <input
-          id="ev-location"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder="장소 검색"
-          autoComplete="off"
-        />
-        {searching && <span className="schedule__location-loading">…</span>}
+    <div className="wheel">
+      <div className="wheel__scroll" ref={ref} onScroll={handleScroll} role="listbox" aria-label={ariaLabel}>
+        <div className="wheel__pad" />
+        {items.map((it) => (
+          <button
+            type="button"
+            key={it.value}
+            className={`wheel__item ${String(it.value) === String(value) ? "is-sel" : ""}`}
+            onClick={() => onChange(it.value)}
+          >
+            {it.label}
+          </button>
+        ))}
+        <div className="wheel__pad" />
       </div>
-      {open && results.length > 0 && (
-        <ul className="schedule__location-results">
-          {results.map((item, idx) => (
-            <li key={`${item.lat}-${item.lng}-${idx}`}>
-              <button type="button" onClick={() => pickLocation(item)}>
-                {shortenLocationName(item.name)}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="wheel__center" aria-hidden />
+      {suffix && <span className="wheel__suffix" aria-hidden>{suffix}</span>}
     </div>
   );
 }
 
-function MobileTimePicker({ label, value, onChange }) {
-  const [hourRaw, minuteRaw] = /^\d{2}:\d{2}$/.test(value || "") ? value.split(":") : ["09", "00"];
-  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")), []);
-  const minutes = useMemo(
-    () => Array.from({ length: 6 }, (_, i) => String(i * 10).padStart(2, "0")),
-    []
-  );
-  const safeMinute = minutes.includes(minuteRaw) ? minuteRaw : "00";
+function DateWheel({ value, min, onChange }) {
+  const cur = parseFormDate(value) || parseFormDate(min) || new Date();
+  const yy = cur.getFullYear();
+  const mm = cur.getMonth() + 1;
+  const dd = cur.getDate();
+  const minY = parseFormDate(min)?.getFullYear() ?? yy;
+  const loY = Math.min(yy, minY);
+  const years = rangeArr(loY, loY + 6);
+  const daysInMonth = new Date(yy, mm, 0).getDate();
+
+  const build = (ny, nm, nd) => {
+    const dim = new Date(ny, nm, 0).getDate();
+    const day = Math.min(nd, dim);
+    let key = `${ny}-${pad2(nm)}-${pad2(day)}`;
+    if (min && key < min) key = min;
+    onChange(key);
+  };
 
   return (
-    <div className="field">
-      <label>{label}</label>
-      <div className="schedule__time-scroll-wrap">
-        <select
-          className="schedule__time-scroll"
-          value={hourRaw}
-          onChange={(e) => onChange(`${e.target.value}:${safeMinute}`)}
-          aria-label={`${label} 시`}
-        >
-          {hours.map((h) => (
-            <option key={h} value={h}>
-              {h}시
-            </option>
-          ))}
-        </select>
-        <span className="schedule__time-colon">:</span>
-        <select
-          className="schedule__time-scroll"
-          value={safeMinute}
-          onChange={(e) => onChange(`${hourRaw}:${e.target.value}`)}
-          aria-label={`${label} 분`}
-        >
-          {minutes.map((m) => (
-            <option key={m} value={m}>
-              {m}분
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="wheel-group">
+      <WheelColumn
+        ariaLabel="년"
+        suffix="년"
+        items={years.map((v) => ({ value: v, label: `${v}` }))}
+        value={yy}
+        onChange={(v) => build(Number(v), mm, dd)}
+      />
+      <WheelColumn
+        ariaLabel="월"
+        suffix="월"
+        items={rangeArr(1, 13).map((v) => ({ value: v, label: `${v}` }))}
+        value={mm}
+        onChange={(v) => build(yy, Number(v), dd)}
+      />
+      <WheelColumn
+        ariaLabel="일"
+        suffix="일"
+        items={rangeArr(1, daysInMonth + 1).map((v) => ({ value: v, label: `${v}` }))}
+        value={dd}
+        onChange={(v) => build(yy, mm, Number(v))}
+      />
+    </div>
+  );
+}
+
+function TimeWheel({ value, onChange }) {
+  const [h, mi] = /^\d{2}:\d{2}$/.test(value || "") ? value.split(":").map(Number) : [9, 0];
+  const mins = rangeArr(0, 12).map((i) => i * 5);
+  const safeMi = mins.includes(mi) ? mi : Math.min(55, Math.round(mi / 5) * 5);
+  const build = (nh, nm) => onChange(`${pad2(nh)}:${pad2(nm)}`);
+  return (
+    <div className="wheel-group">
+      <WheelColumn
+        ariaLabel="시"
+        suffix="시"
+        items={rangeArr(0, 24).map((v) => ({ value: v, label: pad2(v) }))}
+        value={h}
+        onChange={(v) => build(Number(v), safeMi)}
+      />
+      <WheelColumn
+        ariaLabel="분"
+        suffix="분"
+        items={mins.map((v) => ({ value: v, label: pad2(v) }))}
+        value={safeMi}
+        onChange={(v) => build(h, Number(v))}
+      />
     </div>
   );
 }
@@ -1259,38 +1174,11 @@ function EventModal({
   onSubmit,
   onDelete,
 }) {
-  const spanOptions = useMemo(
-    () => Array.from({ length: MAX_SPAN_DAYS }, (_, i) => i + 1),
-    []
-  );
-  const [quickPreset, setQuickPreset] = useState(null);
+  const isWeekly = form.repeatFreq === "weekly";
 
-  const [spanChoice, setSpanChoice] = useState(() => daysToSpanChoice(form.spanDays));
-  const [spanCustom, setSpanCustom] = useState(() =>
-    daysToSpanChoice(form.spanDays) === "cd" ? form.spanDays || 1 : 1
-  );
-  const isCustomSpan = spanChoice === "cd" || spanChoice === "cw" || spanChoice === "cm";
-
-  const handleSpanChoice = useCallback(
-    (val) => {
-      setSpanChoice(val);
-      const days = spanChoiceToDays(val, spanCustom, form.eventDate);
-      setForm((f) => ({ ...f, spanDays: days }));
-    },
-    [spanCustom, form.eventDate, setForm]
-  );
-
-  const handleSpanCustom = useCallback(
-    (num) => {
-      const n = Math.max(1, Number(num) || 1);
-      setSpanCustom(n);
-      const days = spanChoiceToDays(spanChoice, n, form.eventDate);
-      setForm((f) => ({ ...f, spanDays: days }));
-    },
-    [spanChoice, form.eventDate, setForm]
-  );
-
-  const weekdayMode = (form.weekdays?.length || 0) > 0;
+  const toggleAllDay = useCallback(() => {
+    setForm((f) => ({ ...f, allDay: !f.allDay }));
+  }, [setForm]);
 
   const toggleWeekday = useCallback(
     (n) => {
@@ -1298,92 +1186,46 @@ function EventModal({
         const set = new Set(f.weekdays || []);
         if (set.has(n)) set.delete(n);
         else set.add(n);
-        const next = [...set].sort((a, b) => a - b);
-        return { ...f, weekdays: next, spanDays: next.length ? 1 : f.spanDays };
+        return { ...f, weekdays: [...set].sort((a, b) => a - b) };
       });
     },
     [setForm]
   );
 
   const setWeekdayPreset = useCallback(
-    (arr) => {
-      setForm((f) => ({ ...f, weekdays: arr, spanDays: arr.length ? 1 : f.spanDays }));
-    },
+    (arr) => setForm((f) => ({ ...f, weekdays: arr })),
     [setForm]
   );
 
-  const useEndDate = form.repeatMode === "until";
+  const setInterval = useCallback(
+    (delta) =>
+      setForm((f) => ({
+        ...f,
+        repeatInterval: Math.min(99, Math.max(1, (Number(f.repeatInterval) || 1) + delta)),
+      })),
+    [setForm]
+  );
+
+  const repeat = form.repeatOn
+    ? {
+        freq: form.repeatFreq,
+        interval: form.repeatInterval,
+        weekdays: isWeekly ? form.weekdays : [],
+        until: form.repeatUntil,
+      }
+    : null;
+
   const previewDates = useMemo(
     () =>
-      expandEventDates(
-        form.eventDate,
-        weekdayMode ? 1 : form.spanDays,
-        form.repeatWeeks,
-        form.weekdays,
-        useEndDate ? form.endDate : null
-      ),
-    [form.eventDate, form.spanDays, form.repeatWeeks, form.weekdays, weekdayMode, useEndDate, form.endDate]
+      expandOccurrences({
+        startDate: form.eventDate,
+        endDate: form.repeatOn ? null : (form.endDate || form.eventDate),
+        repeat,
+      }),
+    [form.eventDate, form.endDate, form.repeatOn, form.repeatFreq, form.repeatInterval, form.weekdays, form.repeatUntil]
   );
 
-  const applyQuickDuration = useCallback(
-    (hours) => {
-      const start = /^\d{2}:\d{2}$/.test(form.startTime || "") ? form.startTime : "09:00";
-      const startMinute = timeToMinute(start);
-      const endMinute = startMinute + hours * 60;
-      const endHour = Math.floor((endMinute % (24 * 60)) / 60);
-      const endMin = endMinute % 60;
-      const end = `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
-      setForm((f) => ({ ...f, startTime: start, endTime: end }));
-      setQuickPreset(String(hours));
-    },
-    [form.startTime, setForm]
-  );
-
-  const applyAllDay = useCallback(() => {
-    setForm((f) => ({ ...f, startTime: "", endTime: "" }));
-    setQuickPreset("ALL_DAY");
-  }, [setForm]);
-
-  const handleStartTimeChange = useCallback(
-    (v) => {
-      setForm((f) => ({ ...f, startTime: v }));
-      setQuickPreset(null);
-    },
-    [setForm]
-  );
-
-  const handleEndTimeChange = useCallback(
-    (v) => {
-      setForm((f) => ({ ...f, endTime: v }));
-      setQuickPreset(null);
-    },
-    [setForm]
-  );
-
-  useEffect(() => {
-    if (!form.startTime && !form.endTime) {
-      setQuickPreset("ALL_DAY");
-      return;
-    }
-    if (!form.startTime || !form.endTime) {
-      setQuickPreset(null);
-      return;
-    }
-    const s = timeToMinute(form.startTime);
-    const e = timeToMinute(form.endTime);
-    if (s == null || e == null || e <= s) {
-      setQuickPreset(null);
-      return;
-    }
-    const diff = e - s;
-    if (diff % 60 !== 0) {
-      setQuickPreset(null);
-      return;
-    }
-    const h = diff / 60;
-    if (h >= 1 && h <= 4) setQuickPreset(String(h));
-    else setQuickPreset(null);
-  }, [form.startTime, form.endTime]);
+  const freqUnit = repeatFreqById(form.repeatFreq).unit;
 
   return (
     <motion.div
@@ -1470,204 +1312,161 @@ function EventModal({
             />
           </div>
 
-          <div className="schedule__date-row">
-            <span className="schedule__date-display">
-              {formatDateDot(form.eventDate)}
-              {!weekdayMode && form.spanDays > 1
-                ? ` ~ ${formatDateDot(shiftDateKey(form.eventDate, form.spanDays - 1))}`
-                : ""}
-            </span>
-            {!weekdayMode && !useEndDate && (
-              <>
-                <select
-                  className="schedule__duration-select"
-                  value={spanChoice}
-                  onChange={(e) => handleSpanChoice(e.target.value)}
-                  aria-label="기간"
-                >
-                  <optgroup label="일 단위">
-                    {spanOptions.map((n) => (
-                      <option key={`d${n}`} value={String(n)}>
-                        {spanDaysLabel(n)}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="주 단위">
-                    <option value="w2">2주간</option>
-                    <option value="w3">3주간</option>
-                    <option value="w4">4주간</option>
-                  </optgroup>
-                  <optgroup label="직접 입력">
-                    <option value="cd">N일 직접입력</option>
-                    <option value="cw">N주 직접입력</option>
-                    <option value="cm">N개월 직접입력</option>
-                  </optgroup>
-                </select>
-                {isCustomSpan && (
-                  <div className="schedule__span-custom">
-                    <input
-                      type="number"
-                      min="1"
-                      max={spanChoice === "cm" ? 12 : spanChoice === "cw" ? 52 : 366}
-                      value={spanCustom}
-                      onChange={(e) => handleSpanCustom(e.target.value)}
-                      aria-label="기간 직접 입력 숫자"
-                    />
-                    <span className="schedule__span-custom-unit">
-                      {spanChoice === "cd" ? "일" : spanChoice === "cw" ? "주" : "개월"}
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-            {useEndDate ? (
-              <input
-                type="date"
-                className="schedule__duration-select"
-                value={form.endDate || ""}
-                min={form.eventDate}
-                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-                aria-label="종료일"
-              />
-            ) : (
-              <select
-                className="schedule__duration-select"
-                value={form.repeatPreset}
-                onChange={(e) => {
-                  const preset = repeatPresetById(e.target.value);
-                  setForm((f) => ({
-                    ...f,
-                    repeatPreset: preset.id,
-                    repeatWeeks: preset.weeks,
-                  }));
-                }}
-                aria-label={weekdayMode ? "반복 주 수" : "반복 기간"}
-              >
-                {REPEAT_PRESETS.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          <div className="schedule__weekday-row">
-            <div className="schedule__weekday-toggles">
-              {WEEKDAY_LABELS.map((label, n) => {
-                const active = form.weekdays?.includes(n);
-                const isSun = n === 0;
-                const isSat = n === 6;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    className={`schedule__weekday-btn ${active ? "is-active" : ""} ${isSun ? "is-sun" : ""} ${isSat ? "is-sat" : ""}`}
-                    onClick={() => toggleWeekday(n)}
-                    aria-pressed={active}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="schedule__weekday-presets">
-              <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([1, 2, 3, 4, 5])}>
-                평일
-              </button>
-              <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([0, 6])}>
-                주말
-              </button>
-              <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([0, 1, 2, 3, 4, 5, 6])}>
-                매일
-              </button>
-              {weekdayMode && (
-                <button type="button" className="schedule__weekday-preset is-clear" onClick={() => setWeekdayPreset([])}>
-                  해제
-                </button>
-              )}
-            </div>
-            <div className="schedule__repeatmode">
-              <span className="schedule__repeatmode-label">반복 종료</span>
-              <div className="schedule__repeatmode-toggle">
-                <button
-                  type="button"
-                  className={`schedule__repeatmode-btn ${!useEndDate ? "is-active" : ""}`}
-                  onClick={() => setForm((f) => ({ ...f, repeatMode: "weeks" }))}
-                >
-                  주 수로
-                </button>
-                <button
-                  type="button"
-                  className={`schedule__repeatmode-btn ${useEndDate ? "is-active" : ""}`}
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      repeatMode: "until",
-                      endDate: f.endDate || f.eventDate,
-                    }))
-                  }
-                >
-                  종료일로
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <p className="schedule__hint">
-            {weekdayMode
-              ? `${weekdaysLabel(form.weekdays)}마다 · ${
-                  useEndDate
-                    ? `${formatDateDot(form.eventDate)}~${form.endDate ? formatDateDot(form.endDate) : "?"}`
-                    : `${repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동안`
-                } · 총 ${previewDates.length}회 등록`
-              : useEndDate
-                ? `${formatDateDot(form.eventDate)}~${form.endDate ? formatDateDot(form.endDate) : "?"} · 총 ${previewDates.length}일 등록`
-                : `${spanDaysLabel(form.spanDays)} · ${repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동일 패턴으로 등록됩니다.`}
-          </p>
-
-          <div className="schedule__time-quick-row">
-            {[1, 2, 3, 4].map((h) => (
-              <button
-                key={h}
-                type="button"
-                className={`schedule__time-quick-btn ${quickPreset === String(h) ? "is-active" : ""}`}
-                onClick={() => applyQuickDuration(h)}
-              >
-                {h}시간
-              </button>
-            ))}
+          <div className="schedule__allday-row">
             <button
               type="button"
-              className={`schedule__time-quick-btn ${quickPreset === "ALL_DAY" ? "is-active" : ""}`}
-              onClick={applyAllDay}
+              className={`schedule__allday-btn ${form.allDay ? "is-active" : ""}`}
+              onClick={toggleAllDay}
+              aria-pressed={form.allDay}
             >
+              <span className="schedule__allday-check" aria-hidden>{form.allDay ? "✓" : ""}</span>
               종일
             </button>
+            <span className="schedule__allday-start">{formatDateDot(form.eventDate)} 시작</span>
           </div>
-          {quickPreset !== "ALL_DAY" && (
-            <div className="schedule__time-row">
-              <MobileTimePicker
-                label="시작 (선택)"
-                value={form.startTime}
-                onChange={handleStartTimeChange}
-              />
-              <MobileTimePicker
-                label="종료 (선택)"
-                value={form.endTime}
-                onChange={handleEndTimeChange}
-              />
-            </div>
+
+          <AnimatePresence mode="wait" initial={false}>
+            {form.allDay ? (
+              <motion.div
+                key="allday"
+                className="schedule__when"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+              >
+                <div className="schedule__when-block">
+                  <span className="schedule__when-label">종료 날짜</span>
+                  <DateWheel
+                    value={form.endDate}
+                    min={form.eventDate}
+                    onChange={(v) => setForm((f) => ({ ...f, endDate: v }))}
+                  />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="timed"
+                className="schedule__when"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+              >
+                <div className="schedule__when-block">
+                  <span className="schedule__when-label">시작 시간</span>
+                  <TimeWheel value={form.startTime} onChange={(v) => setForm((f) => ({ ...f, startTime: v }))} />
+                </div>
+                <div className="schedule__when-block">
+                  <span className="schedule__when-label">종료 날짜</span>
+                  <DateWheel
+                    value={form.endDate}
+                    min={form.eventDate}
+                    onChange={(v) => setForm((f) => ({ ...f, endDate: v }))}
+                  />
+                </div>
+                <div className="schedule__when-block">
+                  <span className="schedule__when-label">종료 시간</span>
+                  <TimeWheel value={form.endTime} onChange={(v) => setForm((f) => ({ ...f, endTime: v }))} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!form.repeatOn && (
+            <p className="schedule__hint">
+              {form.endDate && form.endDate !== form.eventDate
+                ? `${formatDateDot(form.eventDate)} ~ ${formatDateDot(form.endDate)} · 총 ${previewDates.length}일`
+                : `${formatDateDot(form.eventDate)} 하루 일정`}
+            </p>
           )}
-          <LocationPicker
-            value={{
-              locationName: form.locationName,
-              locationLat: form.locationLat,
-              locationLng: form.locationLng,
-            }}
-            onChange={(loc) => setForm((f) => ({ ...f, ...loc }))}
-          />
-          <p className="schedule__hint">시간을 비우면 종일 일정으로 저장됩니다.</p>
+
+          <button
+            type="button"
+            className={`schedule__repeat-toggle ${form.repeatOn ? "is-active" : ""}`}
+            onClick={() => setForm((f) => ({ ...f, repeatOn: !f.repeatOn }))}
+            aria-pressed={form.repeatOn}
+          >
+            🔁 반복인가요?
+          </button>
+
+          <AnimatePresence initial={false}>
+            {form.repeatOn && (
+              <motion.div
+                key="repeat"
+                className="schedule__repeat-panel"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+              >
+                <div className="schedule__freq-row">
+                  {REPEAT_FREQS.map((fq) => (
+                    <button
+                      key={fq.id}
+                      type="button"
+                      className={`schedule__freq-btn ${form.repeatFreq === fq.id ? "is-active" : ""}`}
+                      onClick={() => setForm((f) => ({ ...f, repeatFreq: fq.id }))}
+                    >
+                      {fq.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="schedule__interval-row">
+                  <span className="schedule__interval-label">간격</span>
+                  <div className="schedule__stepper">
+                    <button type="button" onClick={() => setInterval(-1)} aria-label="간격 감소">−</button>
+                    <span className="schedule__stepper-val">
+                      {form.repeatInterval}
+                      {freqUnit}
+                    </span>
+                    <button type="button" onClick={() => setInterval(1)} aria-label="간격 증가">＋</button>
+                  </div>
+                  <span className="schedule__interval-suffix">마다</span>
+                </div>
+
+                {isWeekly && (
+                  <div className="schedule__weekday-row">
+                    <div className="schedule__weekday-toggles">
+                      {WEEKDAY_LABELS.map((label, n) => {
+                        const active = form.weekdays?.includes(n);
+                        return (
+                          <button
+                            key={n}
+                            type="button"
+                            className={`schedule__weekday-btn ${active ? "is-active" : ""} ${n === 0 ? "is-sun" : ""} ${n === 6 ? "is-sat" : ""}`}
+                            onClick={() => toggleWeekday(n)}
+                            aria-pressed={active}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="schedule__weekday-presets">
+                      <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([1, 2, 3, 4, 5])}>평일</button>
+                      <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([0, 6])}>주말</button>
+                      <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([0, 1, 2, 3, 4, 5, 6])}>매일</button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="schedule__when-block schedule__repeat-until">
+                  <span className="schedule__when-label">반복 종료일</span>
+                  <DateWheel
+                    value={form.repeatUntil}
+                    min={form.eventDate}
+                    onChange={(v) => setForm((f) => ({ ...f, repeatUntil: v }))}
+                  />
+                </div>
+
+                <p className="schedule__hint">
+                  {repeatSummary(repeat)} · ~{form.repeatUntil ? formatDateDot(form.repeatUntil) : "?"} · 총 {previewDates.length}회
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="field">
             <label>세부사항 선택</label>

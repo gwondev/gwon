@@ -134,6 +134,123 @@ export function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays, end
   return [...dates].sort();
 }
 
+export const REPEAT_FREQS = [
+  { id: "daily", label: "매일", unit: "일" },
+  { id: "weekly", label: "매주", unit: "주" },
+  { id: "monthly", label: "매월", unit: "개월" },
+  { id: "yearly", label: "매년", unit: "년" },
+];
+
+export function repeatFreqById(id) {
+  return REPEAT_FREQS.find((f) => f.id === id) || REPEAT_FREQS[1];
+}
+
+function addMonths(date, n) {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  return d;
+}
+
+/**
+ * 통합 날짜 생성기.
+ * @param {object} spec
+ * @param {string} spec.startDate "YYYY-MM-DD" (시작일)
+ * @param {string} [spec.endDate] 비반복 연속(종일 여러날/기간) 종료일
+ * @param {object|null} [spec.repeat] { freq, interval, weekdays, until }
+ * @returns {string[]} 정렬된 날짜키 배열
+ */
+export function expandOccurrences(spec) {
+  const start = parseDateKey(spec?.startDate);
+  if (!start) return [];
+  const dates = new Set();
+
+  const repeat = spec?.repeat && spec.repeat.freq ? spec.repeat : null;
+
+  // 반복 없음 → (종료일이 있으면) 연속 구간, 아니면 하루
+  if (!repeat) {
+    const end = parseDateKey(spec?.endDate) || start;
+    if (end < start) {
+      dates.add(dateKeyOf(start));
+      return [...dates];
+    }
+    const dt = new Date(start);
+    let guard = 0;
+    while (dt <= end && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt.setDate(dt.getDate() + 1);
+      guard += 1;
+    }
+    return [...dates].sort();
+  }
+
+  const interval = Math.max(1, Number(repeat.interval) || 1);
+  const until = parseDateKey(repeat.until) || start;
+  if (until < start) return [dateKeyOf(start)];
+
+  if (repeat.freq === "daily") {
+    const dt = new Date(start);
+    let guard = 0;
+    while (dt <= until && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt.setDate(dt.getDate() + interval);
+      guard += 1;
+    }
+  } else if (repeat.freq === "weekly") {
+    const wd = normalizeWeekdays(repeat.weekdays);
+    const wdSet = wd.length ? new Set(wd) : new Set([start.getDay()]);
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() - start.getDay());
+    let guard = 0;
+    for (let w = 0; guard < MAX_EXPAND_DAYS; w += interval) {
+      const base = new Date(weekStart);
+      base.setDate(weekStart.getDate() + w * 7);
+      if (base > until) break;
+      for (let day = 0; day < 7; day++) {
+        const dt = new Date(base);
+        dt.setDate(base.getDate() + day);
+        if (!wdSet.has(dt.getDay())) continue;
+        if (dt < start || dt > until) continue;
+        dates.add(dateKeyOf(dt));
+      }
+      guard += 1;
+    }
+  } else if (repeat.freq === "monthly") {
+    let dt = new Date(start);
+    let guard = 0;
+    while (dt <= until && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt = addMonths(start, (guard + 1) * interval);
+      guard += 1;
+    }
+  } else if (repeat.freq === "yearly") {
+    const dt = new Date(start);
+    let guard = 0;
+    while (dt <= until && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt.setFullYear(dt.getFullYear() + interval);
+      guard += 1;
+    }
+  }
+  return [...dates].sort();
+}
+
+export function repeatSummary(repeat) {
+  if (!repeat || !repeat.freq) return "";
+  const interval = Math.max(1, Number(repeat.interval) || 1);
+  const freq = repeatFreqById(repeat.freq);
+  if (repeat.freq === "weekly") {
+    const wl = weekdaysLabel(repeat.weekdays);
+    const every = interval > 1 ? `${interval}주마다` : "매주";
+    return wl ? `${every} ${wl}` : every;
+  }
+  if (interval > 1) return `${interval}${freq.unit}마다`;
+  return freq.label;
+}
+
 export const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 export function weekdaysLabel(weekdays) {
