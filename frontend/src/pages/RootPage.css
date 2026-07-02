@@ -282,18 +282,30 @@
   column-gap: 0.55rem;
   row-gap: 0.18rem;
 }
-.cat-card__preview--stack {
+.cat-card__preview--techstack {
   display: flex;
   flex-direction: column;
   gap: 0.16rem;
   align-items: stretch;
   text-align: left;
 }
-.cat-card__preview--stack .cat-card__preview-item--tech {
+.cat-card__preview--techstack .cat-card__preview-item--tech {
   display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.cat-card__preview-tech-mobile {
+  display: none;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.cat-card__preview-tech-desktop {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cat-card__preview--grid .cat-card__preview-empty {
   grid-column: 1 / -1;
@@ -374,6 +386,19 @@
     padding: clamp(13px, 2.66vw, 18px);
     border-radius: var(--radius-lg);
   }
+  .cat-card__title {
+    font-size: calc(clamp(0.95rem, 2.8vw, 1.08rem) - 1pt);
+  }
+  .cat-card__desc {
+    font-size: 0.76rem;
+  }
+  .root__grid--sub .cat-card__title {
+    font-size: calc(clamp(0.9rem, 2.6vw, 1rem) - 1pt);
+  }
+  .root__grid--sub .cat-card__preview-item,
+  .root__grid--sub .cat-card__preview-empty {
+    font-size: 0.62rem;
+  }
   .overview-bar__title {
     font-size: calc(clamp(1.2rem, 2.2vw, 1.7rem) - 1pt);
   }
@@ -398,20 +423,20 @@
     max-width: 92vw;
   }
 
-  /* 메인 6개 카드 — 전 메뉴 동일 (가장 작은 크기 기준) */
-  .root__grid--sub .cat-card__title {
-    font-size: 0.78rem;
-    line-height: 1.15;
+  /* 기술스택 카드: 모바일 — 그룹명만 2열 */
+  .cat-card__preview--techstack {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0.55rem;
+    row-gap: 0.18rem;
   }
 
-  .root__grid--sub .cat-card__preview-item,
-  .root__grid--sub .cat-card__preview-empty {
-    font-size: 0.48rem;
-    line-height: 1.2;
+  .cat-card__preview-tech-mobile {
+    display: block;
   }
 
-  .root__grid--sub .cat-card__preview-accent {
-    font-weight: 600;
+  .cat-card__preview-tech-desktop {
+    display: none;
   }
 }
 
@@ -442,8 +467,23 @@
     min-height: clamp(82px, 11vh, 108px);
     padding: clamp(11px, 2.38vw, 15px);
   }
+  .cat-card__title {
+    font-size: calc(0.88rem - 1pt);
+    line-height: 1.1;
+  }
+  .cat-card__desc {
+    font-size: 0.66rem;
+    max-width: 100%;
+  }
   .cat-card__preview {
     margin-top: 0.35rem;
+  }
+  .cat-card__preview-item,
+  .cat-card__preview-empty {
+    font-size: calc(0.64rem - 1pt);
+  }
+  .root__grid--sub .cat-card__title {
+    font-size: calc(0.78rem - 1pt);
   }
   .cat-card__preview-tag {
     font-size: 0.56rem;
