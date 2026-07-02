@@ -83,9 +83,9 @@ function PreviewRow({ row }) {
 
   if (row.kind === "tech") {
     return (
-      <span className="cat-card__preview-item cat-card__preview-item--split" title={title}>
+      <span className="cat-card__preview-item cat-card__preview-item--split cat-card__preview-item--tech" title={title}>
         <span className="cat-card__preview-accent">[{row.group}]</span>
-        <span className="cat-card__preview-main"> {row.items}</span>
+        <span className="cat-card__preview-main">{row.items}</span>
       </span>
     );
   }
@@ -181,7 +181,7 @@ export default function RootPage() {
             <motion.button
               key={s.key}
               variants={cardRise}
-              className={`cat-card ${s.key === "activities" || s.key === "certifications" ? "cat-card--compact" : ""}`}
+              className="cat-card"
               onClick={() => navigate(s.path)}
               whileHover={{ y: -6 }}
               whileTap={{ scale: 0.98 }}
@@ -191,7 +191,11 @@ export default function RootPage() {
               <span className="cat-card__body">
                 <span className="cat-card__title">{s.title}</span>
                 <span className="cat-card__divider" aria-hidden />
-                <span className="cat-card__preview cat-card__preview--grid">
+                <span
+                  className={`cat-card__preview ${
+                    s.key === "techstack" ? "cat-card__preview--stack" : "cat-card__preview--grid"
+                  }`}
+                >
                   {rows.length > 0 ? (
                     rows.map((row, i) => <PreviewRow key={`${s.key}-${i}`} row={row} />)
                   ) : (

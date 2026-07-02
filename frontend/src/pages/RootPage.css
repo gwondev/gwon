@@ -282,6 +282,19 @@
   column-gap: 0.55rem;
   row-gap: 0.18rem;
 }
+.cat-card__preview--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16rem;
+  align-items: stretch;
+  text-align: left;
+}
+.cat-card__preview--stack .cat-card__preview-item--tech {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .cat-card__preview--grid .cat-card__preview-empty {
   grid-column: 1 / -1;
 }
@@ -368,17 +381,10 @@
     font-size: 0.76rem;
   }
   .root__grid--sub .cat-card__title {
-    font-size: calc(clamp(0.9rem, 2.6vw, 1rem) - 1pt);
+    font-size: calc(clamp(0.82rem, 2.4vw, 0.92rem) - 1pt);
   }
   .root__grid--sub .cat-card__preview-item,
   .root__grid--sub .cat-card__preview-empty {
-    font-size: 0.62rem;
-  }
-  .root__grid--sub .cat-card--compact .cat-card__title {
-    font-size: calc(clamp(0.82rem, 2.4vw, 0.92rem) - 1pt);
-  }
-  .root__grid--sub .cat-card--compact .cat-card__preview-item,
-  .root__grid--sub .cat-card--compact .cat-card__preview-empty {
     font-size: 0.52rem;
     line-height: 1.22;
   }
@@ -447,14 +453,10 @@
   }
   .cat-card__preview-item,
   .cat-card__preview-empty {
-    font-size: calc(0.64rem - 1pt);
-  }
-  .root__grid--sub .cat-card--compact .cat-card__preview-item,
-  .root__grid--sub .cat-card--compact .cat-card__preview-empty {
     font-size: 0.48rem;
     line-height: 1.2;
   }
-  .root__grid--sub .cat-card--compact .cat-card__title {
+  .root__grid--sub .cat-card__title {
     font-size: calc(0.78rem - 1pt);
   }
   .cat-card__preview-tag {

@@ -25,6 +25,7 @@ function TechStackGroupRow({ group, sortable }) {
 
   return (
     <Reorder.Item
+      as="div"
       value={group}
       dragListener={false}
       dragControls={controls}
@@ -55,6 +56,7 @@ function DraftRow({ row, onChange, onRemove }) {
 
   return (
     <Reorder.Item
+      as="div"
       value={row}
       dragListener={false}
       dragControls={controls}
@@ -210,7 +212,13 @@ export default function TechStackPage() {
       {!editMode ? (
         <section className="techstack__view">
           {isAdmin ? (
-            <Reorder.Group axis="y" values={ordered} onReorder={handleReorder} className="techstack__stack">
+            <Reorder.Group
+              as="div"
+              axis="y"
+              values={ordered}
+              onReorder={handleReorder}
+              className="techstack__stack"
+            >
               {ordered.map((g) => (
                 <TechStackGroupRow key={g._rid} group={g} sortable />
               ))}
@@ -237,7 +245,7 @@ export default function TechStackPage() {
             적어주세요. 기술은 쉼표로 구분합니다. 이름 앞에 <strong>*</strong>가 있으면
             강조 표시됩니다. (예: <code>*Docker</code>, MQTT) ⠿ 로 순서를 바꿀 수 있습니다.
           </p>
-          <Reorder.Group axis="y" values={draft} onReorder={setDraft} className="techstack__draft-list">
+          <Reorder.Group as="div" axis="y" values={draft} onReorder={setDraft} className="techstack__draft-list">
             {draft.map((row) => (
               <DraftRow
                 key={row._rid}
