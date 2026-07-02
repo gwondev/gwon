@@ -3,6 +3,7 @@ import { Reorder, useDragControls, motion } from "framer-motion";
 import FieldGrid, { blankForm } from "./FormFields";
 import DetailModal from "./DetailModal";
 import { parseMedia } from "../lib/media";
+import { isPublic } from "../lib/sections";
 
 function RecordBody({
   item,
@@ -25,7 +26,14 @@ function RecordBody({
   const canOpen = media.length > 0 || Boolean(item.description?.trim());
 
   const startEdit = () => {
-    setForm(fields.reduce((acc, f) => ({ ...acc, [f.name]: item[f.name] || "" }), {}));
+    setForm(
+      fields.reduce((acc, f) => {
+        let v = item[f.name];
+        if (f.name === "is_public") v = isPublic(item) ? "1" : "0";
+        else if (v == null || v === undefined) v = f.default ?? "";
+        return { ...acc, [f.name]: v };
+      }, {})
+    );
     setEditing(true);
   };
 
@@ -82,6 +90,10 @@ function RecordBody({
             </button>
           </div>
         </>
+      )}
+
+      {!editing && isAdmin && !isPublic(item) && (
+        <span className="record__tag record__tag--hidden">탭 비공개</span>
       )}
 
       {editing ? (

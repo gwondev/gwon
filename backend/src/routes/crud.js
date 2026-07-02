@@ -4,10 +4,10 @@ import { requireAdmin } from "../auth-middleware.js";
 
 // 테이블별 허용 컬럼 (화이트리스트) -> SQL 인젝션/오타 방지
 const RESOURCES = {
-  projects: ["title", "category", "host", "team_name", "members", "award", "period", "url", "github_url", "description", "media", "home_featured"],
-  activities: ["title", "organization", "role", "period", "description", "media"],
-  certifications: ["title", "issuer", "acquired", "score", "description", "media"],
-  careers: ["title", "category", "position", "period", "description", "media"],
+  projects: ["title", "category", "host", "team_name", "members", "award", "period", "url", "github_url", "description", "media", "home_featured", "is_public"],
+  activities: ["title", "organization", "role", "period", "description", "media", "is_public"],
+  certifications: ["title", "issuer", "acquired", "score", "description", "media", "is_public"],
+  careers: ["title", "category", "position", "period", "description", "media", "is_public"],
 };
 
 const listOrderCache = new Map();
@@ -36,7 +36,7 @@ export function crudRouter(table) {
     const data = {};
     for (const col of columns) {
       if (body[col] === undefined || body[col] === null) continue;
-      if (col === "home_featured") {
+      if (col === "home_featured" || col === "is_public") {
         data[col] = body[col] === true || body[col] === 1 || body[col] === "1" ? 1 : 0;
         continue;
       }

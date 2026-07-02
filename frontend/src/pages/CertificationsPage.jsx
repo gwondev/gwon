@@ -3,6 +3,7 @@ import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
+import { PUBLIC_VISIBILITY_FIELD, sortForPublicView } from "../lib/sections";
 
 const FIELDS = [
   { name: "title", label: "자격증명", required: true, placeholder: "예: 정보처리기사" },
@@ -10,26 +11,28 @@ const FIELDS = [
   { name: "acquired", label: "취득일", type: "ymd" },
   { name: "score", label: "등급 / 점수", placeholder: "예: 합격 / 920점" },
   { name: "description", label: "비고", type: "textarea", span: true, placeholder: "관련 내용" },
+  PUBLIC_VISIBILITY_FIELD,
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
 export default function CertificationsPage() {
   const { items, loading, error, create, update, remove, reorder } = useResource("certifications");
   const { isAdmin } = useAuth();
+  const displayItems = isAdmin ? items : sortForPublicView(items);
 
   return (
-    <SectionLayout active="certifications" title="자격증" sub="Certifications" count={items.length} showPageHint>
+    <SectionLayout active="certifications" title="자격증" sub="Certifications" count={displayItems.length} showPageHint>
       <Adder label="자격증 추가" fields={FIELDS} onCreate={create} />
 
       {loading ? (
         <div className="state">불러오는 중…</div>
       ) : error ? (
         <div className="state">목록을 불러오지 못했습니다.</div>
-      ) : items.length === 0 ? (
+      ) : displayItems.length === 0 ? (
         <div className="state">아직 등록된 자격증이 없습니다.</div>
       ) : (
         <RecordList
-          items={items}
+          items={displayItems}
           fields={FIELDS}
           isAdmin={isAdmin}
           onUpdate={update}

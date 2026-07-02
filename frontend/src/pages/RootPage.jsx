@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import QuickActions from "../components/QuickActions";
 import { useAuth } from "../context/AuthContext";
-import { SECTIONS, isCompetition } from "../lib/sections";
+import { SECTIONS, isCompetition, sortForPublicView } from "../lib/sections";
 import { useTechStack } from "../lib/useTechStack";
 import { usePortfolioPreview } from "../lib/usePortfolioPreview";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
@@ -40,8 +40,7 @@ function previewRows(key, preview, techGroups) {
   const pool = preview.projects || [];
 
   if (key === "competitions") {
-    return pool
-      .filter(isCompetition)
+    return sortForPublicView(pool.filter(isCompetition))
       .slice(0, 4)
       .map((it) => ({ kind: "split", ...formatCompetitionPreviewParts(it) }));
   }
@@ -53,7 +52,7 @@ function previewRows(key, preview, techGroups) {
     }));
   }
 
-  const items = preview[key] || [];
+  const items = sortForPublicView(preview[key] || []);
 
   if (key === "activities") {
     return items.slice(0, 4).map((it) => ({

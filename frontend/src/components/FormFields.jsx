@@ -19,7 +19,7 @@ function fileToPdfDataUrl(file) {
 }
 
 export function blankForm(fields) {
-  return fields.reduce((acc, f) => ({ ...acc, [f.name]: "" }), {});
+  return fields.reduce((acc, f) => ({ ...acc, [f.name]: f.default ?? "" }), {});
 }
 
 const digits = (v, max) => v.replace(/\D/g, "").slice(0, max);
@@ -401,8 +401,23 @@ export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
                   checked={form[f.name] === "1" || form[f.name] === true}
                   onChange={(e) => set(f.name, e.target.checked ? "1" : "0")}
                 />
-                <span>메인에 노출</span>
+                <span>{f.checkboxLabel || f.label || "선택"}</span>
               </label>
+            ) : f.type === "radio" ? (
+              <div className="field-radio" role="radiogroup" aria-labelledby={fid}>
+                {(f.options || []).map((opt) => (
+                  <label key={opt.value} className="field-radio__opt">
+                    <input
+                      type="radio"
+                      name={fid}
+                      value={opt.value}
+                      checked={String(form[f.name] ?? f.default ?? "1") === String(opt.value)}
+                      onChange={() => set(f.name, opt.value)}
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
             ) : (
               <input
                 id={fid}

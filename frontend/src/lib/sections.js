@@ -78,6 +78,36 @@ export function isProjectRecord(item) {
   return !isCompetition(item);
 }
 
+export function isPublic(item) {
+  const v = item?.is_public;
+  if (v === false || v === 0 || v === "0") return false;
+  return true;
+}
+
+/** 공개 탭: 공개 항목 먼저, 비공개는 sort_order 유지한 채 맨 아래 */
+export function sortForPublicView(items) {
+  if (!items?.length) return [];
+  const visible = [];
+  const hidden = [];
+  for (const it of items) {
+    if (isPublic(it)) visible.push(it);
+    else hidden.push(it);
+  }
+  return [...visible, ...hidden];
+}
+
+export const PUBLIC_VISIBILITY_FIELD = {
+  name: "is_public",
+  label: "탭 페이지 노출",
+  type: "radio",
+  span: true,
+  default: "1",
+  options: [
+    { value: "1", label: "공개 — 자격증·활동 등 탭 목록에 표시" },
+    { value: "0", label: "비공개 — 탭에는 숨김 (데이터 보관함·관리 화면에는 유지)" },
+  ],
+};
+
 // 전체 요약(한번에 보기) 페이지용 — 나중에 자유롭게 수정 가능한 초안
 export const ABOUT = {
   intro:

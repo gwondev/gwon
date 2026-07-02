@@ -97,6 +97,34 @@
   height: 1rem;
   accent-color: var(--accent);
 }
+
+.field-radio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.field-radio__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.field-radio__opt input {
+  flex: none;
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+}
+
+.record__tag--hidden {
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
 .adder__actions {
   display: flex;
   justify-content: flex-end;
@@ -109,6 +137,9 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 .record {
   position: relative;
@@ -170,6 +201,9 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.45rem;
+}
+
+.record:has(.record__actions) .record__head {
   padding-right: 3.2rem;
 }
 .record__title {

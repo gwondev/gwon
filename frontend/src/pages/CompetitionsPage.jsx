@@ -3,7 +3,7 @@ import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
-import { PROJECT_CATEGORIES, isCompetition } from "../lib/sections";
+import { PROJECT_CATEGORIES, isCompetition, PUBLIC_VISIBILITY_FIELD, sortForPublicView } from "../lib/sections";
 import { splitTags } from "../lib/media";
 import RecordUrl from "../components/RecordUrl";
 
@@ -24,6 +24,7 @@ const FIELDS = [
     span: true,
     placeholder: "공모전 개요, 역할, 성과 등",
   },
+  PUBLIC_VISIBILITY_FIELD,
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
@@ -31,13 +32,14 @@ export default function CompetitionsPage() {
   const { items: all, loading, error, create, update, remove, reorder } = useResource("projects");
   const { isAdmin } = useAuth();
   const items = all.filter(isCompetition);
+  const displayItems = isAdmin ? items : sortForPublicView(items);
 
   return (
     <SectionLayout
       active="competitions"
       title="공모전 & 수상"
       sub="Competitions & Awards"
-      count={items.length}
+      count={displayItems.length}
       showPageHint
     >
       <Adder label="공모전 · 수상 추가" fields={FIELDS} onCreate={create} />
@@ -46,11 +48,11 @@ export default function CompetitionsPage() {
         <div className="state">불러오는 중…</div>
       ) : error ? (
         <div className="state">목록을 불러오지 못했습니다.</div>
-      ) : items.length === 0 ? (
+      ) : displayItems.length === 0 ? (
         <div className="state">아직 등록된 공모전·수상 기록이 없습니다.</div>
       ) : (
         <RecordList
-          items={items}
+          items={displayItems}
           fields={FIELDS}
           isAdmin={isAdmin}
           onUpdate={update}

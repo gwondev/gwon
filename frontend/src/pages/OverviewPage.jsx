@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import TabNav from "../components/TabNav";
-import { ABOUT, SECTIONS, isCompetition, isProjectRecord, TECH_STACK_FALLBACK } from "../lib/sections";
+import { ABOUT, SECTIONS, isCompetition, isProjectRecord, sortForPublicView, TECH_STACK_FALLBACK } from "../lib/sections";
 import { usePortfolioPreview } from "../lib/usePortfolioPreview";
 import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
@@ -66,8 +66,17 @@ export default function OverviewPage() {
   const { groups: techGroupsRaw } = useTechStack();
   const techGroups = techGroupsRaw.length ? techGroupsRaw : TECH_STACK_FALLBACK;
 
-  const competitions = useMemo(() => projects.filter(isCompetition), [projects]);
-  const projectList = useMemo(() => projects.filter(isProjectRecord), [projects]);
+  const competitions = useMemo(
+    () => sortForPublicView(projects.filter(isCompetition)),
+    [projects]
+  );
+  const projectList = useMemo(
+    () => sortForPublicView(projects.filter(isProjectRecord)),
+    [projects]
+  );
+  const activityList = useMemo(() => sortForPublicView(activities), [activities]);
+  const certList = useMemo(() => sortForPublicView(certifications), [certifications]);
+  const careerList = useMemo(() => sortForPublicView(career), [career]);
 
   const sectionMap = useMemo(
     () => ({
@@ -159,10 +168,10 @@ export default function OverviewPage() {
 
           <OverviewSection
             section={sectionMap.activities}
-            countLabel={activities.length ? `${activities.length}건` : null}
+            countLabel={activityList.length ? `${activityList.length}건` : null}
           >
-            {activities.length ? (
-              activities.slice(0, PREVIEW_LIMIT).map((it) => (
+            {activityList.length ? (
+              activityList.slice(0, PREVIEW_LIMIT).map((it) => (
                 <CompactLine
                   key={it.id}
                   main={it.title}
@@ -177,10 +186,10 @@ export default function OverviewPage() {
 
           <OverviewSection
             section={sectionMap.certifications}
-            countLabel={certifications.length ? `${certifications.length}건` : null}
+            countLabel={certList.length ? `${certList.length}건` : null}
           >
-            {certifications.length ? (
-              certifications.slice(0, PREVIEW_LIMIT).map((it) => (
+            {certList.length ? (
+              certList.slice(0, PREVIEW_LIMIT).map((it) => (
                 <CompactLine
                   key={it.id}
                   main={it.title}
@@ -195,10 +204,10 @@ export default function OverviewPage() {
 
           <OverviewSection
             section={sectionMap.career}
-            countLabel={career.length ? `${career.length}건` : null}
+            countLabel={careerList.length ? `${careerList.length}건` : null}
           >
-            {career.length ? (
-              career.slice(0, PREVIEW_LIMIT).map((it) => (
+            {careerList.length ? (
+              careerList.slice(0, PREVIEW_LIMIT).map((it) => (
                 <CompactLine
                   key={it.id}
                   main={it.title}

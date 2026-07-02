@@ -3,7 +3,7 @@ import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
-import { PROJECT_CATEGORIES, isProjectRecord } from "../lib/sections";
+import { PROJECT_CATEGORIES, isProjectRecord, PUBLIC_VISIBILITY_FIELD, sortForPublicView } from "../lib/sections";
 import { splitTags } from "../lib/media";
 import RecordUrl from "../components/RecordUrl";
 import { formatProjectHeadline } from "../lib/format";
@@ -16,6 +16,7 @@ const FIELDS = [
     label: "메인 포트폴리오 노출",
     type: "checkbox",
     span: true,
+    checkboxLabel: "메인 포트폴리오에 노출",
     hint: "메인 페이지에는 대표 프로젝트 2개만 노출됩니다. 가장 메인이 되는 프로젝트부터 선택해 주세요.",
   },
   { name: "host", label: "주관처", placeholder: "예: 교내 캡스톤" },
@@ -25,6 +26,7 @@ const FIELDS = [
   { name: "url", label: "접속주소", placeholder: "예: https://devsign.co.kr", span: true },
   { name: "github_url", label: "깃허브 주소", placeholder: "예: https://github.com/username/repo", span: true },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "프로젝트 개요, 역할, 기술 스택 등" },
+  PUBLIC_VISIBILITY_FIELD,
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
@@ -32,13 +34,14 @@ export default function ProjectsPage() {
   const { items: all, loading, error, create, update, remove, reorder } = useResource("projects");
   const { isAdmin } = useAuth();
   const items = all.filter(isProjectRecord);
+  const displayItems = isAdmin ? items : sortForPublicView(items);
 
   return (
     <SectionLayout
       active="projects"
       title="프로젝트"
       sub="Projects"
-      count={items.length}
+      count={displayItems.length}
       showPageHint
     >
       <Adder label="프로젝트 추가" fields={FIELDS} onCreate={create} />
@@ -47,11 +50,11 @@ export default function ProjectsPage() {
         <div className="state">불러오는 중…</div>
       ) : error ? (
         <div className="state">목록을 불러오지 못했습니다.</div>
-      ) : items.length === 0 ? (
+      ) : displayItems.length === 0 ? (
         <div className="state">아직 등록된 프로젝트가 없습니다.</div>
       ) : (
         <RecordList
-          items={items}
+          items={displayItems}
           fields={FIELDS}
           isAdmin={isAdmin}
           onUpdate={update}

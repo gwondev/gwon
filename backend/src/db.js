@@ -199,6 +199,7 @@ const SCHEMA = [
     description TEXT,
     media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
+    is_public TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
@@ -211,6 +212,7 @@ const SCHEMA = [
     description TEXT,
     media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
+    is_public TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
@@ -223,6 +225,7 @@ const SCHEMA = [
     description TEXT,
     media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
+    is_public TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
@@ -235,6 +238,7 @@ const SCHEMA = [
     description TEXT,
     media LONGTEXT,
     sort_order INT NOT NULL DEFAULT 0,
+    is_public TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
@@ -333,6 +337,10 @@ async function runMigrations(conn) {
     "ALTER TABLE projects ADD COLUMN url VARCHAR(512) AFTER period",
     "ALTER TABLE projects ADD COLUMN github_url VARCHAR(512) AFTER url",
     "ALTER TABLE projects ADD COLUMN home_featured TINYINT(1) NOT NULL DEFAULT 0 AFTER sort_order",
+    "ALTER TABLE projects ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 1 AFTER sort_order",
+    "ALTER TABLE activities ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 1 AFTER sort_order",
+    "ALTER TABLE certifications ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 1 AFTER sort_order",
+    "ALTER TABLE careers ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 1 AFTER sort_order",
     "ALTER TABLE users ADD COLUMN calendar_filter_owner_ids TEXT DEFAULT NULL",
     "ALTER TABLE calendar_events ADD COLUMN shared_owner_ids TEXT DEFAULT NULL AFTER created_by",
     "ALTER TABLE calendar_events ADD COLUMN series_id VARCHAR(64) DEFAULT NULL AFTER shared_owner_ids",

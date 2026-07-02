@@ -227,12 +227,15 @@ function DataSection({ table, title, desc }) {
 export default function DataPage() {
   const navigate = useNavigate();
   const { isSuperAdmin, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState(SECTIONS[0].table);
 
   useEffect(() => {
     if (!loading && !isSuperAdmin) navigate("/", { replace: true });
   }, [loading, isSuperAdmin, navigate]);
 
   if (!isSuperAdmin) return null;
+
+  const current = SECTIONS.find((s) => s.table === activeTab) || SECTIONS[0];
 
   return (
     <PageTransition className="page data-page">
@@ -256,9 +259,22 @@ export default function DataPage() {
         저장되며, 비워두면 저장 순서대로 임시 이름(사진1, 동영상1…)이 적용됩니다.
       </p>
 
-      {SECTIONS.map((s) => (
-        <DataSection key={s.table} table={s.table} title={s.title} desc={s.desc} />
-      ))}
+      <div className="data-page__tabs" role="tablist" aria-label="보관함 카테고리">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.table}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === s.table}
+            className={`data-page__tab ${activeTab === s.table ? "is-active" : ""}`}
+            onClick={() => setActiveTab(s.table)}
+          >
+            {s.title}
+          </button>
+        ))}
+      </div>
+
+      <DataSection key={current.table} table={current.table} title={current.title} desc={current.desc} />
     </PageTransition>
   );
 }
