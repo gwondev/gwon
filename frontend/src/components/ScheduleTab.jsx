@@ -1632,23 +1632,20 @@ function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
 
 const TIMELINE_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-// 화면 폭에 맞춰 1시간 칸 높이 결정 (모바일은 한 화면에 최대한 들어오도록 촘촘하게)
-function computeSlotH() {
-  if (typeof window === "undefined") return 30;
-  return window.innerWidth < 640 ? 20 : 30;
-}
-
 function TimelineBlock({ ev, slotH }) {
   const startMin = timeToMinute(ev.startTime);
   const endMinRaw = ev.endTime ? timeToMinute(ev.endTime) : null;
   const start = startMin ?? 0;
   const end = endMinRaw != null && endMinRaw > start ? endMinRaw : start + 60;
   const top = (start / 60) * slotH;
-  const height = Math.max(((end - start) / 60) * slotH - 2, 18);
+  const height = Math.max(((end - start) / 60) * slotH - 2, 15);
+  // 칸이 낮으면 글자가 겹치므로 폰트를 줄이고, 아주 낮으면 제목만 표시
+  const tiny = height < 28;
+  const compact = height < 46;
   const isMoney = ev.appointmentType === "MONEY" || (!ev.appointmentType && ev.incomeType);
   return (
     <div
-      className="schedule__tl-block"
+      className={`schedule__tl-block ${compact ? "is-compact" : ""} ${tiny ? "is-tiny" : ""}`}
       style={{ top: `${top}px`, height: `${height}px`, "--tl-accent": eventAccent(ev) }}
       title={`${ev.title} ${formatEventTime(ev)}`}
     >
@@ -1657,19 +1654,22 @@ function TimelineBlock({ ev, slotH }) {
         {ev.appointmentType === "DRINK" && "🍺"}
         {ev.title}
       </span>
-      <span className="schedule__tl-block-time">{formatEventTime(ev)}</span>
+      {!tiny && <span className="schedule__tl-block-time">{formatEventTime(ev)}</span>}
     </div>
   );
 }
 
-function DayTimeline({ columns }) {
-  const [slotH, setSlotH] = useState(computeSlotH);
+function DayTimeline({ columns, expanded, onToggleExpand }) {
+  const [vw, setVw] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
 
   useEffect(() => {
-    const onResize = () => setSlotH(computeSlotH());
+    const onResize = () => setVw(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  const mobile = vw < 640;
+  const slotH = mobile ? 20 : 30;
 
   if (!columns.length) {
     return <p className="schedule__empty">표시할 대상이 없습니다.</p>;
@@ -1740,6 +1740,14 @@ function DayTimeline({ columns }) {
             </div>
           ))}
         </div>
+
+        <button
+          type="button"
+          className="schedule__tl-expand"
+          onClick={onToggleExpand}
+        >
+          {expanded ? "－ 창 줄이기" : "＋ 창 키우기"}
+        </button>
       </div>
     </div>
   );
@@ -1748,6 +1756,7 @@ function DayTimeline({ columns }) {
 function DayModal({ dateKey, events, owners, selectedOwners, onClose, onEdit, onDelete, onAdd }) {
   const [y, m, d] = dateKey.split("-");
   const [viewMode, setViewMode] = useState("grouped");
+  const [tlExpanded, setTlExpanded] = useState(false);
 
   const uniqueEvents = useMemo(() => dedupeEventsBySeries(events), [events]);
   const fallbackOwners = selectedOwners?.length ? selectedOwners : owners || [];
@@ -1766,7 +1775,7 @@ function DayModal({ dateKey, events, owners, selectedOwners, onClose, onEdit, on
       onClick={onClose}
     >
       <motion.div
-        className={`schedule__modal schedule__modal--day ${viewMode === "timeline" ? "schedule__modal--timeline" : ""}`}
+        className={`schedule__modal schedule__modal--day ${viewMode === "timeline" ? "schedule__modal--timeline" : ""} ${viewMode === "timeline" && tlExpanded ? "is-expanded" : ""}`}
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -1808,7 +1817,11 @@ function DayModal({ dateKey, events, owners, selectedOwners, onClose, onEdit, on
             <p className="schedule__empty">등록된 일정이 없습니다.</p>
           </div>
         ) : viewMode === "timeline" ? (
-          <DayTimeline columns={columns} />
+          <DayTimeline
+            columns={columns}
+            expanded={tlExpanded}
+            onToggleExpand={() => setTlExpanded((v) => !v)}
+          />
         ) : (
           <div className="schedule__day-groups">
             {columns.map((col) => (

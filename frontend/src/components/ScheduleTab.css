@@ -1623,6 +1623,13 @@
 /* ── 일자 상세: 막대바(타임라인) 보기 ── */
 .schedule__modal--timeline {
   width: min(100%, 760px);
+  transition: width 0.28s var(--ease), max-height 0.28s var(--ease);
+}
+
+/* 「창 키우기」: 모달 창 자체를 크게 */
+.schedule__modal--timeline.is-expanded {
+  width: min(100%, 1080px);
+  max-height: 96vh;
 }
 
 .schedule__timeline {
@@ -1782,6 +1789,58 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 칸이 낮을 때: 글자 겹침 방지용으로 폰트/여백 확 축소 */
+.schedule__tl-block.is-compact {
+  padding: 0.04rem 0.28rem;
+  gap: 0;
+}
+
+.schedule__tl-block.is-compact .schedule__tl-block-title {
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.schedule__tl-block.is-compact .schedule__tl-block-time {
+  font-size: 0.5rem;
+  opacity: 0.85;
+}
+
+.schedule__tl-block.is-tiny {
+  justify-content: center;
+  padding: 0 0.28rem;
+}
+
+.schedule__tl-block.is-tiny .schedule__tl-block-title {
+  font-size: 0.52rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 펼치기 / 접기 버튼 */
+.schedule__tl-expand {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0;
+  margin-top: 2px;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.schedule__tl-expand:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text);
 }
 
 @media (max-width: 720px) {
