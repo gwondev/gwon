@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../lib/useResource";
-import { parseMedia, stringifyMedia, mediaDisplayName } from "../lib/media";
+import { parseMedia, stringifyMedia, mediaDisplayName, isMediaVisible } from "../lib/media";
 import "./DataPage.css";
 
 const SECTIONS = [
@@ -119,6 +119,7 @@ function MediaRow({ row, onSave }) {
   return (
     <div className="datacard">
       <div className="datacard__thumb">
+        {!isMediaVisible(row.media) && <span className="datacard__hidden-badge">탭 숨김</span>}
         {row.media.pdf ? (
           <span className="datacard__pdf">PDF</span>
         ) : row.media.video ? (

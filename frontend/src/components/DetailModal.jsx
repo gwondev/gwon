@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { isMediaVisible } from "../lib/media";
 import "./DetailModal.css";
 
-export default function DetailModal({ open, onClose, title, media = [], children }) {
+export default function DetailModal({ open, onClose, title, media = [], showHiddenBadge = false, children }) {
   const [index, setIndex] = useState(0);
   const hasMedia = media.length > 0;
 
@@ -75,7 +76,7 @@ export default function DetailModal({ open, onClose, title, media = [], children
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={index}
-                        className="detail-modal__slide"
+                        className={`detail-modal__slide ${showHiddenBadge && !isMediaVisible(current) ? "detail-modal__slide--hidden" : ""}`}
                         initial={{ opacity: 0, x: 30 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -30 }}
@@ -131,6 +132,9 @@ export default function DetailModal({ open, onClose, title, media = [], children
 
                   {current?.name && current.name.trim() && (
                     <p className="detail-modal__media-name">{current.name.trim()}</p>
+                  )}
+                  {showHiddenBadge && !isMediaVisible(current) && (
+                    <p className="detail-modal__hidden-note">탭에 숨김 — 보관함·관리 화면에서만 표시</p>
                   )}
                   {current?.caption && (
                     <p className="detail-modal__caption">{current.caption}</p>

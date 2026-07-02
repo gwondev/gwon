@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Reorder, useDragControls, motion } from "framer-motion";
 import FieldGrid, { blankForm } from "./FormFields";
 import DetailModal from "./DetailModal";
-import { parseMedia } from "../lib/media";
-import { isPublic } from "../lib/sections";
+import { hasMediaContent, mediaForModal, parseMedia } from "../lib/media";
 
 function RecordBody({
   item,
@@ -22,15 +21,17 @@ function RecordBody({
   const [detailOpen, setDetailOpen] = useState(false);
   const controls = useDragControls();
 
-  const media = parseMedia(item.media);
-  const canOpen = media.length > 0 || Boolean(item.description?.trim());
+  const allMedia = parseMedia(item.media).filter(hasMediaContent);
+  const modalMedia = mediaForModal(item.media, { admin: isAdmin });
+  const publicMedia = mediaForModal(item.media, { admin: false });
+  const canOpen =
+    (isAdmin ? allMedia.length > 0 : publicMedia.length > 0) || Boolean(item.description?.trim());
 
   const startEdit = () => {
     setForm(
       fields.reduce((acc, f) => {
         let v = item[f.name];
-        if (f.name === "is_public") v = isPublic(item) ? "1" : "0";
-        else if (v == null || v === undefined) v = f.default ?? "";
+        if (v == null || v === undefined) v = f.default ?? "";
         return { ...acc, [f.name]: v };
       }, {})
     );
@@ -92,10 +93,6 @@ function RecordBody({
         </>
       )}
 
-      {!editing && isAdmin && !isPublic(item) && (
-        <span className="record__tag record__tag--hidden">탭 비공개</span>
-      )}
-
       {editing ? (
         <form className="record__form" onSubmit={submit}>
           <FieldGrid
@@ -133,7 +130,8 @@ function RecordBody({
             open={detailOpen}
             onClose={() => setDetailOpen(false)}
             title={item.title}
-            media={media}
+            media={modalMedia}
+            showHiddenBadge={isAdmin}
           >
             {children}
           </DetailModal>

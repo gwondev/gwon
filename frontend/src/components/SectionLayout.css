@@ -129,11 +129,6 @@
   min-width: 0;
 }
 
-.record__tag--hidden {
-  border-color: rgba(248, 113, 113, 0.35);
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.1);
-}
 .adder__actions {
   display: flex;
   justify-content: flex-end;
@@ -580,6 +575,18 @@
   border: 1px solid var(--line);
   color: var(--text-faint);
   font-size: 0.66rem;
+  position: relative;
+}
+.media-editor__hidden-badge {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 0.15rem 0.2rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  background: rgba(248, 113, 113, 0.92);
+  z-index: 1;
 }
 .media-editor__pdf-badge {
   font-size: 0.78rem;
@@ -634,6 +641,37 @@
 .media-editor__caption:focus {
   outline: none;
   border-color: var(--accent-line);
+}
+.media-editor__visibility {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.media-editor__vis-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.media-editor__vis-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.media-editor__vis-opt.is-on {
+  border-color: var(--accent-line);
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.08);
 }
 .media-editor__row-actions {
   display: flex;

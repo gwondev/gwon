@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fileToCompressedDataUrl } from "../lib/image";
 import { fileToVideoDataUrl } from "../lib/video";
-import { parseMedia, stringifyMedia, splitTags } from "../lib/media";
+import { parseMedia, stringifyMedia, splitTags, isMediaVisible } from "../lib/media";
 
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
 
@@ -262,6 +262,17 @@ function MediaEditor({ value, onChange }) {
     setList(list.map((m, j) => (j === i ? { ...m, caption } : m)));
   const updateName = (i, name) =>
     setList(list.map((m, j) => (j === i ? { ...m, name } : m)));
+  const updateVisible = (i, visible) =>
+    setList(
+      list.map((m, j) => {
+        if (j !== i) return m;
+        if (visible) {
+          const { visible: _omit, ...rest } = m;
+          return rest;
+        }
+        return { ...m, visible: false };
+      })
+    );
   const removeAt = (i) => setList(list.filter((_, j) => j !== i));
   const move = (i, dir) => {
     const j = i + dir;
@@ -277,6 +288,7 @@ function MediaEditor({ value, onChange }) {
         {list.map((m, i) => (
           <div className="media-editor__item" key={i}>
             <div className="media-editor__thumb">
+              {!isMediaVisible(m) && <span className="media-editor__hidden-badge">탭 숨김</span>}
               {m.pdf ? (
                 <span className="media-editor__pdf-badge">PDF</span>
               ) : m.video ? (
@@ -302,6 +314,26 @@ function MediaEditor({ value, onChange }) {
                 placeholder="이 사진·영상에 대한 설명 한 줄"
                 onChange={(e) => updateCaption(i, e.target.value)}
               />
+              <div className="media-editor__visibility" role="radiogroup" aria-label="탭 노출">
+                <label className={`media-editor__vis-opt ${isMediaVisible(m) ? "is-on" : ""}`}>
+                  <input
+                    type="radio"
+                    name={`media-vis-${i}`}
+                    checked={isMediaVisible(m)}
+                    onChange={() => updateVisible(i, true)}
+                  />
+                  <span>탭 표시</span>
+                </label>
+                <label className={`media-editor__vis-opt ${!isMediaVisible(m) ? "is-on" : ""}`}>
+                  <input
+                    type="radio"
+                    name={`media-vis-${i}`}
+                    checked={!isMediaVisible(m)}
+                    onChange={() => updateVisible(i, false)}
+                  />
+                  <span>탭 숨김</span>
+                </label>
+              </div>
               <div className="media-editor__row-actions">
                 <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="위로">
                   ↑

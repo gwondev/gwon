@@ -3,7 +3,6 @@ import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
-import { PUBLIC_VISIBILITY_FIELD, sortForPublicView } from "../lib/sections";
 
 const FIELDS = [
   { name: "title", label: "활동명", required: true, placeholder: "예: 멋쟁이사자처럼 13기" },
@@ -11,28 +10,26 @@ const FIELDS = [
   { name: "role", label: "역할", placeholder: "예: 백엔드 리드" },
   { name: "period", label: "기간", type: "period-ymd" },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "활동 내용, 성과 등" },
-  PUBLIC_VISIBILITY_FIELD,
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
 export default function ActivitiesPage() {
   const { items, loading, error, create, update, remove, reorder } = useResource("activities");
   const { isAdmin } = useAuth();
-  const displayItems = isAdmin ? items : sortForPublicView(items);
 
   return (
-    <SectionLayout active="activities" title="활동" sub="Activities" count={displayItems.length} showPageHint>
+    <SectionLayout active="activities" title="활동" sub="Activities" count={items.length} showPageHint>
       <Adder label="활동 추가" fields={FIELDS} onCreate={create} />
 
       {loading ? (
         <div className="state">불러오는 중…</div>
       ) : error ? (
         <div className="state">목록을 불러오지 못했습니다.</div>
-      ) : displayItems.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="state">아직 등록된 활동이 없습니다.</div>
       ) : (
         <RecordList
-          items={displayItems}
+          items={items}
           fields={FIELDS}
           isAdmin={isAdmin}
           onUpdate={update}

@@ -1,5 +1,4 @@
 import { splitTags } from "./media";
-import { sortForPublicView } from "./sections";
 
 // 프로젝트 카드 제목: 팀명(주제명)
 export function formatProjectHeadline(item) {
@@ -122,7 +121,7 @@ export function formatCertificationPreviewParts(item) {
 }
 
 export function orderProjectsForPreview(projects, limit = 4) {
-  const list = sortForPublicView(projects.filter((p) => !String(p?.award || "").trim()));
+  const list = projects.filter((p) => !String(p?.award || "").trim());
   const featured = list.filter(isHomeFeatured);
   const rest = list.filter((p) => !isHomeFeatured(p));
   return [...featured, ...rest].slice(0, limit);

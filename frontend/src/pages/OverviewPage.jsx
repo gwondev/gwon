@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import TabNav from "../components/TabNav";
-import { ABOUT, SECTIONS, isCompetition, isProjectRecord, sortForPublicView, TECH_STACK_FALLBACK } from "../lib/sections";
+import { ABOUT, SECTIONS, isCompetition, isProjectRecord, TECH_STACK_FALLBACK } from "../lib/sections";
 import { usePortfolioPreview } from "../lib/usePortfolioPreview";
 import { useTechStack } from "../lib/useTechStack";
 import { formatTechItemLabel } from "../lib/techStackDisplay";
@@ -67,16 +67,16 @@ export default function OverviewPage() {
   const techGroups = techGroupsRaw.length ? techGroupsRaw : TECH_STACK_FALLBACK;
 
   const competitions = useMemo(
-    () => sortForPublicView(projects.filter(isCompetition)),
+    () => projects.filter(isCompetition),
     [projects]
   );
   const projectList = useMemo(
-    () => sortForPublicView(projects.filter(isProjectRecord)),
+    () => projects.filter(isProjectRecord),
     [projects]
   );
-  const activityList = useMemo(() => sortForPublicView(activities), [activities]);
-  const certList = useMemo(() => sortForPublicView(certifications), [certifications]);
-  const careerList = useMemo(() => sortForPublicView(career), [career]);
+  const activityList = activities;
+  const certList = certifications;
+  const careerList = career;
 
   const sectionMap = useMemo(
     () => ({
