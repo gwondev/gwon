@@ -13,6 +13,9 @@ import {
   repeatPresetFromWeeks,
   repeatWeeksLabel,
   spanDaysLabel,
+  normalizeWeekdays,
+  weekdaysLabel,
+  WEEKDAY_LABELS,
 } from "../lib/calendarUtils";
 import {
   CALENDAR_THEME_COLORS,
@@ -150,6 +153,7 @@ function blankForm(dateKey = "", ownerId = null) {
     spanDays: 1,
     repeatWeeks: 1,
     repeatPreset: "1w",
+    weekdays: [],
   };
 }
 
@@ -169,6 +173,7 @@ function formFromEvent(ev) {
     spanDays: ev.spanDays || 1,
     repeatWeeks,
     repeatPreset: repeatPresetFromWeeks(repeatWeeks),
+    weekdays: normalizeWeekdays(ev.weekdays),
   };
 }
 
@@ -483,6 +488,7 @@ export default function ScheduleTab() {
           ownerIds: form.ownerIds,
           spanDays: form.spanDays,
           repeatWeeks: form.repeatWeeks,
+          weekdays: form.weekdays,
         };
         if (localMode) {
           setEvents((prev) =>
@@ -521,10 +527,11 @@ export default function ScheduleTab() {
           locationLng: form.locationLng,
           spanDays: form.spanDays,
           repeatWeeks: form.repeatWeeks,
+          weekdays: form.weekdays,
         };
 
         if (localMode) {
-          const dates = expandEventDates(form.eventDate, form.spanDays, form.repeatWeeks);
+          const dates = expandEventDates(form.eventDate, form.spanDays, form.repeatWeeks, form.weekdays);
           const owner = owners.find((o) => o.id === ownerIds[0]) || owners[0];
           const sharedOwners = owners.filter((o) => ownerIds.includes(o.id));
           const sharedOwnerNames = sharedOwners.map((o) => ownerLabel(o));
@@ -1263,6 +1270,39 @@ function EventModal({
     [spanChoice, form.eventDate, setForm]
   );
 
+  const weekdayMode = (form.weekdays?.length || 0) > 0;
+
+  const toggleWeekday = useCallback(
+    (n) => {
+      setForm((f) => {
+        const set = new Set(f.weekdays || []);
+        if (set.has(n)) set.delete(n);
+        else set.add(n);
+        const next = [...set].sort((a, b) => a - b);
+        return { ...f, weekdays: next, spanDays: next.length ? 1 : f.spanDays };
+      });
+    },
+    [setForm]
+  );
+
+  const setWeekdayPreset = useCallback(
+    (arr) => {
+      setForm((f) => ({ ...f, weekdays: arr, spanDays: arr.length ? 1 : f.spanDays }));
+    },
+    [setForm]
+  );
+
+  const previewDates = useMemo(
+    () =>
+      expandEventDates(
+        form.eventDate,
+        weekdayMode ? 1 : form.spanDays,
+        form.repeatWeeks,
+        form.weekdays
+      ),
+    [form.eventDate, form.spanDays, form.repeatWeeks, form.weekdays, weekdayMode]
+  );
+
   const applyQuickDuration = useCallback(
     (hours) => {
       const start = /^\d{2}:\d{2}$/.test(form.startTime || "") ? form.startTime : "09:00";
@@ -1411,48 +1451,52 @@ function EventModal({
           <div className="schedule__date-row">
             <span className="schedule__date-display">
               {formatDateDot(form.eventDate)}
-              {form.spanDays > 1
+              {!weekdayMode && form.spanDays > 1
                 ? ` ~ ${formatDateDot(shiftDateKey(form.eventDate, form.spanDays - 1))}`
                 : ""}
             </span>
-            <select
-              className="schedule__duration-select"
-              value={spanChoice}
-              onChange={(e) => handleSpanChoice(e.target.value)}
-              aria-label="기간"
-            >
-              <optgroup label="일 단위">
-                {spanOptions.map((n) => (
-                  <option key={`d${n}`} value={String(n)}>
-                    {spanDaysLabel(n)}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="주 단위">
-                <option value="w2">2주간</option>
-                <option value="w3">3주간</option>
-                <option value="w4">4주간</option>
-              </optgroup>
-              <optgroup label="직접 입력">
-                <option value="cd">N일 직접입력</option>
-                <option value="cw">N주 직접입력</option>
-                <option value="cm">N개월 직접입력</option>
-              </optgroup>
-            </select>
-            {isCustomSpan && (
-              <div className="schedule__span-custom">
-                <input
-                  type="number"
-                  min="1"
-                  max={spanChoice === "cm" ? 12 : spanChoice === "cw" ? 52 : 366}
-                  value={spanCustom}
-                  onChange={(e) => handleSpanCustom(e.target.value)}
-                  aria-label="기간 직접 입력 숫자"
-                />
-                <span className="schedule__span-custom-unit">
-                  {spanChoice === "cd" ? "일" : spanChoice === "cw" ? "주" : "개월"}
-                </span>
-              </div>
+            {!weekdayMode && (
+              <>
+                <select
+                  className="schedule__duration-select"
+                  value={spanChoice}
+                  onChange={(e) => handleSpanChoice(e.target.value)}
+                  aria-label="기간"
+                >
+                  <optgroup label="일 단위">
+                    {spanOptions.map((n) => (
+                      <option key={`d${n}`} value={String(n)}>
+                        {spanDaysLabel(n)}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="주 단위">
+                    <option value="w2">2주간</option>
+                    <option value="w3">3주간</option>
+                    <option value="w4">4주간</option>
+                  </optgroup>
+                  <optgroup label="직접 입력">
+                    <option value="cd">N일 직접입력</option>
+                    <option value="cw">N주 직접입력</option>
+                    <option value="cm">N개월 직접입력</option>
+                  </optgroup>
+                </select>
+                {isCustomSpan && (
+                  <div className="schedule__span-custom">
+                    <input
+                      type="number"
+                      min="1"
+                      max={spanChoice === "cm" ? 12 : spanChoice === "cw" ? 52 : 366}
+                      value={spanCustom}
+                      onChange={(e) => handleSpanCustom(e.target.value)}
+                      aria-label="기간 직접 입력 숫자"
+                    />
+                    <span className="schedule__span-custom-unit">
+                      {spanChoice === "cd" ? "일" : spanChoice === "cw" ? "주" : "개월"}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
             <select
               className="schedule__duration-select"
@@ -1465,7 +1509,7 @@ function EventModal({
                   repeatWeeks: preset.weeks,
                 }));
               }}
-              aria-label="반복 기간"
+              aria-label={weekdayMode ? "반복 주 수" : "반복 기간"}
             >
               {REPEAT_PRESETS.map((preset) => (
                 <option key={preset.id} value={preset.id}>
@@ -1475,8 +1519,47 @@ function EventModal({
             </select>
           </div>
 
+          <div className="schedule__weekday-row">
+            <div className="schedule__weekday-toggles">
+              {WEEKDAY_LABELS.map((label, n) => {
+                const active = form.weekdays?.includes(n);
+                const isSun = n === 0;
+                const isSat = n === 6;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`schedule__weekday-btn ${active ? "is-active" : ""} ${isSun ? "is-sun" : ""} ${isSat ? "is-sat" : ""}`}
+                    onClick={() => toggleWeekday(n)}
+                    aria-pressed={active}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="schedule__weekday-presets">
+              <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([1, 2, 3, 4, 5])}>
+                평일
+              </button>
+              <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([0, 6])}>
+                주말
+              </button>
+              <button type="button" className="schedule__weekday-preset" onClick={() => setWeekdayPreset([0, 1, 2, 3, 4, 5, 6])}>
+                매일
+              </button>
+              {weekdayMode && (
+                <button type="button" className="schedule__weekday-preset is-clear" onClick={() => setWeekdayPreset([])}>
+                  해제
+                </button>
+              )}
+            </div>
+          </div>
+
           <p className="schedule__hint">
-            {spanDaysLabel(form.spanDays)} · {repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동일 패턴으로 등록됩니다.
+            {weekdayMode
+              ? `${weekdaysLabel(form.weekdays)}마다 · ${repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동안 · 총 ${previewDates.length}회 등록`
+              : `${spanDaysLabel(form.spanDays)} · ${repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동일 패턴으로 등록됩니다.`}
           </p>
 
           <div className="schedule__time-quick-row">
@@ -1677,6 +1760,17 @@ function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
 
 const TIMELINE_SLOT_H = 40;
 const TIMELINE_HOURS = Array.from({ length: 24 }, (_, i) => i);
+const TIMELINE_HEIGHT_KEY = "gwon.calendar.timelineHeight";
+
+function defaultTimelineHeight() {
+  if (typeof window === "undefined") return 420;
+  return Math.round(window.innerHeight * 0.52);
+}
+
+function clampTimelineHeight(h) {
+  const max = typeof window !== "undefined" ? Math.round(window.innerHeight * 0.85) : 900;
+  return Math.min(Math.max(h, 180), max);
+}
 
 function TimelineBlock({ ev }) {
   const startMin = timeToMinute(ev.startTime);
@@ -1704,9 +1798,36 @@ function TimelineBlock({ ev }) {
 
 function DayTimeline({ columns }) {
   const scrollRef = useRef(null);
+  const [height, setHeight] = useState(() => {
+    const saved = Number(localStorage.getItem(TIMELINE_HEIGHT_KEY));
+    return saved > 0 ? clampTimelineHeight(saved) : defaultTimelineHeight();
+  });
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 7 * TIMELINE_SLOT_H;
   }, []);
+
+  const startResize = useCallback(
+    (e) => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startH = scrollRef.current ? scrollRef.current.offsetHeight : height;
+      const onMove = (ev) => {
+        const next = clampTimelineHeight(startH + (ev.clientY - startY));
+        setHeight(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        if (scrollRef.current) {
+          localStorage.setItem(TIMELINE_HEIGHT_KEY, String(scrollRef.current.offsetHeight));
+        }
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [height]
+  );
 
   if (!columns.length) {
     return <p className="schedule__empty">표시할 대상이 없습니다.</p>;
@@ -1751,7 +1872,7 @@ function DayTimeline({ columns }) {
         </div>
       )}
 
-      <div className="schedule__tl-scroll" ref={scrollRef}>
+      <div className="schedule__tl-scroll" ref={scrollRef} style={{ height: `${height}px` }}>
         <div className="schedule__tl-body" style={{ height: `${24 * TIMELINE_SLOT_H}px` }}>
           <div className="schedule__tl-hours">
             {TIMELINE_HOURS.map((h) => (
@@ -1777,6 +1898,15 @@ function DayTimeline({ columns }) {
             </div>
           ))}
         </div>
+      </div>
+      <div
+        className="schedule__tl-resize"
+        onPointerDown={startResize}
+        role="separator"
+        aria-label="타임라인 높이 조절"
+        title="드래그해서 높이 조절"
+      >
+        <span className="schedule__tl-resize-grip" aria-hidden />
       </div>
     </div>
   );

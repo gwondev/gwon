@@ -52,22 +52,69 @@ export function repeatWeeksLabel(n, presetId) {
   return `${v}주`;
 }
 
-export function expandEventDates(eventDate, spanDays, repeatWeeks) {
+export function normalizeWeekdays(weekdays) {
+  if (!Array.isArray(weekdays)) {
+    if (typeof weekdays === "string" && weekdays.trim()) {
+      return normalizeWeekdays(weekdays.split(","));
+    }
+    return [];
+  }
+  return [...new Set(weekdays.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort(
+    (a, b) => a - b
+  );
+}
+
+function dateKeyOf(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+export function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays) {
   if (!eventDate || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return [];
-  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 366);
   const weeks = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52);
   const [y, m, d] = eventDate.split("-").map(Number);
   const start = new Date(y, m - 1, d);
   const dates = new Set();
+
+  const wd = normalizeWeekdays(weekdays);
+  if (wd.length) {
+    const wdSet = new Set(wd);
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() - start.getDay());
+    for (let w = 0; w < weeks; w++) {
+      for (let day = 0; day < 7; day++) {
+        const dt = new Date(weekStart);
+        dt.setDate(weekStart.getDate() + w * 7 + day);
+        if (!wdSet.has(dt.getDay())) continue;
+        if (dt < start) continue;
+        dates.add(dateKeyOf(dt));
+      }
+    }
+    return [...dates].sort();
+  }
+
+  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 366);
   for (let w = 0; w < weeks; w++) {
     for (let day = 0; day < span; day++) {
       const dt = new Date(start);
       dt.setDate(start.getDate() + w * 7 + day);
-      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-      dates.add(key);
+      dates.add(dateKeyOf(dt));
     }
   }
   return [...dates].sort();
+}
+
+export const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+
+export function weekdaysLabel(weekdays) {
+  const wd = normalizeWeekdays(weekdays);
+  if (!wd.length) return "";
+  const set = new Set(wd);
+  const isWeekday = [1, 2, 3, 4, 5].every((n) => set.has(n)) && !set.has(0) && !set.has(6);
+  const isWeekend = set.has(0) && set.has(6) && set.size === 2;
+  if (isWeekday) return "평일";
+  if (isWeekend) return "주말";
+  if (wd.length === 7) return "매일";
+  return wd.map((n) => WEEKDAY_LABELS[n]).join("·");
 }
 
 export function ownerLabel(o) {

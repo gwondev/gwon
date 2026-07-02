@@ -64,6 +64,7 @@ function publicEvent(row) {
       : (row.event_date instanceof Date ? row.event_date.toISOString().slice(0, 10) : String(row.event_date).slice(0, 10)),
     spanDays: Number(row.series_span_days) || 1,
     repeatWeeks: Number(row.series_repeat_weeks) || 1,
+    weekdays: normalizeWeekdays(row.series_weekdays),
     appointmentType: row.appointment_type || null,
     sharedOwnerIds,
     sharedOwnerNames: row.sharedOwnerNames || [],
@@ -221,19 +222,52 @@ async function buildOwnerNameMap(ownerIds) {
   return map;
 }
 
-function expandEventDates(eventDate, spanDays, repeatWeeks) {
-  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 366);
+function normalizeWeekdays(weekdays) {
+  if (!Array.isArray(weekdays)) {
+    if (typeof weekdays === "string" && weekdays.trim()) {
+      return normalizeWeekdays(weekdays.split(","));
+    }
+    return [];
+  }
+  return [...new Set(weekdays.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort(
+    (a, b) => a - b
+  );
+}
+
+function dateKeyOf(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays) {
   const weeks = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52);
   const [y, m, d] = eventDate.split("-").map(Number);
   const start = new Date(y, m - 1, d);
   const dates = new Set();
+
+  const wd = normalizeWeekdays(weekdays);
+  if (wd.length) {
+    // 선택 요일 반복: 시작일이 속한 주(일요일)부터 N주 동안, 선택 요일만 (시작일 이전 제외)
+    const wdSet = new Set(wd);
+    const weekStart = new Date(start);
+    weekStart.setDate(start.getDate() - start.getDay());
+    for (let w = 0; w < weeks; w++) {
+      for (let day = 0; day < 7; day++) {
+        const dt = new Date(weekStart);
+        dt.setDate(weekStart.getDate() + w * 7 + day);
+        if (!wdSet.has(dt.getDay())) continue;
+        if (dt < start) continue;
+        dates.add(dateKeyOf(dt));
+      }
+    }
+    return [...dates].sort();
+  }
+
+  const span = Math.min(Math.max(Number(spanDays) || 1, 1), 366);
   for (let w = 0; w < weeks; w++) {
     for (let day = 0; day < span; day++) {
       const dt = new Date(start);
       dt.setDate(start.getDate() + w * 7 + day);
-      dates.add(
-        `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`
-      );
+      dates.add(dateKeyOf(dt));
     }
   }
   return [...dates].sort();
@@ -242,9 +276,9 @@ function expandEventDates(eventDate, spanDays, repeatWeeks) {
 async function insertEvent(conn, data) {
   const [result] = await conn.query(
     `INSERT INTO calendar_events
-     (owner_id, created_by, shared_owner_ids, series_id, series_start_date, series_end_date, series_span_days, series_repeat_weeks,
+     (owner_id, created_by, shared_owner_ids, series_id, series_start_date, series_end_date, series_span_days, series_repeat_weeks, series_weekdays,
       appointment_type, location_name, location_lat, location_lng, title, description, event_date, start_time, end_time, income_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.ownerId,
       data.actorId,
@@ -254,6 +288,7 @@ async function insertEvent(conn, data) {
       data.seriesEndDate || null,
       data.seriesSpanDays || 1,
       data.seriesRepeatWeeks || 1,
+      data.seriesWeekdays && data.seriesWeekdays.length ? data.seriesWeekdays.join(",") : null,
       data.appointmentType || null,
       data.locationName || null,
       data.locationLat ?? null,
@@ -281,7 +316,7 @@ async function updateEventRow(conn, id, data) {
   await conn.query(
     `UPDATE calendar_events SET
        owner_id = ?, shared_owner_ids = ?, series_id = ?,
-       series_start_date = ?, series_end_date = ?, series_span_days = ?, series_repeat_weeks = ?,
+       series_start_date = ?, series_end_date = ?, series_span_days = ?, series_repeat_weeks = ?, series_weekdays = ?,
        appointment_type = ?, location_name = ?, location_lat = ?, location_lng = ?,
        title = ?, description = ?, event_date = ?, start_time = ?, end_time = ?, income_type = ?
      WHERE id = ?`,
@@ -293,6 +328,7 @@ async function updateEventRow(conn, id, data) {
       data.seriesEndDate || null,
       data.seriesSpanDays || 1,
       data.seriesRepeatWeeks || 1,
+      data.seriesWeekdays && data.seriesWeekdays.length ? data.seriesWeekdays.join(",") : null,
       data.appointmentType || null,
       data.locationName || null,
       data.locationLat ?? null,
@@ -309,7 +345,8 @@ async function updateEventRow(conn, id, data) {
 }
 
 async function createSeriesEvents(conn, data) {
-  const dates = expandEventDates(data.eventDate, data.spanDays, data.repeatWeeks);
+  const weekdays = normalizeWeekdays(data.weekdays);
+  const dates = expandEventDates(data.eventDate, data.spanDays, data.repeatWeeks, weekdays);
   if (!dates.length) {
     throw Object.assign(new Error("유효한 날짜가 없습니다."), { status: 400 });
   }
@@ -326,6 +363,7 @@ async function createSeriesEvents(conn, data) {
       seriesEndDate,
       seriesSpanDays: data.spanDays,
       seriesRepeatWeeks: data.repeatWeeks,
+      seriesWeekdays: weekdays,
     });
     created.push(row);
   }
@@ -565,6 +603,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const appointmentType = body.appointmentType ? String(body.appointmentType).toUpperCase() : null;
     const spanDays = Math.min(Math.max(Number(body.spanDays) || 1, 1), 366);
     const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks) || 1, 1), 52);
+    const weekdays = normalizeWeekdays(body.weekdays);
     const location = parseLocationFields(body);
 
     if (!title) return res.status(400).json({ error: "일정명은 필수입니다." });
@@ -603,6 +642,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
         appointmentType,
         spanDays,
         repeatWeeks,
+        weekdays,
         ...location,
       });
       const ownerNameMap = await buildOwnerNameMap(ownerIds);
@@ -662,6 +702,9 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       : existing.appointment_type;
     const spanDays = Math.min(Math.max(Number(body.spanDays ?? existing.series_span_days ?? 1) || 1, 1), 366);
     const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks ?? existing.series_repeat_weeks ?? 1) || 1, 1), 52);
+    const weekdays = normalizeWeekdays(
+      body.weekdays !== undefined ? body.weekdays : existing.series_weekdays
+    );
     const location = parseLocationFields(body, existing);
     const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
     const ownerIds = requestedOwnerIds.length
@@ -687,7 +730,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const seriesId = existing.series_id || makeSeriesId();
 
     // 새로 적용할 날짜 목록
-    const newDates = expandEventDates(eventDate, spanDays, repeatWeeks);
+    const newDates = expandEventDates(eventDate, spanDays, repeatWeeks, weekdays);
     if (!newDates.length) {
       return res.status(400).json({ error: "유효한 날짜가 없습니다." });
     }
@@ -714,6 +757,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       seriesEndDate,
       seriesSpanDays: spanDays,
       seriesRepeatWeeks: repeatWeeks,
+      seriesWeekdays: weekdays,
       ...location,
     };
 

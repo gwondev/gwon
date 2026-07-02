@@ -554,6 +554,15 @@
 .schedule__day-add-top {
   padding: 0.35rem 0.7rem !important;
   font-size: 0.76rem !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text) !important;
+  font-weight: 600 !important;
+}
+
+.schedule__day-add-top:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  border-color: var(--line-strong) !important;
 }
 
 .schedule__close {
@@ -812,6 +821,75 @@
   font-size: 0.84rem;
   font-weight: 700;
   color: var(--text-dim);
+}
+
+/* ── 요일 선택 반복 ── */
+.schedule__weekday-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.1rem;
+}
+
+.schedule__weekday-toggles {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.28rem;
+}
+
+.schedule__weekday-btn {
+  padding: 0.4rem 0;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.schedule__weekday-btn.is-sun {
+  color: #f87171;
+}
+
+.schedule__weekday-btn.is-sat {
+  color: #60a5fa;
+}
+
+.schedule__weekday-btn.is-active {
+  background: var(--cal-accent, #ef4444);
+  border-color: transparent;
+  color: #fff;
+}
+
+.schedule__weekday-presets {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.schedule__weekday-preset {
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.schedule__weekday-preset:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.schedule__weekday-preset.is-clear {
+  color: #f87171;
 }
 
 .schedule__field-desc textarea,
@@ -1223,10 +1301,35 @@
 
 .schedule__tl-scroll {
   margin-top: 4px;
-  max-height: 52vh;
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 10px 10px 0 0;
+}
+
+.schedule__tl-resize {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.schedule__tl-resize:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.schedule__tl-resize-grip {
+  width: 34px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--text-faint);
+  opacity: 0.6;
 }
 
 .schedule__tl-body {
