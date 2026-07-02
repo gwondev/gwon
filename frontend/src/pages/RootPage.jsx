@@ -181,7 +181,7 @@ export default function RootPage() {
             <motion.button
               key={s.key}
               variants={cardRise}
-              className="cat-card"
+              className={`cat-card ${s.key === "activities" || s.key === "certifications" ? "cat-card--compact" : ""}`}
               onClick={() => navigate(s.path)}
               whileHover={{ y: -6 }}
               whileTap={{ scale: 0.98 }}

@@ -1,6 +1,5 @@
 .tabnav {
   display: flex;
-  /* 절대 아래로 줄바꿈하지 않고, 넘치면 가로 스크롤한다. */
   flex-wrap: nowrap;
   gap: 5px;
   padding: 5px;
@@ -56,14 +55,31 @@
   .tabnav {
     width: 100%;
     max-width: 100%;
-    justify-content: flex-start;
-    gap: 4px;
-    padding: 5px;
-    border-radius: var(--radius-pill);
+    justify-content: stretch;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--radius-lg);
+    overflow-x: visible;
   }
   .tabnav__tab {
-    padding: 0.55rem 0.85rem;
-    font-size: 0.78rem;
-    letter-spacing: -0.01em;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.44rem 0.12rem;
+    font-size: 0.58rem;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+  }
+  .tabnav__label--full {
+    display: none;
+  }
+  .tabnav__label--short {
+    display: inline;
+  }
+}
+
+@media (max-width: 380px) {
+  .tabnav__tab {
+    padding: 0.4rem 0.08rem;
+    font-size: 0.54rem;
   }
 }

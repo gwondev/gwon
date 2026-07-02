@@ -5,9 +5,9 @@ import "./SectionLayout.css";
 
 const PAGE_HINT = "항목을 눌러 자세한 설명·사진·영상을 확인하세요";
 
-export default function SectionLayout({ active, title, sub, count, showPageHint, children }) {
+export default function SectionLayout({ active, title, sub, count, showPageHint, className = "", children }) {
   return (
-    <PageTransition className="page section">
+    <PageTransition className={`page section ${className}`.trim()}>
       <div className="section__top">
         <TabNav active={active} />
       </div>

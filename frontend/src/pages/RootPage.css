@@ -374,6 +374,14 @@
   .root__grid--sub .cat-card__preview-empty {
     font-size: 0.62rem;
   }
+  .root__grid--sub .cat-card--compact .cat-card__title {
+    font-size: calc(clamp(0.82rem, 2.4vw, 0.92rem) - 1pt);
+  }
+  .root__grid--sub .cat-card--compact .cat-card__preview-item,
+  .root__grid--sub .cat-card--compact .cat-card__preview-empty {
+    font-size: 0.52rem;
+    line-height: 1.22;
+  }
   .overview-bar__title {
     font-size: calc(clamp(1.2rem, 2.2vw, 1.7rem) - 1pt);
   }
@@ -440,6 +448,14 @@
   .cat-card__preview-item,
   .cat-card__preview-empty {
     font-size: calc(0.64rem - 1pt);
+  }
+  .root__grid--sub .cat-card--compact .cat-card__preview-item,
+  .root__grid--sub .cat-card--compact .cat-card__preview-empty {
+    font-size: 0.48rem;
+    line-height: 1.2;
+  }
+  .root__grid--sub .cat-card--compact .cat-card__title {
+    font-size: calc(0.78rem - 1pt);
   }
   .cat-card__preview-tag {
     font-size: 0.56rem;

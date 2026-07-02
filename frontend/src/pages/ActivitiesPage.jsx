@@ -18,7 +18,7 @@ export default function ActivitiesPage() {
   const { isAdmin } = useAuth();
 
   return (
-    <SectionLayout active="activities" title="활동" sub="Activities" count={items.length} showPageHint>
+    <SectionLayout active="activities" title="활동" sub="Activities" count={items.length} showPageHint className="section--compact">
       <Adder label="활동 추가" fields={FIELDS} onCreate={create} />
 
       {loading ? (

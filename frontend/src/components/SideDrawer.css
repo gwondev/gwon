@@ -255,3 +255,97 @@
   letter-spacing: 0.05em;
   color: #fca5a5;
 }
+
+@media (max-width: 760px) {
+  .drawer {
+    padding: 16px 18px 20px;
+    width: min(360px, 92vw);
+  }
+
+  .drawer__quick {
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .drawer__quick-btn {
+    width: 58px;
+    height: 58px;
+    gap: 0.2rem;
+  }
+
+  .drawer__quick-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .drawer__quick-label {
+    font-size: 0.58rem;
+  }
+
+  .drawer__nav {
+    margin-top: 14px;
+    gap: 0;
+  }
+
+  .drawer__link {
+    gap: 0.55rem;
+    padding: 0.52rem 0.1rem;
+  }
+
+  .drawer__link-no {
+    font-size: 0.58rem;
+    min-width: 1.25rem;
+    letter-spacing: 0.06em;
+  }
+
+  .drawer__link-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .drawer__link-arrow {
+    font-size: 0.78rem;
+  }
+
+  .drawer__auth {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+  }
+
+  .drawer__login-copy {
+    margin-bottom: 0.65rem;
+    font-size: 0.82rem;
+  }
+
+  .drawer__profile-meta strong {
+    font-size: 0.9rem;
+  }
+
+  .drawer__profile-meta span {
+    font-size: 0.72rem;
+  }
+
+  .drawer__avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 0.9rem;
+  }
+
+  .drawer__profile-actions .btn {
+    padding: 0.58rem 0.75rem;
+    font-size: 0.82rem;
+  }
+
+  .drawer__note {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .drawer__note strong {
+    font-size: 0.82rem;
+  }
+
+  .drawer__note span {
+    font-size: 0.74rem;
+    line-height: 1.4;
+  }
+}
