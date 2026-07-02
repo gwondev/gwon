@@ -238,16 +238,37 @@ function dateKeyOf(dt) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
-function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays) {
+const MAX_EXPAND_DAYS = 800;
+
+function parseDateKey(v) {
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const [y, m, d] = v.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays, endDate) {
+  const start = parseDateKey(eventDate);
+  if (!start) return [];
   const weeks = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52);
-  const [y, m, d] = eventDate.split("-").map(Number);
-  const start = new Date(y, m - 1, d);
+  const end = parseDateKey(endDate);
   const dates = new Set();
 
   const wd = normalizeWeekdays(weekdays);
   if (wd.length) {
-    // 선택 요일 반복: 시작일이 속한 주(일요일)부터 N주 동안, 선택 요일만 (시작일 이전 제외)
     const wdSet = new Set(wd);
+    // 종료일이 지정되면 시작~종료 사이의 선택 요일만
+    if (end) {
+      if (end < start) return [];
+      const dt = new Date(start);
+      let guard = 0;
+      while (dt <= end && guard < MAX_EXPAND_DAYS) {
+        if (wdSet.has(dt.getDay())) dates.add(dateKeyOf(dt));
+        dt.setDate(dt.getDate() + 1);
+        guard += 1;
+      }
+      return [...dates].sort();
+    }
+    // 아니면 시작일이 속한 주(일요일)부터 N주 동안, 선택 요일만 (시작일 이전 제외)
     const weekStart = new Date(start);
     weekStart.setDate(start.getDate() - start.getDay());
     for (let w = 0; w < weeks; w++) {
@@ -258,6 +279,18 @@ function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays) {
         if (dt < start) continue;
         dates.add(dateKeyOf(dt));
       }
+    }
+    return [...dates].sort();
+  }
+
+  if (end) {
+    if (end < start) return [];
+    const dt = new Date(start);
+    let guard = 0;
+    while (dt <= end && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt.setDate(dt.getDate() + 1);
+      guard += 1;
     }
     return [...dates].sort();
   }
@@ -346,7 +379,7 @@ async function updateEventRow(conn, id, data) {
 
 async function createSeriesEvents(conn, data) {
   const weekdays = normalizeWeekdays(data.weekdays);
-  const dates = expandEventDates(data.eventDate, data.spanDays, data.repeatWeeks, weekdays);
+  const dates = expandEventDates(data.eventDate, data.spanDays, data.repeatWeeks, weekdays, data.endDate);
   if (!dates.length) {
     throw Object.assign(new Error("유효한 날짜가 없습니다."), { status: 400 });
   }
@@ -604,6 +637,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const spanDays = Math.min(Math.max(Number(body.spanDays) || 1, 1), 366);
     const repeatWeeks = Math.min(Math.max(Number(body.repeatWeeks) || 1, 1), 52);
     const weekdays = normalizeWeekdays(body.weekdays);
+    const endDate = body.endDate ? toDateKey(body.endDate) : null;
     const location = parseLocationFields(body);
 
     if (!title) return res.status(400).json({ error: "일정명은 필수입니다." });
@@ -643,6 +677,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
         spanDays,
         repeatWeeks,
         weekdays,
+        endDate,
         ...location,
       });
       const ownerNameMap = await buildOwnerNameMap(ownerIds);
@@ -705,6 +740,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const weekdays = normalizeWeekdays(
       body.weekdays !== undefined ? body.weekdays : existing.series_weekdays
     );
+    const endDate = body.endDate ? toDateKey(body.endDate) : null;
     const location = parseLocationFields(body, existing);
     const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
     const ownerIds = requestedOwnerIds.length
@@ -730,7 +766,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const seriesId = existing.series_id || makeSeriesId();
 
     // 새로 적용할 날짜 목록
-    const newDates = expandEventDates(eventDate, spanDays, repeatWeeks, weekdays);
+    const newDates = expandEventDates(eventDate, spanDays, repeatWeeks, weekdays, endDate);
     if (!newDates.length) {
       return res.status(400).json({ error: "유효한 날짜가 없습니다." });
     }

@@ -154,6 +154,8 @@ function blankForm(dateKey = "", ownerId = null) {
     repeatWeeks: 1,
     repeatPreset: "1w",
     weekdays: [],
+    repeatMode: "weeks",
+    endDate: "",
   };
 }
 
@@ -174,6 +176,8 @@ function formFromEvent(ev) {
     repeatWeeks,
     repeatPreset: repeatPresetFromWeeks(repeatWeeks),
     weekdays: normalizeWeekdays(ev.weekdays),
+    repeatMode: normalizeWeekdays(ev.weekdays).length ? "until" : "weeks",
+    endDate: normalizeWeekdays(ev.weekdays).length ? (ev.seriesEndDate || "") : "",
   };
 }
 
@@ -260,7 +264,9 @@ export default function ScheduleTab() {
   const seriesDateSet = useMemo(() => {
     const set = new Set();
     for (const ev of displayEvents) {
-      set.add(`${ev.seriesId}::${ev.eventDate}`);
+      // 요일 반복 일정은 칸마다 개별 표시(띠로 잇지 않음)
+      if ((ev.weekdays?.length || 0) > 0) continue;
+      set.add(`${eventSeriesKey(ev)}::${ev.eventDate}`);
     }
     return set;
   }, [displayEvents]);
@@ -467,6 +473,7 @@ export default function ScheduleTab() {
     if (!title) return setErr("일정명을 입력해주세요.");
     setBusy(true);
     setErr(null);
+    const endDate = form.repeatMode === "until" ? (form.endDate || null) : null;
     try {
       if (form.startTime && form.endTime && timeToMinute(form.endTime) <= timeToMinute(form.startTime)) {
         setErr("종료 시간은 시작 시간보다 뒤로 설정해주세요.");
@@ -489,6 +496,7 @@ export default function ScheduleTab() {
           spanDays: form.spanDays,
           repeatWeeks: form.repeatWeeks,
           weekdays: form.weekdays,
+          endDate,
         };
         if (localMode) {
           setEvents((prev) =>
@@ -528,13 +536,18 @@ export default function ScheduleTab() {
           spanDays: form.spanDays,
           repeatWeeks: form.repeatWeeks,
           weekdays: form.weekdays,
+          endDate,
         };
 
         if (localMode) {
-          const dates = expandEventDates(form.eventDate, form.spanDays, form.repeatWeeks, form.weekdays);
+          const dates = expandEventDates(form.eventDate, form.spanDays, form.repeatWeeks, form.weekdays, endDate);
           const owner = owners.find((o) => o.id === ownerIds[0]) || owners[0];
           const sharedOwners = owners.filter((o) => ownerIds.includes(o.id));
           const sharedOwnerNames = sharedOwners.map((o) => ownerLabel(o));
+          const seriesId = `local-${Date.now()}`;
+          const seriesStartDate = dates[0];
+          const seriesEndDate = dates[dates.length - 1];
+          const weekdays = normalizeWeekdays(form.weekdays);
           const items = dates.map((eventDate, i) => ({
             id: Date.now() + i,
             ownerId: ownerIds[0],
@@ -542,6 +555,12 @@ export default function ScheduleTab() {
             sharedOwnerNames,
             ownerThemeColor: ownerIds.length > 1 ? "shared-gray" : (owner?.calendarThemeColor || "red"),
             ownerName: owner ? ownerLabel(owner) : null,
+            seriesId,
+            seriesStartDate,
+            seriesEndDate,
+            spanDays: form.spanDays,
+            repeatWeeks: form.repeatWeeks,
+            weekdays,
             title,
             description: form.description.trim(),
             eventDate,
@@ -969,13 +988,14 @@ function DayCell({
       <span className="schedule__day-num">{date.getDate()}</span>
       <div className="schedule__bubbles">
         {visible.map((ev) => {
-          const prev = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, -1)}`);
-          const next = seriesDateSet.has(`${ev.seriesId}::${shiftDateKey(dateKey, 1)}`);
           const seriesKey = eventSeriesKey(ev);
+          const isDiscrete = (ev.weekdays?.length || 0) > 0;
+          const prev = !isDiscrete && seriesDateSet.has(`${seriesKey}::${shiftDateKey(dateKey, -1)}`);
+          const next = !isDiscrete && seriesDateSet.has(`${seriesKey}::${shiftDateKey(dateKey, 1)}`);
           const selectable = canManageEvent(ev);
           const selected = selectedSeriesKeys.has(seriesKey);
           // 띠가 이어지는 중간 칸에서는 라벨을 숨기고, 주(週)의 첫 칸(일요일)에서만 다시 보여준다.
-          const showLabel = !prev || date.getDay() === 0;
+          const showLabel = isDiscrete ? true : (!prev || date.getDay() === 0);
           return (
             <EventBubble
               key={seriesKey}
@@ -1292,15 +1312,17 @@ function EventModal({
     [setForm]
   );
 
+  const useEndDate = form.repeatMode === "until";
   const previewDates = useMemo(
     () =>
       expandEventDates(
         form.eventDate,
         weekdayMode ? 1 : form.spanDays,
         form.repeatWeeks,
-        form.weekdays
+        form.weekdays,
+        useEndDate ? form.endDate : null
       ),
-    [form.eventDate, form.spanDays, form.repeatWeeks, form.weekdays, weekdayMode]
+    [form.eventDate, form.spanDays, form.repeatWeeks, form.weekdays, weekdayMode, useEndDate, form.endDate]
   );
 
   const applyQuickDuration = useCallback(
@@ -1455,7 +1477,7 @@ function EventModal({
                 ? ` ~ ${formatDateDot(shiftDateKey(form.eventDate, form.spanDays - 1))}`
                 : ""}
             </span>
-            {!weekdayMode && (
+            {!weekdayMode && !useEndDate && (
               <>
                 <select
                   className="schedule__duration-select"
@@ -1498,25 +1520,36 @@ function EventModal({
                 )}
               </>
             )}
-            <select
-              className="schedule__duration-select"
-              value={form.repeatPreset}
-              onChange={(e) => {
-                const preset = repeatPresetById(e.target.value);
-                setForm((f) => ({
-                  ...f,
-                  repeatPreset: preset.id,
-                  repeatWeeks: preset.weeks,
-                }));
-              }}
-              aria-label={weekdayMode ? "반복 주 수" : "반복 기간"}
-            >
-              {REPEAT_PRESETS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
+            {useEndDate ? (
+              <input
+                type="date"
+                className="schedule__duration-select"
+                value={form.endDate || ""}
+                min={form.eventDate}
+                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                aria-label="종료일"
+              />
+            ) : (
+              <select
+                className="schedule__duration-select"
+                value={form.repeatPreset}
+                onChange={(e) => {
+                  const preset = repeatPresetById(e.target.value);
+                  setForm((f) => ({
+                    ...f,
+                    repeatPreset: preset.id,
+                    repeatWeeks: preset.weeks,
+                  }));
+                }}
+                aria-label={weekdayMode ? "반복 주 수" : "반복 기간"}
+              >
+                {REPEAT_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="schedule__weekday-row">
@@ -1554,12 +1587,43 @@ function EventModal({
                 </button>
               )}
             </div>
+            <div className="schedule__repeatmode">
+              <span className="schedule__repeatmode-label">반복 종료</span>
+              <div className="schedule__repeatmode-toggle">
+                <button
+                  type="button"
+                  className={`schedule__repeatmode-btn ${!useEndDate ? "is-active" : ""}`}
+                  onClick={() => setForm((f) => ({ ...f, repeatMode: "weeks" }))}
+                >
+                  주 수로
+                </button>
+                <button
+                  type="button"
+                  className={`schedule__repeatmode-btn ${useEndDate ? "is-active" : ""}`}
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      repeatMode: "until",
+                      endDate: f.endDate || f.eventDate,
+                    }))
+                  }
+                >
+                  종료일로
+                </button>
+              </div>
+            </div>
           </div>
 
           <p className="schedule__hint">
             {weekdayMode
-              ? `${weekdaysLabel(form.weekdays)}마다 · ${repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동안 · 총 ${previewDates.length}회 등록`
-              : `${spanDaysLabel(form.spanDays)} · ${repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동일 패턴으로 등록됩니다.`}
+              ? `${weekdaysLabel(form.weekdays)}마다 · ${
+                  useEndDate
+                    ? `${formatDateDot(form.eventDate)}~${form.endDate ? formatDateDot(form.endDate) : "?"}`
+                    : `${repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동안`
+                } · 총 ${previewDates.length}회 등록`
+              : useEndDate
+                ? `${formatDateDot(form.eventDate)}~${form.endDate ? formatDateDot(form.endDate) : "?"} · 총 ${previewDates.length}일 등록`
+                : `${spanDaysLabel(form.spanDays)} · ${repeatWeeksLabel(form.repeatWeeks, form.repeatPreset)} 동일 패턴으로 등록됩니다.`}
           </p>
 
           <div className="schedule__time-quick-row">

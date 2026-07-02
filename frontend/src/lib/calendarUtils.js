@@ -68,16 +68,35 @@ function dateKeyOf(dt) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
-export function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays) {
-  if (!eventDate || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return [];
+const MAX_EXPAND_DAYS = 800;
+
+function parseDateKey(v) {
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const [y, m, d] = v.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays, endDate) {
+  const start = parseDateKey(eventDate);
+  if (!start) return [];
   const weeks = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52);
-  const [y, m, d] = eventDate.split("-").map(Number);
-  const start = new Date(y, m - 1, d);
+  const end = parseDateKey(endDate);
   const dates = new Set();
 
   const wd = normalizeWeekdays(weekdays);
   if (wd.length) {
     const wdSet = new Set(wd);
+    if (end) {
+      if (end < start) return [];
+      const dt = new Date(start);
+      let guard = 0;
+      while (dt <= end && guard < MAX_EXPAND_DAYS) {
+        if (wdSet.has(dt.getDay())) dates.add(dateKeyOf(dt));
+        dt.setDate(dt.getDate() + 1);
+        guard += 1;
+      }
+      return [...dates].sort();
+    }
     const weekStart = new Date(start);
     weekStart.setDate(start.getDate() - start.getDay());
     for (let w = 0; w < weeks; w++) {
@@ -88,6 +107,18 @@ export function expandEventDates(eventDate, spanDays, repeatWeeks, weekdays) {
         if (dt < start) continue;
         dates.add(dateKeyOf(dt));
       }
+    }
+    return [...dates].sort();
+  }
+
+  if (end) {
+    if (end < start) return [];
+    const dt = new Date(start);
+    let guard = 0;
+    while (dt <= end && guard < MAX_EXPAND_DAYS) {
+      dates.add(dateKeyOf(dt));
+      dt.setDate(dt.getDate() + 1);
+      guard += 1;
     }
     return [...dates].sort();
   }

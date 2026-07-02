@@ -892,6 +892,45 @@
   color: #f87171;
 }
 
+.schedule__repeatmode {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.schedule__repeatmode-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.schedule__repeatmode-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.schedule__repeatmode-btn {
+  padding: 0.22rem 0.6rem;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.schedule__repeatmode-btn.is-active {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text);
+}
+
 .schedule__field-desc textarea,
 .schedule__desc-input {
   min-height: 2.6rem;
