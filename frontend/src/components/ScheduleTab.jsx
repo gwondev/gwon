@@ -877,6 +877,8 @@ export default function ScheduleTab() {
           <DayModal
             dateKey={dayOpen.dateKey}
             events={dayOpen.events}
+            owners={owners}
+            selectedOwners={selectedOwners}
             onClose={() => setDayOpen(null)}
             onEdit={openEdit}
             onDelete={deleteEvent}
@@ -1569,8 +1571,229 @@ function EventModal({
   );
 }
 
-function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
+function eventIsShared(ev) {
+  return (ev.sharedOwnerIds?.length || 1) > 1;
+}
+
+function eventAccent(ev) {
+  return eventIsShared(ev) ? "#9ca3af" : getThemeById(ev.ownerThemeColor || "red").accent;
+}
+
+function sortDayEvents(list) {
+  return [...list].sort((a, b) => {
+    if (a.startTime && !b.startTime) return 1;
+    if (!a.startTime && b.startTime) return -1;
+    if (!a.startTime && !b.startTime) return a.id - b.id;
+    return a.startTime.localeCompare(b.startTime);
+  });
+}
+
+// 하루 일정을 공통(공동명의) / 개인별로 나눈다.
+function buildDayColumns(events, selectedOwners) {
+  const shared = [];
+  const soloByOwner = new Map();
+  for (const ev of events) {
+    if (eventIsShared(ev)) {
+      shared.push(ev);
+      continue;
+    }
+    const oid = ev.ownerId;
+    if (!soloByOwner.has(oid)) soloByOwner.set(oid, []);
+    soloByOwner.get(oid).push(ev);
+  }
+
+  const columns = [];
+  if (shared.length) {
+    const names = [...new Set(shared.flatMap((e) => e.sharedOwnerNames || []))];
+    columns.push({
+      key: "shared",
+      label: names.length ? names.join("+") : "공통일정",
+      accent: "#9ca3af",
+      events: sortDayEvents(shared),
+    });
+  }
+  for (const o of selectedOwners) {
+    const list = soloByOwner.get(o.id) || [];
+    columns.push({
+      key: `owner-${o.id}`,
+      label: ownerLabel(o),
+      accent: getThemeById(o.calendarThemeColor || "red").accent,
+      events: sortDayEvents(list),
+    });
+  }
+  return columns;
+}
+
+function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
+  const isMoney = ev.appointmentType === "MONEY" || (!ev.appointmentType && ev.incomeType);
+  return (
+    <div className="schedule__day-item">
+      <span className="schedule__day-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
+      <div className="schedule__day-item-main">
+        <strong>
+          {isMoney && <span className="schedule__money-icon">₩</span>}
+          {ev.appointmentType === "DRINK" && <span className="schedule__drink-icon">🍺</span>}
+          <span className="schedule__day-item-title-text">{ev.title}</span>
+          <span className="schedule__day-item-title-time">{formatEventTime(ev)}</span>
+        </strong>
+        <span className="schedule__day-item-range">
+          {formatDateDot(ev.seriesStartDate || ev.eventDate)} ~{" "}
+          {formatDateDot(ev.seriesEndDate || ev.eventDate)}
+        </span>
+        {ev.sharedOwnerNames?.length > 1 && (
+          <span className="schedule__day-item-shared">함께: {ev.sharedOwnerNames.join(", ")}</span>
+        )}
+        {showOwner && ev.ownerName && (
+          <span className="schedule__day-item-owner">{ev.ownerName}</span>
+        )}
+        {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
+          <a
+            className="schedule__day-item-location"
+            href={mapsLink(ev.locationLat, ev.locationLng)}
+            target="_blank"
+            rel="noreferrer"
+            title={ev.locationName}
+          >
+            📍 {shortenLocationName(ev.locationName)}
+          </a>
+        )}
+        {ev.description && (
+          <p className="schedule__day-item-desc" title={ev.description}>
+            {ev.description}
+          </p>
+        )}
+      </div>
+      <div className="schedule__day-item-actions">
+        <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
+          수정
+        </button>
+        <button type="button" className="btn btn-ghost schedule__day-delete-btn" onClick={() => onDelete(ev.id)}>
+          삭제
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const TIMELINE_SLOT_H = 40;
+const TIMELINE_HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+function TimelineBlock({ ev }) {
+  const startMin = timeToMinute(ev.startTime);
+  const endMinRaw = ev.endTime ? timeToMinute(ev.endTime) : null;
+  const start = startMin ?? 0;
+  const end = endMinRaw != null && endMinRaw > start ? endMinRaw : start + 60;
+  const top = (start / 60) * TIMELINE_SLOT_H;
+  const height = Math.max(((end - start) / 60) * TIMELINE_SLOT_H - 2, 22);
+  const isMoney = ev.appointmentType === "MONEY" || (!ev.appointmentType && ev.incomeType);
+  return (
+    <div
+      className="schedule__tl-block"
+      style={{ top: `${top}px`, height: `${height}px`, "--tl-accent": eventAccent(ev) }}
+      title={`${ev.title} ${formatEventTime(ev)}`}
+    >
+      <span className="schedule__tl-block-title">
+        {isMoney && "₩"}
+        {ev.appointmentType === "DRINK" && "🍺"}
+        {ev.title}
+      </span>
+      <span className="schedule__tl-block-time">{formatEventTime(ev)}</span>
+    </div>
+  );
+}
+
+function DayTimeline({ columns }) {
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 7 * TIMELINE_SLOT_H;
+  }, []);
+
+  if (!columns.length) {
+    return <p className="schedule__empty">표시할 대상이 없습니다.</p>;
+  }
+
+  const anyAllDay = columns.some((c) => c.events.some((e) => !e.startTime));
+
+  return (
+    <div className="schedule__timeline">
+      <div className="schedule__tl-head">
+        <div className="schedule__tl-hour-gutter" />
+        {columns.map((col) => (
+          <div
+            key={col.key}
+            className="schedule__tl-colhead"
+            style={{ "--tl-accent": col.accent }}
+          >
+            {col.label}
+          </div>
+        ))}
+      </div>
+
+      {anyAllDay && (
+        <div className="schedule__tl-allday">
+          <div className="schedule__tl-hour-gutter schedule__tl-allday-label">종일</div>
+          {columns.map((col) => (
+            <div key={col.key} className="schedule__tl-allday-cell">
+              {col.events
+                .filter((e) => !e.startTime)
+                .map((ev) => (
+                  <span
+                    key={eventSeriesKey(ev)}
+                    className="schedule__tl-allday-chip"
+                    style={{ "--tl-accent": eventAccent(ev) }}
+                    title={ev.title}
+                  >
+                    {ev.title}
+                  </span>
+                ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="schedule__tl-scroll" ref={scrollRef}>
+        <div className="schedule__tl-body" style={{ height: `${24 * TIMELINE_SLOT_H}px` }}>
+          <div className="schedule__tl-hours">
+            {TIMELINE_HOURS.map((h) => (
+              <div key={h} className="schedule__tl-hour" style={{ height: `${TIMELINE_SLOT_H}px` }}>
+                <span>{String(h).padStart(2, "0")}</span>
+              </div>
+            ))}
+          </div>
+          {columns.map((col) => (
+            <div key={col.key} className="schedule__tl-col">
+              {TIMELINE_HOURS.map((h) => (
+                <div
+                  key={h}
+                  className="schedule__tl-slot"
+                  style={{ height: `${TIMELINE_SLOT_H}px` }}
+                />
+              ))}
+              {col.events
+                .filter((e) => e.startTime)
+                .map((ev) => (
+                  <TimelineBlock key={eventSeriesKey(ev)} ev={ev} />
+                ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayModal({ dateKey, events, owners, selectedOwners, onClose, onEdit, onDelete, onAdd }) {
   const [y, m, d] = dateKey.split("-");
+  const [viewMode, setViewMode] = useState("grouped");
+
+  const uniqueEvents = useMemo(() => dedupeEventsBySeries(events), [events]);
+  const fallbackOwners = selectedOwners?.length ? selectedOwners : owners || [];
+  const columns = useMemo(
+    () => buildDayColumns(uniqueEvents, fallbackOwners),
+    [uniqueEvents, fallbackOwners]
+  );
+  const showOwnerName = fallbackOwners.length > 1;
+
   return (
     <motion.div
       className="schedule__overlay"
@@ -1580,7 +1803,7 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
       onClick={onClose}
     >
       <motion.div
-        className="schedule__modal schedule__modal--day"
+        className={`schedule__modal schedule__modal--day ${viewMode === "timeline" ? "schedule__modal--timeline" : ""}`}
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -1599,78 +1822,63 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
             </button>
           </div>
         </div>
-        <div className="schedule__day-list">
-          {events.length === 0 ? (
+
+        <div className="schedule__day-viewtoggle">
+          <button
+            type="button"
+            className={`schedule__viewtoggle-btn ${viewMode === "grouped" ? "is-active" : ""}`}
+            onClick={() => setViewMode("grouped")}
+          >
+            목록보기
+          </button>
+          <button
+            type="button"
+            className={`schedule__viewtoggle-btn ${viewMode === "timeline" ? "is-active" : ""}`}
+            onClick={() => setViewMode("timeline")}
+          >
+            막대바로보기
+          </button>
+        </div>
+
+        {uniqueEvents.length === 0 ? (
+          <div className="schedule__day-list">
             <p className="schedule__empty">등록된 일정이 없습니다.</p>
-          ) : (
-            dedupeEventsBySeries(events).map((ev) => {
-              const isShared = (ev.sharedOwnerIds?.length || 1) > 1;
-              const bubbleTheme = isShared
-                ? { accent: "#9ca3af" }
-                : getThemeById(ev.ownerThemeColor || "red");
-              return (
-                <div key={eventSeriesKey(ev)} className="schedule__day-item">
+          </div>
+        ) : viewMode === "timeline" ? (
+          <DayTimeline columns={columns} />
+        ) : (
+          <div className="schedule__day-groups">
+            {columns.map((col) => (
+              <section key={col.key} className="schedule__day-group">
+                <header className="schedule__day-group-head">
                   <span
-                    className="schedule__day-item-dot"
-                    style={{ background: bubbleTheme.accent }}
+                    className="schedule__day-group-dot"
+                    style={{ background: col.accent }}
                     aria-hidden
                   />
-                  <div className="schedule__day-item-main">
-                    <strong>
-                      {(ev.appointmentType === "MONEY" || (!ev.appointmentType && ev.incomeType)) && (
-                        <span className="schedule__money-icon">₩</span>
-                      )}
-                      {ev.appointmentType === "DRINK" && <span className="schedule__drink-icon">🍺</span>}
-                      <span className="schedule__day-item-title-text">{ev.title}</span>
-                      <span className="schedule__day-item-title-time">{formatEventTime(ev)}</span>
-                    </strong>
-                    <span className="schedule__day-item-range">
-                      {formatDateDot(ev.seriesStartDate || ev.eventDate)} ~{" "}
-                      {formatDateDot(ev.seriesEndDate || ev.eventDate)}
-                    </span>
-                    {ev.sharedOwnerNames?.length > 1 && (
-                      <span className="schedule__day-item-shared">
-                        함께: {ev.sharedOwnerNames.join(", ")}
-                      </span>
-                    )}
-                    {ev.ownerName && selectedOwnersCount(events) > 1 && (
-                      <span className="schedule__day-item-owner">{ev.ownerName}</span>
-                    )}
-                    {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
-                      <a
-                        className="schedule__day-item-location"
-                        href={mapsLink(ev.locationLat, ev.locationLng)}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={ev.locationName}
-                      >
-                        📍 {shortenLocationName(ev.locationName)}
-                      </a>
-                    )}
-                    {ev.description && (
-                      <p className="schedule__day-item-desc" title={ev.description}>
-                        {ev.description}
-                      </p>
-                    )}
+                  <span className="schedule__day-group-name">{col.label}</span>
+                  <span className="schedule__day-group-count">{col.events.length}</span>
+                </header>
+                {col.events.length === 0 ? (
+                  <p className="schedule__day-group-empty">일정 없음</p>
+                ) : (
+                  <div className="schedule__day-list">
+                    {col.events.map((ev) => (
+                      <DayEventCard
+                        key={eventSeriesKey(ev)}
+                        ev={ev}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        showOwner={showOwnerName && col.key === "shared"}
+                      />
+                    ))}
                   </div>
-                  <div className="schedule__day-item-actions">
-                    <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn btn-ghost schedule__day-delete-btn" onClick={() => onDelete(ev.id)}>
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                )}
+              </section>
+            ))}
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );
-}
-
-function selectedOwnersCount(events) {
-  return new Set(events.map((e) => e.ownerId)).size;
 }
