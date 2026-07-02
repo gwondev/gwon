@@ -6,6 +6,7 @@
 
 .techstack__view {
   margin-top: 0;
+  overflow: visible;
 }
 
 .techstack__stack,
@@ -19,23 +20,24 @@
 
 .techstack__group {
   position: relative;
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 1rem;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
   padding-bottom: 1.2rem;
   border-bottom: 1px solid var(--line);
   list-style: none;
 }
 
 .techstack__group--sortable {
-  padding-left: clamp(28px, 3vw, 34px);
+  padding-left: 0;
 }
 
 .techstack__group--sortable .record__drag {
   position: absolute;
-  left: 0;
-  top: 0.35rem;
+  left: -24px;
+  top: 0.15rem;
+  transform: none;
 }
 
 .techstack__draft-list {
@@ -68,7 +70,6 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
-  padding-top: 0.35rem;
   text-align: left;
 }
 
@@ -194,29 +195,18 @@
 }
 
 @media (max-width: 900px) {
-  .techstack__group {
-    grid-template-columns: 1fr;
-    gap: 0.4rem;
-    padding-bottom: 0.85rem;
-  }
-
   .techstack__group-name {
     font-size: 0.68rem;
-    padding-top: 0;
     letter-spacing: 0.04em;
   }
 
   .techstack__stack .stack-chip {
-    font-size: 0.72rem;
-    padding: 0.32rem 0.62rem;
+    font-size: 0.68rem;
+    padding: 0.28rem 0.55rem;
   }
 
   .techstack__group-items {
     gap: 0.35rem;
-  }
-
-  .techstack__group--sortable {
-    padding-left: 26px;
   }
 
   .techstack__row {
@@ -227,9 +217,8 @@
   }
 }
 
-@media (max-width: 620px) {
-  .techstack__stack .stack-chip {
-    font-size: 0.68rem;
-    padding: 0.28rem 0.55rem;
+@media (max-width: 760px) {
+  .techstack__group--sortable .record__drag {
+    left: -20px;
   }
 }
