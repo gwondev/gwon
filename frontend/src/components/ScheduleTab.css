@@ -1653,7 +1653,7 @@
 
 .schedule__tl-hour-gutter {
   flex: none;
-  width: 34px;
+  width: 26px;
 }
 
 .schedule__tl-colhead {
@@ -1710,59 +1710,30 @@
   text-overflow: ellipsis;
 }
 
-.schedule__tl-scroll {
-  margin-top: 4px;
-  overflow: auto;
-}
-
-.schedule__tl-resize {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 18px;
-  border-top: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.05);
-  cursor: ns-resize;
-  touch-action: none;
-  user-select: none;
-}
-
-.schedule__tl-resize:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.schedule__tl-resize-grip {
-  width: 34px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--text-faint);
-  opacity: 0.6;
-}
-
 .schedule__tl-body {
   display: flex;
   gap: 4px;
   position: relative;
+  margin-top: 4px;
+  padding: 0 4px 4px;
 }
 
 .schedule__tl-hours {
   flex: none;
-  width: 34px;
+  width: 26px;
 }
 
 .schedule__tl-hour {
   position: relative;
-  border-top: 1px solid var(--line);
 }
 
 .schedule__tl-hour span {
   position: absolute;
-  top: -0.55rem;
-  right: 3px;
-  font-size: 0.62rem;
+  top: 1px;
+  right: 4px;
+  font-size: 0.6rem;
+  line-height: 1;
   color: var(--text-faint);
-  background: var(--bg-elev);
-  padding: 0 2px;
 }
 
 .schedule__tl-col {

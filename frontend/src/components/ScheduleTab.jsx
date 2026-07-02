@@ -1630,27 +1630,21 @@ function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
   );
 }
 
-const TIMELINE_SLOT_H = 32;
 const TIMELINE_HOURS = Array.from({ length: 24 }, (_, i) => i);
-const TIMELINE_HEIGHT_KEY = "gwon.calendar.timelineHeight";
 
-function defaultTimelineHeight() {
-  if (typeof window === "undefined") return 420;
-  return Math.round(window.innerHeight * 0.52);
+// 화면 폭에 맞춰 1시간 칸 높이 결정 (모바일은 한 화면에 최대한 들어오도록 촘촘하게)
+function computeSlotH() {
+  if (typeof window === "undefined") return 30;
+  return window.innerWidth < 640 ? 20 : 30;
 }
 
-function clampTimelineHeight(h) {
-  const max = typeof window !== "undefined" ? Math.round(window.innerHeight * 0.85) : 900;
-  return Math.min(Math.max(h, 180), max);
-}
-
-function TimelineBlock({ ev }) {
+function TimelineBlock({ ev, slotH }) {
   const startMin = timeToMinute(ev.startTime);
   const endMinRaw = ev.endTime ? timeToMinute(ev.endTime) : null;
   const start = startMin ?? 0;
   const end = endMinRaw != null && endMinRaw > start ? endMinRaw : start + 60;
-  const top = (start / 60) * TIMELINE_SLOT_H;
-  const height = Math.max(((end - start) / 60) * TIMELINE_SLOT_H - 2, 22);
+  const top = (start / 60) * slotH;
+  const height = Math.max(((end - start) / 60) * slotH - 2, 18);
   const isMoney = ev.appointmentType === "MONEY" || (!ev.appointmentType && ev.incomeType);
   return (
     <div
@@ -1669,37 +1663,13 @@ function TimelineBlock({ ev }) {
 }
 
 function DayTimeline({ columns }) {
-  const scrollRef = useRef(null);
-  const [height, setHeight] = useState(() => {
-    const saved = Number(localStorage.getItem(TIMELINE_HEIGHT_KEY));
-    return saved > 0 ? clampTimelineHeight(saved) : defaultTimelineHeight();
-  });
+  const [slotH, setSlotH] = useState(computeSlotH);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = 7 * TIMELINE_SLOT_H;
+    const onResize = () => setSlotH(computeSlotH());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
-
-  const startResize = useCallback(
-    (e) => {
-      e.preventDefault();
-      const startY = e.clientY;
-      const startH = scrollRef.current ? scrollRef.current.offsetHeight : height;
-      const onMove = (ev) => {
-        const next = clampTimelineHeight(startH + (ev.clientY - startY));
-        setHeight(next);
-      };
-      const onUp = () => {
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        if (scrollRef.current) {
-          localStorage.setItem(TIMELINE_HEIGHT_KEY, String(scrollRef.current.offsetHeight));
-        }
-      };
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-    },
-    [height]
-  );
 
   if (!columns.length) {
     return <p className="schedule__empty">표시할 대상이 없습니다.</p>;
@@ -1745,42 +1715,30 @@ function DayTimeline({ columns }) {
           </div>
         )}
 
-        <div className="schedule__tl-scroll" ref={scrollRef} style={{ height: `${height}px` }}>
-          <div className="schedule__tl-body" style={{ height: `${24 * TIMELINE_SLOT_H}px` }}>
-            <div className="schedule__tl-hours">
-              {TIMELINE_HOURS.map((h) => (
-                <div key={h} className="schedule__tl-hour" style={{ height: `${TIMELINE_SLOT_H}px` }}>
-                  <span>{String(h).padStart(2, "0")}</span>
-                </div>
-              ))}
-            </div>
-            {columns.map((col) => (
-              <div key={col.key} className="schedule__tl-col">
-                {TIMELINE_HOURS.map((h) => (
-                  <div
-                    key={h}
-                    className="schedule__tl-slot"
-                    style={{ height: `${TIMELINE_SLOT_H}px` }}
-                  />
-                ))}
-                {col.events
-                  .filter((e) => e.startTime)
-                  .map((ev) => (
-                    <TimelineBlock key={eventSeriesKey(ev)} ev={ev} />
-                  ))}
+        <div className="schedule__tl-body" style={{ height: `${24 * slotH}px` }}>
+          <div className="schedule__tl-hours">
+            {TIMELINE_HOURS.map((h) => (
+              <div key={h} className="schedule__tl-hour" style={{ height: `${slotH}px` }}>
+                <span>{String(h).padStart(2, "0")}</span>
               </div>
             ))}
           </div>
-        </div>
-
-        <div
-          className="schedule__tl-resize"
-          onPointerDown={startResize}
-          role="separator"
-          aria-label="타임라인 높이 조절"
-          title="드래그해서 높이 조절"
-        >
-          <span className="schedule__tl-resize-grip" aria-hidden />
+          {columns.map((col) => (
+            <div key={col.key} className="schedule__tl-col">
+              {TIMELINE_HOURS.map((h) => (
+                <div
+                  key={h}
+                  className="schedule__tl-slot"
+                  style={{ height: `${slotH}px` }}
+                />
+              ))}
+              {col.events
+                .filter((e) => e.startTime)
+                .map((ev) => (
+                  <TimelineBlock key={eventSeriesKey(ev)} ev={ev} slotH={slotH} />
+                ))}
+            </div>
+          ))}
         </div>
       </div>
     </div>

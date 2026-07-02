@@ -21,6 +21,9 @@
   background: linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
   border-left: 1px solid var(--line-strong);
   box-shadow: -40px 0 120px -30px rgba(0, 0, 0, 0.9);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .drawer__head {
