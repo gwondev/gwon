@@ -57,19 +57,13 @@
     width: 100%;
     max-width: 100%;
     justify-content: flex-start;
-    gap: 3px;
-    padding: 4px;
-    border-radius: var(--radius-lg);
+    gap: 4px;
+    padding: 5px;
+    border-radius: var(--radius-pill);
   }
   .tabnav__tab {
-    padding: 0.34rem 0.6rem;
-    font-size: 0.62rem;
-    letter-spacing: -0.02em;
-  }
-  .tabnav__label--full {
-    display: none;
-  }
-  .tabnav__label--short {
-    display: inline;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.78rem;
+    letter-spacing: -0.01em;
   }
 }
