@@ -138,13 +138,18 @@
 
 @media (max-width: 899px) {
   .quick-actions {
-    padding: 0.15rem 0 0.25rem;
+    padding: 0;
+  }
+
+  .quick-actions__btn {
+    width: clamp(104px, 27vw, 122px);
+    height: clamp(104px, 27vw, 122px);
   }
 }
 
 @media (max-width: 380px) {
   .quick-actions__btn {
-    width: clamp(108px, 30vw, 128px);
-    height: clamp(108px, 30vw, 128px);
+    width: clamp(98px, 28vw, 112px);
+    height: clamp(98px, 28vw, 112px);
   }
 }
