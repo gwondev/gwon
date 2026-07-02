@@ -208,13 +208,14 @@ body::after {
   flex-direction: column;
   gap: 0.5rem;
 }
-.field label {
+.field label,
+.field__label {
   font-size: 0.82rem;
   letter-spacing: 0.04em;
   color: var(--text-faint);
   font-weight: 600;
 }
-.field input,
+.field input:not([type="radio"]):not([type="checkbox"]),
 .field textarea,
 .field select {
   width: 100%;
@@ -226,6 +227,16 @@ body::after {
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+}
+.field input[type="radio"],
+.field input[type="checkbox"] {
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  flex: none;
 }
 /* 날짜(월) 입력 — 다크 테마에 맞춘 캘린더 아이콘 */
 /* 기간 입력 (시작 ~ 종료) */
@@ -290,7 +301,7 @@ body::after {
   resize: vertical;
   min-height: 96px;
 }
-.field input:focus,
+.field input:not([type="radio"]):not([type="checkbox"]):focus,
 .field textarea:focus,
 .field select:focus {
   outline: none;

@@ -354,7 +354,13 @@ export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
         const fid = `${idPrefix}${f.name}`;
         return (
           <div key={f.name} className={`field ${f.span ? "span-2" : ""}`}>
-            <label htmlFor={fid}>{f.label}</label>
+            {f.type === "checkbox" || f.type === "radio" ? (
+              <span className="field__label" id={fid}>
+                {f.label}
+              </span>
+            ) : (
+              <label htmlFor={fid}>{f.label}</label>
+            )}
             {f.hint && <p className="field__hint">{f.hint}</p>}
             {f.type === "period" ? (
               <PeriodInput id={fid} value={form[f.name]} onChange={(v) => set(f.name, v)} />

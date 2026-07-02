@@ -103,8 +103,8 @@ export const PUBLIC_VISIBILITY_FIELD = {
   span: true,
   default: "1",
   options: [
-    { value: "1", label: "공개 — 자격증·활동 등 탭 목록에 표시" },
-    { value: "0", label: "비공개 — 탭에는 숨김 (데이터 보관함·관리 화면에는 유지)" },
+    { value: "1", label: "공개 — 탭 목록에 표시" },
+    { value: "0", label: "비공개 — 탭에는 숨김 (보관함·관리 화면에는 유지)" },
   ],
 };
 
