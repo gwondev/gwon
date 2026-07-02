@@ -902,8 +902,9 @@
 .schedule__allday-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.42rem 0.85rem;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.42rem 1.1rem;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.04);
@@ -922,9 +923,11 @@
 }
 
 .schedule__allday-check {
-  width: 0.9em;
-  text-align: center;
   font-size: 0.8em;
+}
+
+.schedule__allday-check:empty {
+  display: none;
 }
 
 .schedule__allday-start {
@@ -960,90 +963,187 @@
   text-align: center;
 }
 
+.schedule__when-block--wide {
+  flex: 1 1 100%;
+}
+
+.schedule__when-times {
+  flex: 1 1 100%;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.schedule__when-times .schedule__when-block {
+  flex: 1 1 0;
+}
+
 .schedule__repeat-until {
   flex: 1 1 100%;
 }
 
-/* ── 휠 피커 ── */
-.wheel-group {
+/* ── 날짜 선택 (미니 달력) ── */
+.datefield {
+  position: relative;
+}
+
+.datefield__btn {
+  width: 100%;
   display: flex;
-  justify-content: center;
-  gap: 0.35rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
 }
 
-.wheel {
-  position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 5.5rem;
+.datefield__btn.is-open {
+  border-color: var(--cal-accent, #ef4444);
 }
 
-.wheel__scroll {
-  position: relative;
-  height: 170px;
-  overflow-y: auto;
-  scroll-snap-type: y mandatory;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 32%, #000 68%, transparent);
+.datefield__chevron {
+  font-size: 0.6rem;
+  color: var(--text-faint);
 }
 
-.wheel__scroll::-webkit-scrollbar {
-  display: none;
+.datefield__pop {
+  overflow: hidden;
 }
 
-.wheel__pad {
-  height: 68px;
-  flex: none;
+.minical {
+  margin-top: 0.4rem;
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
 }
 
-.wheel__item {
+.minical__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.minical__title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.minical__nav {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+
+.minical__nav:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.minical__dow {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-bottom: 0.2rem;
+}
+
+.minical__dow-cell {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-faint);
+  padding: 0.15rem 0;
+}
+
+.minical__dow-cell.is-sun {
+  color: #f87171;
+}
+
+.minical__dow-cell.is-sat {
+  color: #60a5fa;
+}
+
+.minical__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.minical__cell {
+  aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 34px;
-  width: 100%;
-  scroll-snap-align: center;
   border: none;
+  border-radius: 8px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+}
+
+.minical__cell:hover:not(:disabled):not(.is-empty) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.minical__cell.is-sun {
+  color: #f87171;
+}
+
+.minical__cell.is-sat {
+  color: #60a5fa;
+}
+
+.minical__cell.is-sel {
+  background: var(--cal-accent, #ef4444);
+  color: #fff;
+}
+
+.minical__cell.is-empty {
+  cursor: default;
+}
+
+.minical__cell:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+/* ── 시간 선택 ── */
+.timesel {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.timesel__sel {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.5rem 0.5rem;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
   font: inherit;
   font-size: 0.92rem;
-  cursor: pointer;
-  transition: color 0.15s var(--ease), transform 0.15s var(--ease), opacity 0.15s var(--ease);
-  opacity: 0.55;
-}
-
-.wheel__item.is-sel {
-  color: var(--text);
-  font-weight: 800;
-  transform: scale(1.12);
-  opacity: 1;
-}
-
-.wheel__center {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 68px;
-  height: 34px;
-  border-top: 1px solid var(--cal-accent, #ef4444);
-  border-bottom: 1px solid var(--cal-accent, #ef4444);
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-.wheel__suffix {
-  position: absolute;
-  right: 0.35rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--text-faint);
-  pointer-events: none;
+  text-align: center;
+  cursor: pointer;
 }
 
 /* ── 반복 토글/패널 ── */
@@ -1529,10 +1629,26 @@
   padding: 0.15rem 0.9rem 0.9rem;
 }
 
+/* 헤드+종일+타임라인+리사이즈를 하나의 카드로 묶어 안/밖 분리 느낌 제거 */
+.schedule__tl-frame {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.015);
+}
+
 .schedule__tl-head,
 .schedule__tl-allday {
   display: flex;
   gap: 4px;
+}
+
+.schedule__tl-head {
+  padding: 4px 4px 0;
+}
+
+.schedule__tl-allday {
+  padding: 0 4px;
 }
 
 .schedule__tl-hour-gutter {
@@ -1597,19 +1713,15 @@
 .schedule__tl-scroll {
   margin-top: 4px;
   overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 10px 10px 0 0;
 }
 
 .schedule__tl-resize {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 16px;
-  border: 1px solid var(--line);
-  border-top: none;
-  border-radius: 0 0 10px 10px;
-  background: rgba(255, 255, 255, 0.04);
+  height: 18px;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
   cursor: ns-resize;
   touch-action: none;
   user-select: none;

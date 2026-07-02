@@ -1031,8 +1031,6 @@ function mapsLink(lat, lng) {
   return `https://www.google.com/maps?q=${lat},${lng}`;
 }
 
-const WHEEL_ITEM_H = 34;
-
 function rangeArr(start, end) {
   const out = [];
   for (let i = start; i < end; i++) out.push(i);
@@ -1045,119 +1043,128 @@ function parseFormDate(v) {
   return new Date(y, m - 1, d);
 }
 
-function WheelColumn({ items, value, onChange, ariaLabel, suffix }) {
-  const ref = useRef(null);
-  const settleRef = useRef(null);
-  const idx = Math.max(0, items.findIndex((it) => String(it.value) === String(value)));
+const CAL_WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const target = idx * WHEEL_ITEM_H;
-    if (Math.abs(el.scrollTop - target) > 1) el.scrollTop = target;
-  }, [idx]);
+function MiniCalendar({ value, min, onChange }) {
+  const sel = parseFormDate(value);
+  const base = sel || parseFormDate(min) || new Date();
+  const [view, setView] = useState({ y: base.getFullYear(), m: base.getMonth() });
+  const [dir, setDir] = useState(0);
 
-  const handleScroll = () => {
-    const el = ref.current;
-    if (!el) return;
-    clearTimeout(settleRef.current);
-    settleRef.current = setTimeout(() => {
-      const i = Math.min(Math.max(Math.round(el.scrollTop / WHEEL_ITEM_H), 0), items.length - 1);
-      const target = i * WHEEL_ITEM_H;
-      if (Math.abs(el.scrollTop - target) > 1) el.scrollTo({ top: target, behavior: "smooth" });
-      const v = items[i]?.value;
-      if (v != null && String(v) !== String(value)) onChange(v);
-    }, 110);
+  const goMonth = (delta) => {
+    setDir(delta);
+    setView((v) => {
+      const d = new Date(v.y, v.m + delta, 1);
+      return { y: d.getFullYear(), m: d.getMonth() };
+    });
   };
 
+  const firstDow = new Date(view.y, view.m, 1).getDay();
+  const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const selKey = value;
+
   return (
-    <div className="wheel">
-      <div className="wheel__scroll" ref={ref} onScroll={handleScroll} role="listbox" aria-label={ariaLabel}>
-        <div className="wheel__pad" />
-        {items.map((it) => (
-          <button
-            type="button"
-            key={it.value}
-            className={`wheel__item ${String(it.value) === String(value) ? "is-sel" : ""}`}
-            onClick={() => onChange(it.value)}
-          >
-            {it.label}
-          </button>
-        ))}
-        <div className="wheel__pad" />
+    <div className="minical">
+      <div className="minical__head">
+        <button type="button" className="minical__nav" onClick={() => goMonth(-1)} aria-label="이전 달">‹</button>
+        <span className="minical__title">{view.y}년 {view.m + 1}월</span>
+        <button type="button" className="minical__nav" onClick={() => goMonth(1)} aria-label="다음 달">›</button>
       </div>
-      <div className="wheel__center" aria-hidden />
-      {suffix && <span className="wheel__suffix" aria-hidden>{suffix}</span>}
+      <div className="minical__dow">
+        {CAL_WEEKDAYS.map((w, i) => (
+          <span key={w} className={`minical__dow-cell ${i === 0 ? "is-sun" : ""} ${i === 6 ? "is-sat" : ""}`}>{w}</span>
+        ))}
+      </div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={`${view.y}-${view.m}`}
+          className="minical__grid"
+          initial={{ opacity: 0, x: dir >= 0 ? 22 : -22 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: dir >= 0 ? -22 : 22 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
+          {cells.map((d, i) => {
+            if (d == null) return <span key={`e${i}`} className="minical__cell is-empty" />;
+            const key = `${view.y}-${pad2(view.m + 1)}-${pad2(d)}`;
+            const dow = (firstDow + d - 1) % 7;
+            const disabled = min && key < min;
+            const isSel = key === selKey;
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={disabled}
+                className={`minical__cell ${isSel ? "is-sel" : ""} ${dow === 0 ? "is-sun" : ""} ${dow === 6 ? "is-sat" : ""}`}
+                onClick={() => onChange(key)}
+              >
+                {d}
+              </button>
+            );
+          })}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
 
-function DateWheel({ value, min, onChange }) {
-  const cur = parseFormDate(value) || parseFormDate(min) || new Date();
-  const yy = cur.getFullYear();
-  const mm = cur.getMonth() + 1;
-  const dd = cur.getDate();
-  const minY = parseFormDate(min)?.getFullYear() ?? yy;
-  const loY = Math.min(yy, minY);
-  const years = rangeArr(loY, loY + 6);
-  const daysInMonth = new Date(yy, mm, 0).getDate();
-
-  const build = (ny, nm, nd) => {
-    const dim = new Date(ny, nm, 0).getDate();
-    const day = Math.min(nd, dim);
-    let key = `${ny}-${pad2(nm)}-${pad2(day)}`;
-    if (min && key < min) key = min;
-    onChange(key);
-  };
-
+function DateField({ value, min, onChange, placeholder = "날짜 선택" }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="wheel-group">
-      <WheelColumn
-        ariaLabel="년"
-        suffix="년"
-        items={years.map((v) => ({ value: v, label: `${v}` }))}
-        value={yy}
-        onChange={(v) => build(Number(v), mm, dd)}
-      />
-      <WheelColumn
-        ariaLabel="월"
-        suffix="월"
-        items={rangeArr(1, 13).map((v) => ({ value: v, label: `${v}` }))}
-        value={mm}
-        onChange={(v) => build(yy, Number(v), dd)}
-      />
-      <WheelColumn
-        ariaLabel="일"
-        suffix="일"
-        items={rangeArr(1, daysInMonth + 1).map((v) => ({ value: v, label: `${v}` }))}
-        value={dd}
-        onChange={(v) => build(yy, mm, Number(v))}
-      />
+    <div className="datefield">
+      <button
+        type="button"
+        className={`datefield__btn ${open ? "is-open" : ""}`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span>{value ? formatDateDot(value) : placeholder}</span>
+        <span className="datefield__chevron" aria-hidden>{open ? "▲" : "▼"}</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            className="datefield__pop"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            <MiniCalendar
+              value={value}
+              min={min}
+              onChange={(v) => {
+                onChange(v);
+                setOpen(false);
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function TimeWheel({ value, onChange }) {
+function TimeSelect({ value, onChange }) {
   const [h, mi] = /^\d{2}:\d{2}$/.test(value || "") ? value.split(":").map(Number) : [9, 0];
   const mins = rangeArr(0, 12).map((i) => i * 5);
   const safeMi = mins.includes(mi) ? mi : Math.min(55, Math.round(mi / 5) * 5);
   const build = (nh, nm) => onChange(`${pad2(nh)}:${pad2(nm)}`);
   return (
-    <div className="wheel-group">
-      <WheelColumn
-        ariaLabel="시"
-        suffix="시"
-        items={rangeArr(0, 24).map((v) => ({ value: v, label: pad2(v) }))}
-        value={h}
-        onChange={(v) => build(Number(v), safeMi)}
-      />
-      <WheelColumn
-        ariaLabel="분"
-        suffix="분"
-        items={mins.map((v) => ({ value: v, label: pad2(v) }))}
-        value={safeMi}
-        onChange={(v) => build(h, Number(v))}
-      />
+    <div className="timesel">
+      <select className="timesel__sel" value={h} onChange={(e) => build(Number(e.target.value), safeMi)} aria-label="시">
+        {rangeArr(0, 24).map((v) => (
+          <option key={v} value={v}>{pad2(v)}시</option>
+        ))}
+      </select>
+      <select className="timesel__sel" value={safeMi} onChange={(e) => build(h, Number(e.target.value))} aria-label="분">
+        {mins.map((v) => (
+          <option key={v} value={v}>{pad2(v)}분</option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -1337,7 +1344,7 @@ function EventModal({
               >
                 <div className="schedule__when-block">
                   <span className="schedule__when-label">종료 날짜</span>
-                  <DateWheel
+                  <DateField
                     value={form.endDate}
                     min={form.eventDate}
                     onChange={(v) => setForm((f) => ({ ...f, endDate: v }))}
@@ -1353,21 +1360,23 @@ function EventModal({
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
               >
-                <div className="schedule__when-block">
-                  <span className="schedule__when-label">시작 시간</span>
-                  <TimeWheel value={form.startTime} onChange={(v) => setForm((f) => ({ ...f, startTime: v }))} />
-                </div>
-                <div className="schedule__when-block">
+                <div className="schedule__when-block schedule__when-block--wide">
                   <span className="schedule__when-label">종료 날짜</span>
-                  <DateWheel
+                  <DateField
                     value={form.endDate}
                     min={form.eventDate}
                     onChange={(v) => setForm((f) => ({ ...f, endDate: v }))}
                   />
                 </div>
-                <div className="schedule__when-block">
-                  <span className="schedule__when-label">종료 시간</span>
-                  <TimeWheel value={form.endTime} onChange={(v) => setForm((f) => ({ ...f, endTime: v }))} />
+                <div className="schedule__when-times">
+                  <div className="schedule__when-block">
+                    <span className="schedule__when-label">시작 시간</span>
+                    <TimeSelect value={form.startTime} onChange={(v) => setForm((f) => ({ ...f, startTime: v }))} />
+                  </div>
+                  <div className="schedule__when-block">
+                    <span className="schedule__when-label">종료 시간</span>
+                    <TimeSelect value={form.endTime} onChange={(v) => setForm((f) => ({ ...f, endTime: v }))} />
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -1454,7 +1463,7 @@ function EventModal({
 
                 <div className="schedule__when-block schedule__repeat-until">
                   <span className="schedule__when-label">반복 종료일</span>
-                  <DateWheel
+                  <DateField
                     value={form.repeatUntil}
                     min={form.eventDate}
                     onChange={(v) => setForm((f) => ({ ...f, repeatUntil: v }))}
@@ -1621,7 +1630,7 @@ function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
   );
 }
 
-const TIMELINE_SLOT_H = 40;
+const TIMELINE_SLOT_H = 32;
 const TIMELINE_HOURS = Array.from({ length: 24 }, (_, i) => i);
 const TIMELINE_HEIGHT_KEY = "gwon.calendar.timelineHeight";
 
@@ -1700,76 +1709,79 @@ function DayTimeline({ columns }) {
 
   return (
     <div className="schedule__timeline">
-      <div className="schedule__tl-head">
-        <div className="schedule__tl-hour-gutter" />
-        {columns.map((col) => (
-          <div
-            key={col.key}
-            className="schedule__tl-colhead"
-            style={{ "--tl-accent": col.accent }}
-          >
-            {col.label}
-          </div>
-        ))}
-      </div>
-
-      {anyAllDay && (
-        <div className="schedule__tl-allday">
-          <div className="schedule__tl-hour-gutter schedule__tl-allday-label">종일</div>
+      <div className="schedule__tl-frame">
+        <div className="schedule__tl-head">
+          <div className="schedule__tl-hour-gutter" />
           {columns.map((col) => (
-            <div key={col.key} className="schedule__tl-allday-cell">
-              {col.events
-                .filter((e) => !e.startTime)
-                .map((ev) => (
-                  <span
-                    key={eventSeriesKey(ev)}
-                    className="schedule__tl-allday-chip"
-                    style={{ "--tl-accent": eventAccent(ev) }}
-                    title={ev.title}
-                  >
-                    {ev.title}
-                  </span>
-                ))}
+            <div
+              key={col.key}
+              className="schedule__tl-colhead"
+              style={{ "--tl-accent": col.accent }}
+            >
+              {col.label}
             </div>
           ))}
         </div>
-      )}
 
-      <div className="schedule__tl-scroll" ref={scrollRef} style={{ height: `${height}px` }}>
-        <div className="schedule__tl-body" style={{ height: `${24 * TIMELINE_SLOT_H}px` }}>
-          <div className="schedule__tl-hours">
-            {TIMELINE_HOURS.map((h) => (
-              <div key={h} className="schedule__tl-hour" style={{ height: `${TIMELINE_SLOT_H}px` }}>
-                <span>{String(h).padStart(2, "0")}</span>
+        {anyAllDay && (
+          <div className="schedule__tl-allday">
+            <div className="schedule__tl-hour-gutter schedule__tl-allday-label">종일</div>
+            {columns.map((col) => (
+              <div key={col.key} className="schedule__tl-allday-cell">
+                {col.events
+                  .filter((e) => !e.startTime)
+                  .map((ev) => (
+                    <span
+                      key={eventSeriesKey(ev)}
+                      className="schedule__tl-allday-chip"
+                      style={{ "--tl-accent": eventAccent(ev) }}
+                      title={ev.title}
+                    >
+                      {ev.title}
+                    </span>
+                  ))}
               </div>
             ))}
           </div>
-          {columns.map((col) => (
-            <div key={col.key} className="schedule__tl-col">
+        )}
+
+        <div className="schedule__tl-scroll" ref={scrollRef} style={{ height: `${height}px` }}>
+          <div className="schedule__tl-body" style={{ height: `${24 * TIMELINE_SLOT_H}px` }}>
+            <div className="schedule__tl-hours">
               {TIMELINE_HOURS.map((h) => (
-                <div
-                  key={h}
-                  className="schedule__tl-slot"
-                  style={{ height: `${TIMELINE_SLOT_H}px` }}
-                />
+                <div key={h} className="schedule__tl-hour" style={{ height: `${TIMELINE_SLOT_H}px` }}>
+                  <span>{String(h).padStart(2, "0")}</span>
+                </div>
               ))}
-              {col.events
-                .filter((e) => e.startTime)
-                .map((ev) => (
-                  <TimelineBlock key={eventSeriesKey(ev)} ev={ev} />
-                ))}
             </div>
-          ))}
+            {columns.map((col) => (
+              <div key={col.key} className="schedule__tl-col">
+                {TIMELINE_HOURS.map((h) => (
+                  <div
+                    key={h}
+                    className="schedule__tl-slot"
+                    style={{ height: `${TIMELINE_SLOT_H}px` }}
+                  />
+                ))}
+                {col.events
+                  .filter((e) => e.startTime)
+                  .map((ev) => (
+                    <TimelineBlock key={eventSeriesKey(ev)} ev={ev} />
+                  ))}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-      <div
-        className="schedule__tl-resize"
-        onPointerDown={startResize}
-        role="separator"
-        aria-label="타임라인 높이 조절"
-        title="드래그해서 높이 조절"
-      >
-        <span className="schedule__tl-resize-grip" aria-hidden />
+
+        <div
+          className="schedule__tl-resize"
+          onPointerDown={startResize}
+          role="separator"
+          aria-label="타임라인 높이 조절"
+          title="드래그해서 높이 조절"
+        >
+          <span className="schedule__tl-resize-grip" aria-hidden />
+        </div>
       </div>
     </div>
   );
