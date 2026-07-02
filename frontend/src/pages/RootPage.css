@@ -266,46 +266,49 @@
   flex-direction: column;
   gap: 0.35rem;
 }
+.cat-card__preview-slot {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.35rem;
+  flex: 1;
+  min-height: 0;
+  --preview-font: 0.74rem;
+  --preview-row-h: calc(var(--preview-font) * 1.28);
+  min-height: calc(var(--preview-row-h) * 3 + 0.18rem * 2 + 0.5rem);
+}
 .cat-card__preview {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  margin-top: 0.35rem;
   padding-top: 0;
   border-top: none;
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
 }
 .cat-card__preview--grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, var(--preview-row-h));
   column-gap: 0.55rem;
   row-gap: 0.18rem;
+  align-content: start;
 }
-.cat-card__preview--techstack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.16rem;
-  align-items: stretch;
-  text-align: left;
-}
-.cat-card__preview--techstack .cat-card__preview-item--tech {
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cat-card__preview-tech-mobile {
-  display: none;
-  color: var(--accent);
+.cat-card__preview-more {
+  flex: none;
+  height: 0.5rem;
+  line-height: 0.5rem;
+  margin-top: 0;
+  text-align: center;
+  font-size: calc(var(--preview-font) * 0.92);
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  visibility: hidden;
 }
-.cat-card__preview-tech-desktop {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.cat-card__preview-more.is-empty {
+  visibility: hidden;
+}
+.cat-card__preview-more:not(.is-empty) {
+  visibility: visible;
 }
 .cat-card__preview--grid .cat-card__preview-empty {
   grid-column: 1 / -1;
@@ -315,7 +318,7 @@
   width: 100%;
 }
 .cat-card__preview-item {
-  font-size: 0.74rem;
+  font-size: var(--preview-font);
   line-height: 1.28;
   color: var(--text-dim);
   white-space: nowrap;
@@ -349,7 +352,7 @@
   font-weight: 700;
 }
 .cat-card__preview-empty {
-  font-size: 0.76rem;
+  font-size: var(--preview-font);
   color: var(--text-faint);
 }
 .cat-card__title {
@@ -395,9 +398,8 @@
   .root__grid--sub .cat-card__title {
     font-size: calc(clamp(0.9rem, 2.6vw, 1rem) - 1pt);
   }
-  .root__grid--sub .cat-card__preview-item,
-  .root__grid--sub .cat-card__preview-empty {
-    font-size: 0.62rem;
+  .root__grid--sub .cat-card__preview-slot {
+    --preview-font: 0.48rem;
   }
   .overview-bar__title {
     font-size: calc(clamp(1.2rem, 2.2vw, 1.7rem) - 1pt);
@@ -421,22 +423,6 @@
     letter-spacing: 0.08em;
     line-height: 1.25;
     max-width: 92vw;
-  }
-
-  /* 기술스택 카드: 모바일 — 그룹명만 2열 */
-  .cat-card__preview--techstack {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 0.55rem;
-    row-gap: 0.18rem;
-  }
-
-  .cat-card__preview-tech-mobile {
-    display: block;
-  }
-
-  .cat-card__preview-tech-desktop {
-    display: none;
   }
 }
 
@@ -478,9 +464,8 @@
   .cat-card__preview {
     margin-top: 0.35rem;
   }
-  .cat-card__preview-item,
-  .cat-card__preview-empty {
-    font-size: calc(0.64rem - 1pt);
+  .root__grid--sub .cat-card__preview-slot {
+    --preview-font: 0.44rem;
   }
   .root__grid--sub .cat-card__title {
     font-size: calc(0.78rem - 1pt);

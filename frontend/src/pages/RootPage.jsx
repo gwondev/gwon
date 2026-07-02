@@ -17,6 +17,8 @@ import {
 } from "../lib/format";
 import "./RootPage.css";
 
+const PREVIEW_MAX = 6; // 3행 × 2열
+
 function previewLineTitle(row) {
   if (row.kind === "tech") return `[${row.group}] ${row.items}`;
   if (row.kind === "cert") return row.meta ? `${row.main} (${row.meta})` : row.main;
@@ -40,13 +42,14 @@ function previewRows(key, preview, techGroups) {
   const pool = preview.projects || [];
 
   if (key === "competitions") {
-    return pool.filter(isCompetition)
-      .slice(0, 4)
-      .map((it) => ({ kind: "split", ...formatCompetitionPreviewParts(it) }));
+    return pool.filter(isCompetition).map((it) => ({
+      kind: "split",
+      ...formatCompetitionPreviewParts(it),
+    }));
   }
 
   if (key === "projects") {
-    return orderProjectsForPreview(pool, 4).map((it) => ({
+    return orderProjectsForPreview(pool, Infinity).map((it) => ({
       kind: "split",
       ...formatProjectPreviewParts(it),
     }));
@@ -55,21 +58,21 @@ function previewRows(key, preview, techGroups) {
   const items = preview[key] || [];
 
   if (key === "activities") {
-    return items.slice(0, 4).map((it) => ({
+    return items.map((it) => ({
       kind: "split",
       ...formatActivityPreviewParts(it),
     }));
   }
 
   if (key === "career") {
-    return items.slice(0, 4).map((it) => ({
+    return items.map((it) => ({
       kind: "split",
       ...formatCareerPreviewParts(it),
     }));
   }
 
   if (key === "certifications") {
-    return items.slice(0, 4).map((it) => ({
+    return items.map((it) => ({
       kind: "cert",
       ...formatCertificationPreviewParts(it),
     }));
@@ -83,12 +86,9 @@ function PreviewRow({ row }) {
 
   if (row.kind === "tech") {
     return (
-      <span className="cat-card__preview-item cat-card__preview-item--tech" title={title}>
-        <span className="cat-card__preview-tech-mobile">{row.group}</span>
-        <span className="cat-card__preview-tech-desktop">
-          <span className="cat-card__preview-accent">[{row.group}]</span>
-          <span className="cat-card__preview-main">{row.items}</span>
-        </span>
+      <span className="cat-card__preview-item cat-card__preview-item--split" title={title}>
+        <span className="cat-card__preview-accent">[{row.group}]</span>
+        <span className="cat-card__preview-main">{row.items}</span>
       </span>
     );
   }
@@ -180,6 +180,9 @@ export default function RootPage() {
       <motion.div className="root__grid root__grid--sub" variants={gridStagger} initial="hidden" animate="show">
         {SECTIONS.map((s) => {
           const rows = previewRows(s.key, preview, techGroups);
+          const visible = rows.slice(0, PREVIEW_MAX);
+          const hasMore = rows.length > PREVIEW_MAX;
+
           return (
             <motion.button
               key={s.key}
@@ -194,15 +197,30 @@ export default function RootPage() {
               <span className="cat-card__body">
                 <span className="cat-card__title">{s.title}</span>
                 <span className="cat-card__divider" aria-hidden />
-                <span
-                  className={`cat-card__preview ${
-                    s.key === "techstack" ? "cat-card__preview--techstack" : "cat-card__preview--grid"
-                  }`}
-                >
+                <span className="cat-card__preview-slot">
                   {rows.length > 0 ? (
-                    rows.map((row, i) => <PreviewRow key={`${s.key}-${i}`} row={row} />)
+                    <>
+                      <span className="cat-card__preview cat-card__preview--grid">
+                        {visible.map((row, i) => (
+                          <PreviewRow key={`${s.key}-${i}`} row={row} />
+                        ))}
+                      </span>
+                      <span
+                        className={`cat-card__preview-more ${hasMore ? "" : "is-empty"}`}
+                        aria-hidden={!hasMore}
+                      >
+                        ...
+                      </span>
+                    </>
                   ) : (
-                    <span className="cat-card__preview-empty">아직 등록된 항목 없음</span>
+                    <>
+                      <span className="cat-card__preview cat-card__preview--grid">
+                        <span className="cat-card__preview-empty">아직 등록된 항목 없음</span>
+                      </span>
+                      <span className="cat-card__preview-more is-empty" aria-hidden>
+                        ...
+                      </span>
+                    </>
                   )}
                 </span>
               </span>
