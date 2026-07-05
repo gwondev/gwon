@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
@@ -10,6 +10,7 @@ import {
   ownerLabel,
   eventTypePrefix,
   formatEventDisplayTitle,
+  compareMajorEvents,
   normalizeWeekdays,
   WEEKDAY_LABELS,
   REPEAT_FREQS,
@@ -218,20 +219,6 @@ export default function ScheduleTab() {
   );
 
   const headerTitle = useMemo(() => filterTitle(selectedOwners), [selectedOwners]);
-
-  const majorEvents = useMemo(() => {
-    const prefix = `${viewYear}-${String(viewMonth).padStart(2, "0")}`;
-    return displayEvents
-      .filter((ev) => ev.isMajor && String(ev.eventDate).startsWith(prefix))
-      .sort((a, b) => {
-        const dateCmp = String(a.eventDate).localeCompare(String(b.eventDate));
-        if (dateCmp !== 0) return dateCmp;
-        if (a.startTime && !b.startTime) return -1;
-        if (!a.startTime && b.startTime) return 1;
-        if (a.startTime && b.startTime) return a.startTime.localeCompare(b.startTime);
-        return a.id - b.id;
-      });
-  }, [displayEvents, viewYear, viewMonth]);
 
   const eventsByDate = useMemo(() => {
     const map = {};
@@ -763,35 +750,15 @@ export default function ScheduleTab() {
 
       <AnimatePresence>
         {majorPanelOpen && (
-          <motion.div
-            className="schedule__major-panel"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-          >
-            <p className="schedule__major-label">{monthLabel} 주요일정</p>
-            <div className="schedule__major-list">
-              {majorEvents.length === 0 ? (
-                <p className="schedule__major-empty">이번 달 주요일정이 없습니다.</p>
-              ) : (
-                majorEvents.map((ev) => (
-                  <button
-                    key={`major-${ev.id}`}
-                    type="button"
-                    className="schedule__major-item"
-                    onClick={() => openEdit(ev)}
-                  >
-                    <span className="schedule__major-item-date">{formatDateDot(ev.eventDate)}</span>
-                    <span className="schedule__major-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
-                    <span className="schedule__major-item-title">
-                      <EventTitleDisplay event={ev} />
-                    </span>
-                    <span className="schedule__major-item-time">{formatEventTime(ev)}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          </motion.div>
+          <MajorEventsPanel
+            todayKey={todayKey}
+            selectedOwnerIds={selectedOwnerIds}
+            owners={owners}
+            token={token}
+            localMode={localMode}
+            allEvents={displayEvents}
+            onEdit={openEdit}
+          />
         )}
       </AnimatePresence>
 
@@ -945,6 +912,311 @@ export default function ScheduleTab() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+const MAJOR_PAGE_SIZE = 25;
+
+function mergeUniqueEvents(existing, incoming) {
+  const seen = new Set(existing.map((e) => e.id));
+  const next = [...existing];
+  for (const ev of incoming) {
+    if (seen.has(ev.id)) continue;
+    seen.add(ev.id);
+    next.push(ev);
+  }
+  return next;
+}
+
+function prependUniqueEvents(existing, incoming) {
+  const seen = new Set(existing.map((e) => e.id));
+  const added = [];
+  for (const ev of incoming) {
+    if (seen.has(ev.id)) continue;
+    seen.add(ev.id);
+    added.push(ev);
+  }
+  return [...added, ...existing];
+}
+
+function loadMajorPageLocal(direction, cursor, limit, source, todayKey) {
+  const major = source.filter((e) => e.isMajor);
+  let batch = [];
+
+  if (direction === "past") {
+    const beforeDate = cursor?.date || todayKey;
+    const beforeId = cursor?.id ?? Number.MAX_SAFE_INTEGER;
+    batch = major
+      .filter(
+        (e) =>
+          e.eventDate < beforeDate || (e.eventDate === beforeDate && e.id < beforeId)
+      )
+      .sort((a, b) => compareMajorEvents(b, a))
+      .slice(0, limit)
+      .reverse();
+  } else {
+    batch = major
+      .filter((e) => {
+        if (!cursor) return e.eventDate >= todayKey;
+        return (
+          e.eventDate > cursor.date ||
+          (e.eventDate === cursor.date && e.id > cursor.id)
+        );
+      })
+      .sort(compareMajorEvents)
+      .slice(0, limit);
+  }
+
+  const edge = batch.length
+    ? direction === "past"
+      ? batch[0]
+      : batch[batch.length - 1]
+    : null;
+
+  return {
+    items: batch,
+    hasMore: batch.length === limit,
+    nextCursor: edge ? { date: edge.eventDate, id: edge.id } : null,
+  };
+}
+
+function MajorEventsPanel({ todayKey, selectedOwnerIds, owners, token, localMode, allEvents, onEdit }) {
+  const [pastItems, setPastItems] = useState([]);
+  const [futureItems, setFutureItems] = useState([]);
+  const [pastHasMore, setPastHasMore] = useState(true);
+  const [futureHasMore, setFutureHasMore] = useState(true);
+  const [ready, setReady] = useState(false);
+  const listRef = useRef(null);
+  const dividerRef = useRef(null);
+  const pastCursorRef = useRef(null);
+  const futureCursorRef = useRef(null);
+  const loadingPastRef = useRef(false);
+  const loadingFutureRef = useRef(false);
+  const pastHasMoreRef = useRef(true);
+  const futureHasMoreRef = useRef(true);
+  const ownerKey = selectedOwnerIds.join(",");
+
+  useEffect(() => {
+    pastHasMoreRef.current = pastHasMore;
+  }, [pastHasMore]);
+
+  useEffect(() => {
+    futureHasMoreRef.current = futureHasMore;
+  }, [futureHasMore]);
+
+  const enrichList = useCallback(
+    (items) => items.map((e) => enrichEvent(e, owners)),
+    [owners]
+  );
+
+  const loadPast = useCallback(
+    async (initial = false) => {
+      if (!selectedOwnerIds.length || loadingPastRef.current) return;
+      if (!initial && !pastHasMoreRef.current) return;
+
+      loadingPastRef.current = true;
+      try {
+        let data;
+        if (localMode) {
+          data = loadMajorPageLocal(
+            "past",
+            initial ? null : pastCursorRef.current,
+            MAJOR_PAGE_SIZE,
+            allEvents,
+            todayKey
+          );
+        } else {
+          const params = new URLSearchParams({
+            ownerIds: ownerKey,
+            direction: "past",
+            limit: String(MAJOR_PAGE_SIZE),
+          });
+          if (initial) {
+            params.set("beforeDate", todayKey);
+          } else if (pastCursorRef.current) {
+            params.set("beforeDate", pastCursorRef.current.date);
+            params.set("beforeId", String(pastCursorRef.current.id));
+          } else {
+            params.set("beforeDate", todayKey);
+          }
+          data = await api(`/calendar/major-events?${params}`, { token });
+        }
+
+        const batch = enrichList((data.items || []).slice().reverse());
+        pastCursorRef.current = data.nextCursor || null;
+        setPastHasMore(Boolean(data.hasMore));
+
+        const listEl = listRef.current;
+        const prevHeight = listEl?.scrollHeight || 0;
+
+        setPastItems((prev) => (initial ? batch : prependUniqueEvents(prev, batch)));
+
+        if (!initial && listEl) {
+          requestAnimationFrame(() => {
+            listEl.scrollTop += listEl.scrollHeight - prevHeight;
+          });
+        }
+      } catch {
+        setPastHasMore(false);
+      } finally {
+        loadingPastRef.current = false;
+      }
+    },
+    [selectedOwnerIds.length, localMode, allEvents, todayKey, ownerKey, token, enrichList]
+  );
+
+  const loadFuture = useCallback(
+    async (initial = false) => {
+      if (!selectedOwnerIds.length || loadingFutureRef.current) return;
+      if (!initial && !futureHasMoreRef.current) return;
+
+      loadingFutureRef.current = true;
+      try {
+        let data;
+        if (localMode) {
+          data = loadMajorPageLocal(
+            "future",
+            initial ? null : futureCursorRef.current,
+            MAJOR_PAGE_SIZE,
+            allEvents,
+            todayKey
+          );
+        } else {
+          const params = new URLSearchParams({
+            ownerIds: ownerKey,
+            direction: "future",
+            limit: String(MAJOR_PAGE_SIZE),
+          });
+          if (initial) {
+            params.set("fromDate", todayKey);
+          } else if (futureCursorRef.current) {
+            params.set("afterDate", futureCursorRef.current.date);
+            params.set("afterId", String(futureCursorRef.current.id));
+          } else {
+            params.set("fromDate", todayKey);
+          }
+          data = await api(`/calendar/major-events?${params}`, { token });
+        }
+
+        const batch = enrichList(data.items || []);
+        futureCursorRef.current = data.nextCursor || null;
+        setFutureHasMore(Boolean(data.hasMore));
+        setFutureItems((prev) => (initial ? batch : mergeUniqueEvents(prev, batch)));
+      } catch {
+        setFutureHasMore(false);
+      } finally {
+        loadingFutureRef.current = false;
+      }
+    },
+    [selectedOwnerIds.length, localMode, allEvents, todayKey, ownerKey, token, enrichList]
+  );
+
+  useEffect(() => {
+    pastCursorRef.current = null;
+    futureCursorRef.current = null;
+    pastHasMoreRef.current = true;
+    futureHasMoreRef.current = true;
+    setPastItems([]);
+    setFutureItems([]);
+    setPastHasMore(true);
+    setFutureHasMore(true);
+    setReady(false);
+
+    if (!selectedOwnerIds.length) {
+      setReady(true);
+      return;
+    }
+
+    let alive = true;
+    (async () => {
+      await Promise.all([loadPast(true), loadFuture(true)]);
+      if (alive) setReady(true);
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 패널 열릴 때만 초기 로드
+  }, [todayKey, ownerKey, localMode]);
+
+  useLayoutEffect(() => {
+    if (!ready || !listRef.current || !dividerRef.current) return;
+    const list = listRef.current;
+    const divider = dividerRef.current;
+    list.scrollTop = Math.max(0, divider.offsetTop - list.clientHeight * 0.38);
+  }, [ready]);
+
+  const handleScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    if (el.scrollTop < 72 && pastHasMore) loadPast(false);
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 72 && futureHasMore) loadFuture(false);
+  };
+
+  const hasAny = pastItems.length > 0 || futureItems.length > 0;
+
+  return (
+    <motion.div
+      className="schedule__major-panel"
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+    >
+      <p className="schedule__major-label">오늘 기준 주요일정 · 위로 지난 일정 · 아래로 다가오는 일정</p>
+      {!selectedOwnerIds.length ? (
+        <p className="schedule__major-empty">보기 대상을 선택해주세요.</p>
+      ) : !ready ? (
+        <p className="schedule__major-empty">불러오는 중…</p>
+      ) : !hasAny ? (
+        <p className="schedule__major-empty">등록된 주요일정이 없습니다.</p>
+      ) : (
+        <div className="schedule__major-list" ref={listRef} onScroll={handleScroll}>
+          {pastHasMore && (
+            <p className="schedule__major-scroll-hint schedule__major-scroll-hint--top">↑ 더 불러오기</p>
+          )}
+          {pastItems.map((ev) => (
+            <button
+              key={`major-past-${ev.id}`}
+              type="button"
+              className="schedule__major-item is-past"
+              onClick={() => onEdit(ev)}
+            >
+              <span className="schedule__major-item-date">{formatDateDot(ev.eventDate)}</span>
+              <span className="schedule__major-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
+              <span className="schedule__major-item-title">
+                <EventTitleDisplay event={ev} />
+              </span>
+              <span className="schedule__major-item-time">{formatEventTime(ev)}</span>
+            </button>
+          ))}
+          <div className="schedule__major-divider" ref={dividerRef}>
+            <span>오늘 {formatDateDot(todayKey)}</span>
+          </div>
+          {futureItems.length === 0 ? (
+            <p className="schedule__major-empty schedule__major-empty--inline">남은 주요일정이 없습니다.</p>
+          ) : (
+            futureItems.map((ev) => (
+              <button
+                key={`major-future-${ev.id}`}
+                type="button"
+                className="schedule__major-item"
+                onClick={() => onEdit(ev)}
+              >
+                <span className="schedule__major-item-date">{formatDateDot(ev.eventDate)}</span>
+                <span className="schedule__major-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
+                <span className="schedule__major-item-title">
+                  <EventTitleDisplay event={ev} />
+                </span>
+                <span className="schedule__major-item-time">{formatEventTime(ev)}</span>
+              </button>
+            ))
+          )}
+          {futureHasMore && (
+            <p className="schedule__major-scroll-hint schedule__major-scroll-hint--bottom">↓ 더 불러오기</p>
+          )}
+        </div>
+      )}
+    </motion.div>
   );
 }
 

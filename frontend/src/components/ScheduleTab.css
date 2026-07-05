@@ -150,9 +150,44 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  max-height: min(220px, 38vh);
+  max-height: min(320px, 52vh);
   overflow-y: auto;
   padding-right: 0.15rem;
+  overscroll-behavior: contain;
+}
+
+.schedule__major-divider {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+  padding: 0.35rem 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--cal-accent);
+}
+
+.schedule__major-divider::before,
+.schedule__major-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--cal-accent) 35%, var(--line));
+}
+
+.schedule__major-scroll-hint {
+  margin: 0;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.schedule__major-empty--inline {
+  padding: 0.35rem 0.55rem 0.5rem;
 }
 
 .schedule__major-empty {
@@ -180,6 +215,29 @@
 .schedule__major-item:hover {
   border-color: var(--line);
   background: color-mix(in srgb, var(--cal-accent) 8%, transparent);
+}
+
+.schedule__major-item.is-past {
+  opacity: 0.52;
+  color: var(--text-dim);
+}
+
+.schedule__major-item.is-past .schedule__major-item-date,
+.schedule__major-item.is-past .schedule__major-item-time {
+  color: color-mix(in srgb, var(--text-dim) 85%, transparent);
+}
+
+.schedule__major-item.is-past .schedule__major-item-dot {
+  opacity: 0.45;
+}
+
+.schedule__major-item.is-past .schedule__event-star {
+  color: color-mix(in srgb, #facc15 55%, var(--text-dim));
+}
+
+.schedule__major-item.is-past:hover {
+  opacity: 0.72;
+  background: color-mix(in srgb, var(--text-dim) 8%, transparent);
 }
 
 .schedule__major-item-date {

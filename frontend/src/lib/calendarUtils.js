@@ -291,6 +291,15 @@ export function formatEventDisplayTitle(event) {
   return out;
 }
 
+export function compareMajorEvents(a, b) {
+  const dateCmp = String(a.eventDate).localeCompare(String(b.eventDate));
+  if (dateCmp !== 0) return dateCmp;
+  if (a.startTime && !b.startTime) return -1;
+  if (!a.startTime && b.startTime) return 1;
+  if (a.startTime && b.startTime) return a.startTime.localeCompare(b.startTime);
+  return a.id - b.id;
+}
+
 export function eventSeriesKey(ev) {
   return ev.seriesId || `single-${ev.id}`;
 }

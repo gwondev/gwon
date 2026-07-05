@@ -741,6 +741,119 @@ router.get("/events", requireCalendarAdmin, async (req, res, next) => {
   }
 });
 
+// GET /api/calendar/major-events?ownerIds=&direction=past|future&limit=
+router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const direction = String(req.query.direction || "").toLowerCase();
+    if (direction !== "past" && direction !== "future") {
+      return res.status(400).json({ error: "direction 은 past 또는 future 여야 합니다." });
+    }
+
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 25));
+    const queryIds = parseOwnerIdsQuery(req.query.ownerIds);
+    const legacyId = req.query.ownerId ? [Number(req.query.ownerId)] : [];
+    const requested = queryIds.length ? queryIds : legacyId;
+    const ownerIds = await resolveViewOwnerIds(req, requested);
+    const actorId = req.auth.uid;
+    const actorRole = req.userRole || (await getUserRole(actorId));
+    const visibleOwnerIds = await getVisibleOwnerIds(actorId, actorRole);
+    const visiblePlaceholders = visibleOwnerIds.map(() => "?").join(", ");
+
+    let rows = [];
+    if (direction === "past") {
+      const beforeDate = toDateKey(req.query.beforeDate) || dateKeyOf(new Date());
+      const beforeId = Number(req.query.beforeId);
+      const useId = Number.isFinite(beforeId) && beforeId > 0;
+      const sql = useId
+        ? `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
+                  u.calendar_theme_color AS owner_theme_color
+           FROM calendar_events e
+           JOIN users u ON u.id = e.owner_id
+           WHERE e.is_major = 1
+             AND e.owner_id IN (${visiblePlaceholders})
+             AND (
+               e.event_date < ?
+               OR (e.event_date = ? AND e.id < ?)
+             )
+           ORDER BY e.event_date DESC, e.id DESC
+           LIMIT ?`
+        : `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
+                  u.calendar_theme_color AS owner_theme_color
+           FROM calendar_events e
+           JOIN users u ON u.id = e.owner_id
+           WHERE e.is_major = 1
+             AND e.owner_id IN (${visiblePlaceholders})
+             AND e.event_date < ?
+           ORDER BY e.event_date DESC, e.id DESC
+           LIMIT ?`;
+      const params = useId
+        ? [...visibleOwnerIds, beforeDate, beforeDate, beforeId, limit]
+        : [...visibleOwnerIds, beforeDate, limit];
+      [rows] = await pool.query(sql, params);
+    } else {
+      const fromDate = toDateKey(req.query.fromDate);
+      const afterDate = toDateKey(req.query.afterDate);
+      const afterId = Number(req.query.afterId);
+      const useAfter = afterDate && Number.isFinite(afterId) && afterId > 0;
+      const anchorDate = useAfter ? afterDate : fromDate || dateKeyOf(new Date());
+      const sql = useAfter
+        ? `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
+                  u.calendar_theme_color AS owner_theme_color
+           FROM calendar_events e
+           JOIN users u ON u.id = e.owner_id
+           WHERE e.is_major = 1
+             AND e.owner_id IN (${visiblePlaceholders})
+             AND (
+               e.event_date > ?
+               OR (e.event_date = ? AND e.id > ?)
+             )
+           ORDER BY e.event_date ASC, e.id ASC
+           LIMIT ?`
+        : `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
+                  u.calendar_theme_color AS owner_theme_color
+           FROM calendar_events e
+           JOIN users u ON u.id = e.owner_id
+           WHERE e.is_major = 1
+             AND e.owner_id IN (${visiblePlaceholders})
+             AND e.event_date >= ?
+           ORDER BY e.event_date ASC, e.id ASC
+           LIMIT ?`;
+      const params = useAfter
+        ? [...visibleOwnerIds, anchorDate, anchorDate, afterId, limit]
+        : [...visibleOwnerIds, anchorDate, limit];
+      [rows] = await pool.query(sql, params);
+    }
+
+    const filteredRows = rows.filter((row) =>
+      resolveEventOwnerIds(row).some((id) => ownerIds.includes(id))
+    );
+
+    const participantIds = filteredRows.flatMap((row) => resolveEventOwnerIds(row));
+    const nameMap = await buildOwnerNameMap(participantIds);
+    const items = filteredRows.map((row) =>
+      publicEvent({
+        ...row,
+        sharedOwnerNames: resolveEventOwnerIds(row).map((id) => nameMap.get(id) || `#${id}`),
+      })
+    );
+
+    const edge = direction === "past" ? items[items.length - 1] : items[items.length - 1];
+    const nextCursor = edge
+      ? { date: edge.eventDate, id: edge.id }
+      : null;
+
+    res.json({
+      items,
+      hasMore: filteredRows.length === limit,
+      nextCursor,
+      ownerIds,
+    });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
 // POST /api/calendar/events
 router.post("/events", requireCalendarAdmin, async (req, res, next) => {
   try {
