@@ -356,6 +356,7 @@ async function runMigrations(conn) {
     "ALTER TABLE calendar_events ADD COLUMN location_name VARCHAR(255) DEFAULT NULL AFTER appointment_type",
     "ALTER TABLE calendar_events ADD COLUMN location_lat DECIMAL(10, 7) DEFAULT NULL AFTER location_name",
     "ALTER TABLE calendar_events ADD COLUMN location_lng DECIMAL(10, 7) DEFAULT NULL AFTER location_lat",
+    "ALTER TABLE calendar_events ADD COLUMN is_major TINYINT(1) NOT NULL DEFAULT 0 AFTER appointment_type",
   ];
   for (const sql of migrations) {
     try {

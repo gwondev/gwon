@@ -115,6 +115,128 @@
   color: var(--text);
 }
 
+.schedule__major-toggle {
+  padding: 0.38rem 0.75rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.schedule__major-toggle.is-active {
+  border-color: var(--cal-accent);
+  background: color-mix(in srgb, var(--cal-accent) 14%, transparent);
+  color: var(--text);
+}
+
+.schedule__major-panel {
+  overflow: hidden;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+
+.schedule__major-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.schedule__major-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: min(220px, 38vh);
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.schedule__major-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.schedule__major-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.schedule__major-item:hover {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--cal-accent) 8%, transparent);
+}
+
+.schedule__major-item-date {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  min-width: 2.4rem;
+}
+
+.schedule__major-item-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.schedule__major-item-title {
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule__major-item-time {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.schedule__event-star {
+  color: #facc15;
+  font-weight: 700;
+}
+
+.schedule__major-field {
+  margin-top: 0.15rem;
+}
+
+.schedule__major-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.schedule__major-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--cal-accent);
+}
+
 .schedule__theme-btn {
   display: inline-flex;
   align-items: center;

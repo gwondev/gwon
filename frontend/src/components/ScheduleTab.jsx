@@ -8,6 +8,8 @@ import {
   expandOccurrences,
   filterTitle,
   ownerLabel,
+  eventTypePrefix,
+  formatEventDisplayTitle,
   normalizeWeekdays,
   WEEKDAY_LABELS,
   REPEAT_FREQS,
@@ -56,6 +58,7 @@ const MOCK_EVENTS = [
     endTime: null,
     incomeType: "WORK",
     appointmentType: "MONEY",
+    isMajor: true,
   },
 ];
 
@@ -122,6 +125,7 @@ function blankForm(dateKey = "", ownerId = null) {
     repeatInterval: 1,
     weekdays: [],
     repeatUntil: start,
+    isMajor: false,
   };
 }
 
@@ -147,6 +151,7 @@ function formFromEvent(ev) {
     repeatInterval: repeat?.interval || 1,
     weekdays: normalizeWeekdays(repeat?.weekdays),
     repeatUntil: repeat?.until || ev.seriesEndDate || start,
+    isMajor: Boolean(ev.isMajor),
   };
 }
 
@@ -187,6 +192,7 @@ export default function ScheduleTab() {
   const [form, setForm] = useState(blankForm);
   const [busy, setBusy] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [majorPanelOpen, setMajorPanelOpen] = useState(false);
   const [monthDir, setMonthDir] = useState(0);
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedSeriesKeys, setSelectedSeriesKeys] = useState(() => new Set());
@@ -212,6 +218,20 @@ export default function ScheduleTab() {
   );
 
   const headerTitle = useMemo(() => filterTitle(selectedOwners), [selectedOwners]);
+
+  const majorEvents = useMemo(() => {
+    const prefix = `${viewYear}-${String(viewMonth).padStart(2, "0")}`;
+    return displayEvents
+      .filter((ev) => ev.isMajor && String(ev.eventDate).startsWith(prefix))
+      .sort((a, b) => {
+        const dateCmp = String(a.eventDate).localeCompare(String(b.eventDate));
+        if (dateCmp !== 0) return dateCmp;
+        if (a.startTime && !b.startTime) return -1;
+        if (!a.startTime && b.startTime) return 1;
+        if (a.startTime && b.startTime) return a.startTime.localeCompare(b.startTime);
+        return a.id - b.id;
+      });
+  }, [displayEvents, viewYear, viewMonth]);
 
   const eventsByDate = useMemo(() => {
     const map = {};
@@ -472,6 +492,7 @@ export default function ScheduleTab() {
           endTime,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
+          isMajor: form.isMajor,
           ownerIds: form.ownerIds,
           endDate,
           repeat,
@@ -503,6 +524,7 @@ export default function ScheduleTab() {
           endTime,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
+          isMajor: form.isMajor,
           endDate,
           repeat,
         };
@@ -535,6 +557,7 @@ export default function ScheduleTab() {
             endTime,
             incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
             appointmentType: form.appointmentType || null,
+            isMajor: form.isMajor,
           }));
           setEvents((prev) => [...prev, ...items]);
         } else {
@@ -671,6 +694,14 @@ export default function ScheduleTab() {
             <span className="schedule__owner-name">{headerTitle}</span>
             {canPickOwner && <span className="schedule__title-caret">{filterOpen ? "▴" : "▾"}</span>}
           </button>
+          <button
+            type="button"
+            className={`schedule__major-toggle ${majorPanelOpen ? "is-active" : ""}`}
+            onClick={() => setMajorPanelOpen((v) => !v)}
+            aria-expanded={majorPanelOpen}
+          >
+            주요일정 보기
+          </button>
         </div>
 
         <div className="schedule__toolbar-right">
@@ -725,6 +756,40 @@ export default function ScheduleTab() {
                   </button>
                 );
               })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {majorPanelOpen && (
+          <motion.div
+            className="schedule__major-panel"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+          >
+            <p className="schedule__major-label">{monthLabel} 주요일정</p>
+            <div className="schedule__major-list">
+              {majorEvents.length === 0 ? (
+                <p className="schedule__major-empty">이번 달 주요일정이 없습니다.</p>
+              ) : (
+                majorEvents.map((ev) => (
+                  <button
+                    key={`major-${ev.id}`}
+                    type="button"
+                    className="schedule__major-item"
+                    onClick={() => openEdit(ev)}
+                  >
+                    <span className="schedule__major-item-date">{formatDateDot(ev.eventDate)}</span>
+                    <span className="schedule__major-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
+                    <span className="schedule__major-item-title">
+                      <EventTitleDisplay event={ev} />
+                    </span>
+                    <span className="schedule__major-item-time">{formatEventTime(ev)}</span>
+                  </button>
+                ))
+              )}
             </div>
           </motion.div>
         )}
@@ -883,6 +948,17 @@ export default function ScheduleTab() {
   );
 }
 
+function EventTitleDisplay({ event, className = "" }) {
+  const typePrefix = eventTypePrefix(event);
+  return (
+    <span className={className}>
+      {event.isMajor && <span className="schedule__event-star">★ </span>}
+      {typePrefix}
+      {event.title}
+    </span>
+  );
+}
+
 function EventBubble({
   event,
   showTime,
@@ -898,8 +974,6 @@ function EventBubble({
   const bubbleTheme = isShared
     ? { accent: "#9ca3af" }
     : getThemeById(event.ownerThemeColor || "red");
-  const isMoney = event.appointmentType === "MONEY" || (!event.appointmentType && Boolean(event.incomeType));
-  const isDrink = event.appointmentType === "DRINK";
   const isAllDay = !event.startTime;
   const showCheck = deleteMode && selectable && showLabel;
   return (
@@ -914,9 +988,11 @@ function EventBubble({
           {selected ? "✓" : ""}
         </span>
       )}
-      {showLabel && isMoney && <span className="schedule__money-icon" aria-hidden>₩</span>}
-      {showLabel && isDrink && <span className="schedule__drink-icon" aria-hidden>🍺</span>}
-      {showLabel && <span className="schedule__bubble-title">{event.title}</span>}
+      {showLabel && (
+        <span className="schedule__bubble-title">
+          <EventTitleDisplay event={event} />
+        </span>
+      )}
       {showLabel && showTime && event.startTime && (
         <span className="schedule__bubble-time">{formatEventTime(event)}</span>
       )}
@@ -1507,6 +1583,18 @@ function EventModal({
             </div>
           </div>
 
+          <div className="field schedule__major-field">
+            <label className="schedule__major-check">
+              <input
+                type="checkbox"
+                checked={form.isMajor}
+                onChange={(e) => setForm((f) => ({ ...f, isMajor: e.target.checked }))}
+              />
+              <span>주요일정</span>
+            </label>
+            <p className="schedule__hint">주요일정으로 표시하면 ★ 가 붙고, 주요일정 보기 목록에 나타납니다.</p>
+          </div>
+
           <div className="schedule__modal-actions">
             {onDelete && (
               <button type="button" className="btn btn-ghost schedule__del-btn" onClick={onDelete}>
@@ -1580,15 +1668,14 @@ function buildDayColumns(events, selectedOwners) {
 }
 
 function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
-  const isMoney = ev.appointmentType === "MONEY" || (!ev.appointmentType && ev.incomeType);
   return (
     <div className="schedule__day-item">
       <span className="schedule__day-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
       <div className="schedule__day-item-main">
         <strong>
-          {isMoney && <span className="schedule__money-icon">₩</span>}
-          {ev.appointmentType === "DRINK" && <span className="schedule__drink-icon">🍺</span>}
-          <span className="schedule__day-item-title-text">{ev.title}</span>
+          <span className="schedule__day-item-title-text">
+            <EventTitleDisplay event={ev} />
+          </span>
           <span className="schedule__day-item-title-time">{formatEventTime(ev)}</span>
         </strong>
         <span className="schedule__day-item-range">
@@ -1642,17 +1729,14 @@ function TimelineBlock({ ev, slotH }) {
   // 칸이 낮으면 글자가 겹치므로 폰트를 줄이고, 아주 낮으면 제목만 표시
   const tiny = height < 28;
   const compact = height < 46;
-  const isMoney = ev.appointmentType === "MONEY" || (!ev.appointmentType && ev.incomeType);
   return (
     <div
       className={`schedule__tl-block ${compact ? "is-compact" : ""} ${tiny ? "is-tiny" : ""}`}
       style={{ top: `${top}px`, height: `${height}px`, "--tl-accent": eventAccent(ev) }}
-      title={`${ev.title} ${formatEventTime(ev)}`}
+      title={`${formatEventDisplayTitle(ev)} ${formatEventTime(ev)}`}
     >
       <span className="schedule__tl-block-title">
-        {isMoney && "₩"}
-        {ev.appointmentType === "DRINK" && "🍺"}
-        {ev.title}
+        <EventTitleDisplay event={ev} />
       </span>
       {!tiny && <span className="schedule__tl-block-time">{formatEventTime(ev)}</span>}
     </div>

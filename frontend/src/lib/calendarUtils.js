@@ -275,6 +275,22 @@ export function filterTitle(owners) {
   return `${owners.map(ownerLabel).join(", ")}의 일정`;
 }
 
+export function eventTypePrefix(event) {
+  const isMoney =
+    event?.appointmentType === "MONEY" || (!event?.appointmentType && Boolean(event?.incomeType));
+  if (isMoney) return "(돈)";
+  if (event?.appointmentType === "DRINK") return "(술)";
+  return "";
+}
+
+export function formatEventDisplayTitle(event) {
+  let out = "";
+  if (event?.isMajor) out += "★ ";
+  out += eventTypePrefix(event);
+  out += event?.title || "";
+  return out;
+}
+
 export function eventSeriesKey(ev) {
   return ev.seriesId || `single-${ev.id}`;
 }

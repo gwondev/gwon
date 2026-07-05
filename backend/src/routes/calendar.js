@@ -76,6 +76,7 @@ function publicEvent(row) {
         }
       : null,
     appointmentType: row.appointment_type || null,
+    isMajor: Boolean(row.is_major),
     sharedOwnerIds,
     sharedOwnerNames: row.sharedOwnerNames || [],
     createdBy: row.created_by,
@@ -416,8 +417,8 @@ async function insertEvent(conn, data) {
     `INSERT INTO calendar_events
      (owner_id, created_by, shared_owner_ids, series_id, series_start_date, series_end_date, series_span_days, series_repeat_weeks, series_weekdays,
       series_repeat_freq, series_repeat_interval, series_repeat_until,
-      appointment_type, location_name, location_lat, location_lng, title, description, event_date, start_time, end_time, income_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      appointment_type, is_major, location_name, location_lat, location_lng, title, description, event_date, start_time, end_time, income_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.ownerId,
       data.actorId,
@@ -432,6 +433,7 @@ async function insertEvent(conn, data) {
       data.repeat?.freq ? data.repeat.interval || 1 : null,
       data.repeat?.until || null,
       data.appointmentType || null,
+      data.isMajor ? 1 : 0,
       data.locationName || null,
       data.locationLat ?? null,
       data.locationLng ?? null,
@@ -460,7 +462,7 @@ async function updateEventRow(conn, id, data) {
        owner_id = ?, shared_owner_ids = ?, series_id = ?,
        series_start_date = ?, series_end_date = ?, series_span_days = ?, series_repeat_weeks = ?, series_weekdays = ?,
        series_repeat_freq = ?, series_repeat_interval = ?, series_repeat_until = ?,
-       appointment_type = ?, location_name = ?, location_lat = ?, location_lng = ?,
+       appointment_type = ?, is_major = ?, location_name = ?, location_lat = ?, location_lng = ?,
        title = ?, description = ?, event_date = ?, start_time = ?, end_time = ?, income_type = ?
      WHERE id = ?`,
     [
@@ -476,6 +478,7 @@ async function updateEventRow(conn, id, data) {
       data.repeat?.freq ? data.repeat.interval || 1 : null,
       data.repeat?.until || null,
       data.appointmentType || null,
+      data.isMajor ? 1 : 0,
       data.locationName || null,
       data.locationLat ?? null,
       data.locationLng ?? null,
@@ -749,6 +752,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const endTime = body.endTime ? String(body.endTime).trim() : null;
     const incomeType = body.incomeType ? String(body.incomeType).toUpperCase() : null;
     const appointmentType = body.appointmentType ? String(body.appointmentType).toUpperCase() : null;
+    const isMajor = Boolean(body.isMajor);
     const repeat = normalizeRepeat(body.repeat);
     const endDate = body.endDate ? toDateKey(body.endDate) : null;
     const location = parseLocationFields(body);
@@ -788,6 +792,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
         endTime,
         incomeType,
         appointmentType,
+        isMajor,
         endDate,
         repeat,
         ...location,
@@ -847,6 +852,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const appointmentType = body.appointmentType !== undefined
       ? (body.appointmentType ? String(body.appointmentType).toUpperCase() : null)
       : existing.appointment_type;
+    const isMajor = body.isMajor !== undefined ? Boolean(body.isMajor) : Boolean(existing.is_major);
     const repeat = body.repeat !== undefined
       ? normalizeRepeat(body.repeat)
       : (existing.series_repeat_freq
@@ -907,6 +913,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       endTime,
       incomeType,
       appointmentType,
+      isMajor,
       seriesId,
       seriesStartDate,
       seriesEndDate,
