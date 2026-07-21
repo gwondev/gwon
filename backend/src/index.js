@@ -8,6 +8,7 @@ import { crudRouter } from "./routes/crud.js";
 import chatRouter from "./routes/chat.js";
 import calendarRouter from "./routes/calendar.js";
 import techStackRouter from "./routes/tech-stack.js";
+import portfolioRouter from "./routes/portfolio.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 8080);
@@ -32,6 +33,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/calendar", calendarRouter);
 app.use("/api/tech-stack", techStackRouter);
+app.use("/api/portfolio", portfolioRouter);
 app.use("/api/projects", crudRouter("projects"));
 app.use("/api/activities", crudRouter("activities"));
 app.use("/api/certifications", crudRouter("certifications"));

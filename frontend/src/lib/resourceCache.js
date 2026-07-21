@@ -5,6 +5,10 @@ const cache = new Map();
 const inflight = new Map();
 const listeners = new Set();
 
+let previewCache = null;
+let previewFetchedAt = 0;
+let previewInflight = null;
+
 function notify(resource, items) {
   for (const fn of listeners) fn(resource, items);
 }
@@ -15,6 +19,11 @@ export function getCachedItems(resource) {
 
 export function setCachedItems(resource, items) {
   cache.set(resource, { items, at: Date.now() });
+  // 목록이 바뀌면 홈 preview도 다시 받게
+  if (["projects", "activities", "certifications", "careers"].includes(resource)) {
+    previewCache = null;
+    previewFetchedAt = 0;
+  }
   notify(resource, items);
 }
 
@@ -69,6 +78,10 @@ export function getCachedTechStack() {
   return techCache;
 }
 
+export function getCachedPortfolioPreview() {
+  return previewCache;
+}
+
 export async function loadTechStack({ force = false } = {}) {
   const fresh = techCache && Date.now() - techFetchedAt < CACHE_TTL_MS;
   if (!force && fresh) {
@@ -98,21 +111,46 @@ export async function loadTechStack({ force = false } = {}) {
 }
 
 export async function loadPortfolioBundle({ force = false } = {}) {
-  const keys = ["projects", "activities", "certifications", "careers"];
-  const results = await Promise.allSettled(
-    keys.map((resource) => loadResourceItems(resource, { force }))
-  );
-
-  const bundle = {};
-  keys.forEach((resource, i) => {
-    const result = results[i];
-    if (result.status === "fulfilled") {
-      bundle[resource] = result.value;
-    } else {
-      bundle[resource] = getCachedItems(resource) ?? [];
+  const fresh = previewCache && Date.now() - previewFetchedAt < CACHE_TTL_MS;
+  if (!force && fresh) {
+    if (Date.now() - previewFetchedAt > CACHE_TTL_MS / 2) {
+      loadPortfolioBundle({ force: true }).catch(() => {});
     }
-  });
-  return bundle;
+    return previewCache;
+  }
+  if (!force && previewInflight) return previewInflight;
+
+  previewInflight = api("/portfolio/preview")
+    .then((data) => {
+      previewCache = {
+        projects: Array.isArray(data?.projects) ? data.projects : [],
+        activities: Array.isArray(data?.activities) ? data.activities : [],
+        certifications: Array.isArray(data?.certifications) ? data.certifications : [],
+        careers: Array.isArray(data?.careers) ? data.careers : [],
+      };
+      previewFetchedAt = Date.now();
+      previewInflight = null;
+      return previewCache;
+    })
+    .catch(async () => {
+      previewInflight = null;
+      // preview API 실패 시 개별 조회로 폴백 (media 포함될 수 있음)
+      const keys = ["projects", "activities", "certifications", "careers"];
+      const results = await Promise.allSettled(
+        keys.map((resource) => loadResourceItems(resource, { force }))
+      );
+      const bundle = {};
+      keys.forEach((resource, i) => {
+        const result = results[i];
+        bundle[resource] =
+          result.status === "fulfilled" ? result.value : getCachedItems(resource) ?? [];
+      });
+      previewCache = bundle;
+      previewFetchedAt = Date.now();
+      return bundle;
+    });
+
+  return previewInflight;
 }
 
 export function patchCachedItem(resource, item) {

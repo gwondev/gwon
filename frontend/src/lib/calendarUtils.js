@@ -308,6 +308,60 @@ export function isMultiDayEvent(ev) {
   return (Number(ev?.spanDays) || 1) > 1;
 }
 
+/** 반복 없는 연속 기간 일정 (16일 09:00 ~ 18일 18:00) */
+export function isContinuousMultiDay(ev) {
+  if (!ev || ev.repeat?.freq) return false;
+  const start = ev.seriesStartDate || ev.eventDate;
+  const end = ev.seriesEndDate || ev.eventDate;
+  return Boolean(start && end && start !== end);
+}
+
+/**
+ * 연속 다일 일정의 "그날" 실효 시간.
+ * DB에는 시리즈 시작/종료 시각을 그대로 두되, 타임라인·하루 보기에서는
+ * 첫날 시작 / 중간 종일 / 마지막날 종료로 해석한다.
+ */
+export function effectiveEventTimes(ev) {
+  if (!ev) return { startTime: null, endTime: null };
+  const startTime = ev.startTime || null;
+  const endTime = ev.endTime || null;
+  if (!isContinuousMultiDay(ev) || !startTime) {
+    return { startTime, endTime };
+  }
+  const seriesStart = ev.seriesStartDate || ev.eventDate;
+  const seriesEnd = ev.seriesEndDate || ev.eventDate;
+  if (ev.eventDate === seriesStart) {
+    return { startTime, endTime: null };
+  }
+  if (ev.eventDate === seriesEnd) {
+    return { startTime: "00:00", endTime };
+  }
+  return { startTime: null, endTime: null };
+}
+
+/** 주요일정 패널용: 연속 다일은 시리즈당 1건만 (시작일 행 우선) */
+export function dedupeContinuousMajorEvents(events) {
+  const bestBySeries = new Map();
+  const order = [];
+
+  for (const ev of events || []) {
+    if (!isContinuousMultiDay(ev)) {
+      order.push({ kind: "one", ev });
+      continue;
+    }
+    const key = eventSeriesKey(ev);
+    const start = ev.seriesStartDate || ev.eventDate;
+    if (!bestBySeries.has(key)) {
+      bestBySeries.set(key, ev);
+      order.push({ kind: "series", key });
+    } else if (ev.eventDate === start) {
+      bestBySeries.set(key, ev);
+    }
+  }
+
+  return order.map((slot) => (slot.kind === "one" ? slot.ev : bestBySeries.get(slot.key)));
+}
+
 // 정렬 우선순위: 1) 1일 이상(멀티데이)  2) 종일  3) 시간 있는 일정
 function eventSortRank(ev) {
   if (isMultiDayEvent(ev)) return 0;

@@ -749,7 +749,9 @@ router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
       return res.status(400).json({ error: "direction 은 past 또는 future 여야 합니다." });
     }
 
+    // 연속 다일 시리즈는 시작일 행만 대표로 쓰고, 여유분 조회 후 필터한다.
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 25));
+    const fetchLimit = Math.min(200, limit * 4);
     const queryIds = parseOwnerIdsQuery(req.query.ownerIds);
     const legacyId = req.query.ownerId ? [Number(req.query.ownerId)] : [];
     const requested = queryIds.length ? queryIds : legacyId;
@@ -759,11 +761,19 @@ router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
     const visibleOwnerIds = await getVisibleOwnerIds(actorId, actorRole);
     const visiblePlaceholders = visibleOwnerIds.map(() => "?").join(", ");
 
+    // 반복 없는 연속 다일 → 시작일 행만. 반복/단일은 각 행 유지.
+    const representativeClause = `(
+      e.series_repeat_freq IS NOT NULL
+      OR COALESCE(e.series_span_days, 1) <= 1
+      OR e.event_date = e.series_start_date
+    )`;
+
     let rows = [];
     if (direction === "past") {
       const beforeDate = toDateKey(req.query.beforeDate) || dateKeyOf(new Date());
       const beforeId = Number(req.query.beforeId);
       const useId = Number.isFinite(beforeId) && beforeId > 0;
+      // 연속 다일은 series_end_date 기준으로 과거 판정
       const sql = useId
         ? `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
                   u.calendar_theme_color AS owner_theme_color
@@ -771,11 +781,27 @@ router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
            JOIN users u ON u.id = e.owner_id
            WHERE e.is_major = 1
              AND e.owner_id IN (${visiblePlaceholders})
+             AND ${representativeClause}
              AND (
-               e.event_date < ?
-               OR (e.event_date = ? AND e.id < ?)
+               (
+                 (e.series_repeat_freq IS NOT NULL OR COALESCE(e.series_span_days, 1) <= 1)
+                 AND (
+                   e.event_date < ?
+                   OR (e.event_date = ? AND e.id < ?)
+                 )
+               )
+               OR (
+                 e.series_repeat_freq IS NULL
+                 AND COALESCE(e.series_span_days, 1) > 1
+                 AND e.series_end_date < ?
+               )
              )
-           ORDER BY e.event_date DESC, e.id DESC
+           ORDER BY
+             CASE
+               WHEN e.series_repeat_freq IS NULL AND COALESCE(e.series_span_days, 1) > 1
+               THEN e.series_end_date ELSE e.event_date
+             END DESC,
+             e.id DESC
            LIMIT ?`
         : `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
                   u.calendar_theme_color AS owner_theme_color
@@ -783,12 +809,28 @@ router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
            JOIN users u ON u.id = e.owner_id
            WHERE e.is_major = 1
              AND e.owner_id IN (${visiblePlaceholders})
-             AND e.event_date < ?
-           ORDER BY e.event_date DESC, e.id DESC
+             AND ${representativeClause}
+             AND (
+               (
+                 (e.series_repeat_freq IS NOT NULL OR COALESCE(e.series_span_days, 1) <= 1)
+                 AND e.event_date < ?
+               )
+               OR (
+                 e.series_repeat_freq IS NULL
+                 AND COALESCE(e.series_span_days, 1) > 1
+                 AND e.series_end_date < ?
+               )
+             )
+           ORDER BY
+             CASE
+               WHEN e.series_repeat_freq IS NULL AND COALESCE(e.series_span_days, 1) > 1
+               THEN e.series_end_date ELSE e.event_date
+             END DESC,
+             e.id DESC
            LIMIT ?`;
       const params = useId
-        ? [...visibleOwnerIds, beforeDate, beforeDate, beforeId, limit]
-        : [...visibleOwnerIds, beforeDate, limit];
+        ? [...visibleOwnerIds, beforeDate, beforeDate, beforeId, beforeDate, fetchLimit]
+        : [...visibleOwnerIds, beforeDate, beforeDate, fetchLimit];
       [rows] = await pool.query(sql, params);
     } else {
       const fromDate = toDateKey(req.query.fromDate);
@@ -796,6 +838,7 @@ router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
       const afterId = Number(req.query.afterId);
       const useAfter = afterDate && Number.isFinite(afterId) && afterId > 0;
       const anchorDate = useAfter ? afterDate : fromDate || dateKeyOf(new Date());
+      // 연속 다일: 아직 안 끝난 일정(series_end >= anchor)도 포함. 커서는 series_start 기준.
       const sql = useAfter
         ? `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
                   u.calendar_theme_color AS owner_theme_color
@@ -803,11 +846,31 @@ router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
            JOIN users u ON u.id = e.owner_id
            WHERE e.is_major = 1
              AND e.owner_id IN (${visiblePlaceholders})
+             AND ${representativeClause}
              AND (
-               e.event_date > ?
-               OR (e.event_date = ? AND e.id > ?)
+               (
+                 (e.series_repeat_freq IS NOT NULL OR COALESCE(e.series_span_days, 1) <= 1)
+                 AND (
+                   e.event_date > ?
+                   OR (e.event_date = ? AND e.id > ?)
+                 )
+               )
+               OR (
+                 e.series_repeat_freq IS NULL
+                 AND COALESCE(e.series_span_days, 1) > 1
+                 AND e.series_end_date >= ?
+                 AND (
+                   e.series_start_date > ?
+                   OR (e.series_start_date = ? AND e.id > ?)
+                 )
+               )
              )
-           ORDER BY e.event_date ASC, e.id ASC
+           ORDER BY
+             CASE
+               WHEN e.series_repeat_freq IS NULL AND COALESCE(e.series_span_days, 1) > 1
+               THEN e.series_start_date ELSE e.event_date
+             END ASC,
+             e.id ASC
            LIMIT ?`
         : `SELECT e.*, u.name AS owner_name, u.nickname AS owner_nickname,
                   u.calendar_theme_color AS owner_theme_color
@@ -815,12 +878,38 @@ router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
            JOIN users u ON u.id = e.owner_id
            WHERE e.is_major = 1
              AND e.owner_id IN (${visiblePlaceholders})
-             AND e.event_date >= ?
-           ORDER BY e.event_date ASC, e.id ASC
+             AND ${representativeClause}
+             AND (
+               (
+                 (e.series_repeat_freq IS NOT NULL OR COALESCE(e.series_span_days, 1) <= 1)
+                 AND e.event_date >= ?
+               )
+               OR (
+                 e.series_repeat_freq IS NULL
+                 AND COALESCE(e.series_span_days, 1) > 1
+                 AND e.series_end_date >= ?
+               )
+             )
+           ORDER BY
+             CASE
+               WHEN e.series_repeat_freq IS NULL AND COALESCE(e.series_span_days, 1) > 1
+               THEN e.series_start_date ELSE e.event_date
+             END ASC,
+             e.id ASC
            LIMIT ?`;
       const params = useAfter
-        ? [...visibleOwnerIds, anchorDate, anchorDate, afterId, limit]
-        : [...visibleOwnerIds, anchorDate, limit];
+        ? [
+            ...visibleOwnerIds,
+            anchorDate,
+            anchorDate,
+            afterId,
+            dateKeyOf(new Date()),
+            afterDate,
+            afterDate,
+            afterId,
+            fetchLimit,
+          ]
+        : [...visibleOwnerIds, anchorDate, anchorDate, fetchLimit];
       [rows] = await pool.query(sql, params);
     }
 
@@ -830,21 +919,34 @@ router.get("/major-events", requireCalendarAdmin, async (req, res, next) => {
 
     const participantIds = filteredRows.flatMap((row) => resolveEventOwnerIds(row));
     const nameMap = await buildOwnerNameMap(participantIds);
-    const items = filteredRows.map((row) =>
+    let items = filteredRows.map((row) =>
       publicEvent({
         ...row,
         sharedOwnerNames: resolveEventOwnerIds(row).map((id) => nameMap.get(id) || `#${id}`),
       })
     );
 
-    const edge = direction === "past" ? items[items.length - 1] : items[items.length - 1];
+    // 안전망: 연속 다일 시리즈 중복 제거 후 limit 적용
+    const seenSeries = new Set();
+    items = items.filter((ev) => {
+      if (ev.repeat?.freq || (ev.spanDays || 1) <= 1) return true;
+      const key = ev.seriesId || `single-${ev.id}`;
+      if (seenSeries.has(key)) return false;
+      seenSeries.add(key);
+      return true;
+    }).slice(0, limit);
+
+    const edge = items.length ? items[items.length - 1] : null;
     const nextCursor = edge
-      ? { date: edge.eventDate, id: edge.id }
+      ? {
+          date: edge.seriesStartDate || edge.eventDate,
+          id: edge.id,
+        }
       : null;
 
     res.json({
       items,
-      hasMore: filteredRows.length === limit,
+      hasMore: filteredRows.length >= fetchLimit || items.length === limit,
       nextCursor,
       ownerIds,
     });

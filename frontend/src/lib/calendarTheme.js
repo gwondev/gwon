@@ -21,9 +21,41 @@ export const INCOME_OPTIONS = [
   { id: "SCHOLARSHIP", label: "근로장학생" },
 ];
 
-export function formatEventTime(event) {
-  if (!event.startTime) return "종일";
+function formatDateDotShort(dateKey) {
+  if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return "";
+  const [, m, d] = dateKey.split("-");
+  return `${m}.${d}`;
+}
+
+export function formatEventTime(event, { continuousSpan = false } = {}) {
+  if (!event?.startTime) return "종일";
+  const seriesStart = event.seriesStartDate || event.eventDate;
+  const seriesEnd = event.seriesEndDate || event.eventDate;
+  const isContinuous =
+    continuousSpan &&
+    !event.repeat?.freq &&
+    seriesStart &&
+    seriesEnd &&
+    seriesStart !== seriesEnd;
+
+  if (isContinuous) {
+    const endDot = formatDateDotShort(seriesEnd);
+    if (event.endTime) return `${event.startTime}~${endDot} ${event.endTime}`;
+    return event.startTime;
+  }
+
   return event.endTime ? `${event.startTime}–${event.endTime}` : event.startTime;
+}
+
+export function formatMajorEventDate(event) {
+  const seriesStart = event?.seriesStartDate || event?.eventDate;
+  const seriesEnd = event?.seriesEndDate || event?.eventDate;
+  const isContinuous =
+    !event?.repeat?.freq && seriesStart && seriesEnd && seriesStart !== seriesEnd;
+  if (isContinuous) {
+    return `${formatDateDotShort(seriesStart)}~${formatDateDotShort(seriesEnd)}`;
+  }
+  return formatDateDotShort(event?.eventDate);
 }
 
 export function roleLabel(role) {

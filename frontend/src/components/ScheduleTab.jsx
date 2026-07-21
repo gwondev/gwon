@@ -4,13 +4,15 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import {
   dedupeEventsBySeries,
+  dedupeContinuousMajorEvents,
+  effectiveEventTimes,
   eventSeriesKey,
   expandOccurrences,
   filterTitle,
+  isContinuousMultiDay,
   ownerLabel,
   eventTypePrefix,
   formatEventDisplayTitle,
-  compareMajorEvents,
   normalizeWeekdays,
   WEEKDAY_LABELS,
   REPEAT_FREQS,
@@ -20,6 +22,7 @@ import {
 import {
   CALENDAR_THEME_COLORS,
   formatEventTime,
+  formatMajorEventDate,
   getThemeById,
 } from "../lib/calendarTheme";
 import "./ScheduleTab.css";
@@ -918,52 +921,84 @@ export default function ScheduleTab() {
 const MAJOR_PAGE_SIZE = 25;
 
 function mergeUniqueEvents(existing, incoming) {
-  const seen = new Set(existing.map((e) => e.id));
+  const seen = new Set(existing.map((e) => (isContinuousMultiDay(e) ? eventSeriesKey(e) : e.id)));
   const next = [...existing];
   for (const ev of incoming) {
-    if (seen.has(ev.id)) continue;
-    seen.add(ev.id);
+    const key = isContinuousMultiDay(ev) ? eventSeriesKey(ev) : ev.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
     next.push(ev);
   }
   return next;
 }
 
 function prependUniqueEvents(existing, incoming) {
-  const seen = new Set(existing.map((e) => e.id));
+  const seen = new Set(existing.map((e) => (isContinuousMultiDay(e) ? eventSeriesKey(e) : e.id)));
   const added = [];
   for (const ev of incoming) {
-    if (seen.has(ev.id)) continue;
-    seen.add(ev.id);
+    const key = isContinuousMultiDay(ev) ? eventSeriesKey(ev) : ev.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
     added.push(ev);
   }
   return [...added, ...existing];
 }
 
+function majorSortDate(ev) {
+  if (isContinuousMultiDay(ev)) return ev.seriesStartDate || ev.eventDate;
+  return ev.eventDate;
+}
+
+function majorEndDate(ev) {
+  if (isContinuousMultiDay(ev)) return ev.seriesEndDate || ev.eventDate;
+  return ev.eventDate;
+}
+
 function loadMajorPageLocal(direction, cursor, limit, source, todayKey) {
-  const major = source.filter((e) => e.isMajor);
+  // 연속 다일은 시리즈 시작 행만 대표로 둔다.
+  const major = dedupeContinuousMajorEvents(
+    source.filter((e) => e.isMajor).filter((e) => {
+      if (!isContinuousMultiDay(e)) return true;
+      return e.eventDate === (e.seriesStartDate || e.eventDate);
+    })
+  );
   let batch = [];
 
   if (direction === "past") {
     const beforeDate = cursor?.date || todayKey;
     const beforeId = cursor?.id ?? Number.MAX_SAFE_INTEGER;
     batch = major
-      .filter(
-        (e) =>
-          e.eventDate < beforeDate || (e.eventDate === beforeDate && e.id < beforeId)
-      )
-      .sort((a, b) => compareMajorEvents(b, a))
+      .filter((e) => {
+        const end = majorEndDate(e);
+        if (end < beforeDate) return true;
+        if (end === beforeDate && !isContinuousMultiDay(e) && e.id < beforeId) return true;
+        return false;
+      })
+      .sort((a, b) => {
+        const da = majorEndDate(a);
+        const db = majorEndDate(b);
+        if (da !== db) return db.localeCompare(da);
+        return b.id - a.id;
+      })
       .slice(0, limit)
       .reverse();
   } else {
     batch = major
       .filter((e) => {
-        if (!cursor) return e.eventDate >= todayKey;
-        return (
-          e.eventDate > cursor.date ||
-          (e.eventDate === cursor.date && e.id > cursor.id)
-        );
+        const start = majorSortDate(e);
+        const end = majorEndDate(e);
+        if (!cursor) return end >= todayKey;
+        if (isContinuousMultiDay(e)) {
+          return start > cursor.date || (start === cursor.date && e.id > cursor.id);
+        }
+        return e.eventDate > cursor.date || (e.eventDate === cursor.date && e.id > cursor.id);
       })
-      .sort(compareMajorEvents)
+      .sort((a, b) => {
+        const da = majorSortDate(a);
+        const db = majorSortDate(b);
+        if (da !== db) return da.localeCompare(db);
+        return a.id - b.id;
+      })
       .slice(0, limit);
   }
 
@@ -976,7 +1011,7 @@ function loadMajorPageLocal(direction, cursor, limit, source, todayKey) {
   return {
     items: batch,
     hasMore: batch.length === limit,
-    nextCursor: edge ? { date: edge.eventDate, id: edge.id } : null,
+    nextCursor: edge ? { date: majorSortDate(edge), id: edge.id } : null,
   };
 }
 
@@ -1042,7 +1077,9 @@ function MajorEventsPanel({ todayKey, selectedOwnerIds, owners, token, localMode
           data = await api(`/calendar/major-events?${params}`, { token });
         }
 
-        const batch = enrichList((data.items || []).slice().reverse());
+        const batch = enrichList(
+          dedupeContinuousMajorEvents((data.items || []).slice().reverse())
+        );
         pastCursorRef.current = data.nextCursor || null;
         setPastHasMore(Boolean(data.hasMore));
 
@@ -1098,7 +1135,7 @@ function MajorEventsPanel({ todayKey, selectedOwnerIds, owners, token, localMode
           data = await api(`/calendar/major-events?${params}`, { token });
         }
 
-        const batch = enrichList(data.items || []);
+        const batch = enrichList(dedupeContinuousMajorEvents(data.items || []));
         futureCursorRef.current = data.nextCursor || null;
         setFutureHasMore(Boolean(data.hasMore));
         setFutureItems((prev) => (initial ? batch : mergeUniqueEvents(prev, batch)));
@@ -1176,17 +1213,17 @@ function MajorEventsPanel({ todayKey, selectedOwnerIds, owners, token, localMode
           )}
           {pastItems.map((ev) => (
             <button
-              key={`major-past-${ev.id}`}
+              key={`major-past-${eventSeriesKey(ev)}`}
               type="button"
               className="schedule__major-item is-past"
               onClick={() => onEdit(ev)}
             >
-              <span className="schedule__major-item-date">{formatDateDot(ev.eventDate)}</span>
+              <span className="schedule__major-item-date">{formatMajorEventDate(ev)}</span>
               <span className="schedule__major-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
               <span className="schedule__major-item-title">
                 <EventTitleDisplay event={ev} />
               </span>
-              <span className="schedule__major-item-time">{formatEventTime(ev)}</span>
+              <span className="schedule__major-item-time">{formatEventTime(ev, { continuousSpan: true })}</span>
             </button>
           ))}
           <div className="schedule__major-divider" ref={dividerRef}>
@@ -1197,17 +1234,17 @@ function MajorEventsPanel({ todayKey, selectedOwnerIds, owners, token, localMode
           ) : (
             futureItems.map((ev) => (
               <button
-                key={`major-future-${ev.id}`}
+                key={`major-future-${eventSeriesKey(ev)}`}
                 type="button"
                 className="schedule__major-item"
                 onClick={() => onEdit(ev)}
               >
-                <span className="schedule__major-item-date">{formatDateDot(ev.eventDate)}</span>
+                <span className="schedule__major-item-date">{formatMajorEventDate(ev)}</span>
                 <span className="schedule__major-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
                 <span className="schedule__major-item-title">
                   <EventTitleDisplay event={ev} />
                 </span>
-                <span className="schedule__major-item-time">{formatEventTime(ev)}</span>
+                <span className="schedule__major-item-time">{formatEventTime(ev, { continuousSpan: true })}</span>
               </button>
             ))
           )}
@@ -1733,7 +1770,9 @@ function EventModal({
           {!form.repeatOn && (
             <p className="schedule__hint">
               {form.endDate && form.endDate !== form.eventDate
-                ? `${formatDateDot(form.eventDate)} ~ ${formatDateDot(form.endDate)} · 총 ${previewDates.length}일`
+                ? form.allDay
+                  ? `${formatDateDot(form.eventDate)} ~ ${formatDateDot(form.endDate)} · 총 ${previewDates.length}일 종일`
+                  : `${formatDateDot(form.eventDate)} ${form.startTime || "09:00"} ~ ${formatDateDot(form.endDate)} ${form.endTime || "18:00"} · 연속 ${previewDates.length}일`
                 : `${formatDateDot(form.eventDate)} 하루 일정`}
             </p>
           )}
@@ -1948,7 +1987,9 @@ function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
           <span className="schedule__day-item-title-text">
             <EventTitleDisplay event={ev} />
           </span>
-          <span className="schedule__day-item-title-time">{formatEventTime(ev)}</span>
+          <span className="schedule__day-item-title-time">
+            {formatEventTime(ev, { continuousSpan: true })}
+          </span>
         </strong>
         <span className="schedule__day-item-range">
           {formatDateDot(ev.seriesStartDate || ev.eventDate)} ~{" "}
@@ -1992,25 +2033,36 @@ function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
 const TIMELINE_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 function TimelineBlock({ ev, slotH }) {
-  const startMin = timeToMinute(ev.startTime);
-  const endMinRaw = ev.endTime ? timeToMinute(ev.endTime) : null;
+  const { startTime, endTime } = effectiveEventTimes(ev);
+  const startMin = timeToMinute(startTime);
+  const endMinRaw = endTime ? timeToMinute(endTime) : null;
   const start = startMin ?? 0;
-  const end = endMinRaw != null && endMinRaw > start ? endMinRaw : start + 60;
+  const continuous = isContinuousMultiDay(ev);
+  const end =
+    endMinRaw != null && endMinRaw > start
+      ? endMinRaw
+      : continuous && !endTime
+        ? 24 * 60
+        : start + 60;
   const top = (start / 60) * slotH;
   const height = Math.max(((end - start) / 60) * slotH - 2, 15);
   // 칸이 낮으면 글자가 겹치므로 폰트를 줄이고, 아주 낮으면 제목만 표시
   const tiny = height < 28;
   const compact = height < 46;
+  const timeLabel = formatEventTime(
+    { ...ev, startTime: ev.startTime, endTime: ev.endTime },
+    { continuousSpan: continuous }
+  );
   return (
     <div
       className={`schedule__tl-block ${compact ? "is-compact" : ""} ${tiny ? "is-tiny" : ""}`}
       style={{ top: `${top}px`, height: `${height}px`, "--tl-accent": eventAccent(ev) }}
-      title={`${formatEventDisplayTitle(ev)} ${formatEventTime(ev)}`}
+      title={`${formatEventDisplayTitle(ev)} ${timeLabel}`}
     >
       <span className="schedule__tl-block-title">
         <EventTitleDisplay event={ev} />
       </span>
-      {!tiny && <span className="schedule__tl-block-time">{formatEventTime(ev)}</span>}
+      {!tiny && <span className="schedule__tl-block-time">{timeLabel}</span>}
     </div>
   );
 }
@@ -2031,7 +2083,9 @@ function DayTimeline({ columns, expanded, onToggleExpand }) {
     return <p className="schedule__empty">표시할 대상이 없습니다.</p>;
   }
 
-  const anyAllDay = columns.some((c) => c.events.some((e) => !e.startTime));
+  const anyAllDay = columns.some((c) =>
+    c.events.some((e) => !effectiveEventTimes(e).startTime)
+  );
 
   return (
     <div className="schedule__timeline">
@@ -2055,7 +2109,7 @@ function DayTimeline({ columns, expanded, onToggleExpand }) {
             {columns.map((col) => (
               <div key={col.key} className="schedule__tl-allday-cell">
                 {col.events
-                  .filter((e) => !e.startTime)
+                  .filter((e) => !effectiveEventTimes(e).startTime)
                   .map((ev) => (
                     <span
                       key={eventSeriesKey(ev)}
@@ -2089,7 +2143,7 @@ function DayTimeline({ columns, expanded, onToggleExpand }) {
                 />
               ))}
               {col.events
-                .filter((e) => e.startTime)
+                .filter((e) => effectiveEventTimes(e).startTime)
                 .map((ev) => (
                   <TimelineBlock key={eventSeriesKey(ev)} ev={ev} slotH={slotH} />
                 ))}

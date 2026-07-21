@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { getCachedItems, loadPortfolioBundle, subscribeResourceCache } from "./resourceCache";
+import {
+  getCachedPortfolioPreview,
+  loadPortfolioBundle,
+} from "./resourceCache";
 
 function buildPreview(bundle) {
   return {
@@ -10,30 +13,14 @@ function buildPreview(bundle) {
   };
 }
 
-function previewFromCache() {
-  const projects = getCachedItems("projects");
-  if (projects === null) return null;
-  return buildPreview({
-    projects,
-    activities: getCachedItems("activities"),
-    certifications: getCachedItems("certifications"),
-    careers: getCachedItems("careers"),
-  });
-}
-
 export function usePortfolioPreview() {
-  const [preview, setPreview] = useState(() => previewFromCache() || buildPreview({}));
-  const [loading, setLoading] = useState(() => getCachedItems("projects") === null);
+  const [preview, setPreview] = useState(() =>
+    buildPreview(getCachedPortfolioPreview() || {})
+  );
+  const [loading, setLoading] = useState(() => !getCachedPortfolioPreview());
 
   useEffect(() => {
     let alive = true;
-
-    const syncFromCache = () => {
-      const cached = previewFromCache();
-      if (!cached || !alive) return;
-      setPreview(cached);
-      setLoading(false);
-    };
 
     loadPortfolioBundle()
       .then((bundle) => {
@@ -43,10 +30,8 @@ export function usePortfolioPreview() {
       })
       .catch(() => alive && setLoading(false));
 
-    const unsub = subscribeResourceCache(syncFromCache);
     return () => {
       alive = false;
-      unsub();
     };
   }, []);
 
