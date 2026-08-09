@@ -100,7 +100,6 @@ export default function ProjectsPage() {
           fields={FIELDS}
           isAdmin={manageMode}
           layout="bubble"
-          cols={3}
           onUpdate={update}
           onRemove={remove}
           onReorder={reorder}

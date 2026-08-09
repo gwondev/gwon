@@ -30,19 +30,18 @@ function OvBubble({ name, tag, sub }) {
   );
 }
 
-function OvSection({ title, countLabel, cols, empty, children }) {
+// 왼쪽 라벨 → 오른쪽으로 버블을 옆으로 쭉 이어붙임
+function OvSection({ title, countLabel, empty, children }) {
   return (
     <section className="ov-sec">
-      <h2 className="ov-sec__title">
-        {title}
+      <div className="ov-sec__label">
+        <h2 className="ov-sec__title">{title}</h2>
         {countLabel ? <span className="ov-sec__count">{countLabel}</span> : null}
-      </h2>
+      </div>
       {empty ? (
         <p className="ov-empty">—</p>
       ) : (
-        <div className="records--bubble-grid" style={{ "--bubble-cols": cols }}>
-          {children}
-        </div>
+        <div className="ov-flow">{children}</div>
       )}
     </section>
   );
@@ -78,7 +77,6 @@ export default function OverviewPage() {
           <OvSection
             title={titleOf("techstack")}
             countLabel={techGroups.length ? `${techGroups.length}분야` : null}
-            cols={5}
             empty={!techGroups.length}
           >
             {techGroups.map((g) => (
@@ -89,7 +87,6 @@ export default function OverviewPage() {
           <OvSection
             title={titleOf("competitions")}
             countLabel={competitions.length ? `${competitions.length}건` : null}
-            cols={4}
             empty={!competitions.length}
           >
             {competitions.map((it) => (
@@ -100,7 +97,6 @@ export default function OverviewPage() {
           <OvSection
             title={titleOf("projects")}
             countLabel={projectList.length ? `${projectList.length}건` : null}
-            cols={3}
             empty={!projectList.length}
           >
             {projectList.map((it) => (
@@ -111,7 +107,6 @@ export default function OverviewPage() {
           <OvSection
             title={titleOf("activities")}
             countLabel={activities.length ? `${activities.length}건` : null}
-            cols={5}
             empty={!activities.length}
           >
             {activities.map((it) => (
@@ -122,7 +117,6 @@ export default function OverviewPage() {
           <OvSection
             title={titleOf("certifications")}
             countLabel={certifications.length ? `${certifications.length}건` : null}
-            cols={5}
             empty={!certifications.length}
           >
             {certifications.map((it) => (
@@ -133,7 +127,6 @@ export default function OverviewPage() {
           <OvSection
             title={titleOf("career")}
             countLabel={career.length ? `${career.length}건` : null}
-            cols={4}
             empty={!career.length}
           >
             {career.map((it) => (

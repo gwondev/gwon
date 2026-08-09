@@ -43,23 +43,36 @@
   overflow-wrap: break-word;
 }
 
-/* 섹션: 제목 아래 세부페이지와 동일한 버블들을 쭈욱 나열 */
+/* 섹션: 왼쪽 라벨 → 오른쪽으로 버블을 옆으로 쭉 이어붙임 */
 .overview__sections {
   display: flex;
   flex-direction: column;
-  gap: clamp(16px, 2.2vw, 26px);
+  gap: clamp(12px, 1.6vw, 20px);
 }
 
 .ov-sec {
   display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: clamp(12px, 1.6vw, 20px);
+  padding-bottom: clamp(12px, 1.6vw, 20px);
+  border-bottom: 1px solid var(--line);
+}
+.ov-sec:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.ov-sec__label {
+  flex: 0 0 clamp(104px, 12vw, 148px);
+  display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding-top: 0.35rem;
 }
 
 .ov-sec__title {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
   margin: 0;
   font-size: clamp(0.95rem, 1.5vw, 1.15rem);
   font-weight: 800;
@@ -68,7 +81,6 @@
 }
 
 .ov-sec__count {
-  flex: none;
   padding: 0.15rem 0.5rem;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
@@ -78,13 +90,24 @@
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-/* 요약 페이지의 버블은 세부페이지보다 살짝 조밀하게 */
-.ov-bubble.record--bubble {
-  padding: clamp(9px, 1vw, 12px) 10px;
+/* 버블을 왼쪽부터 옆으로 흐르게(줄바꿈 허용), 내용 크기대로 */
+.ov-flow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+.ov-flow > .ov-bubble.record--bubble {
+  flex: 0 0 auto;
+  min-width: 118px;
+  max-width: 240px;
+  padding: clamp(8px, 1vw, 11px) 12px;
 }
 
 .ov-empty {
-  margin: 0;
+  margin: 0.35rem 0 0;
   font-size: 0.85rem;
   color: var(--text-faint);
 }
@@ -94,6 +117,20 @@
     max-width: none;
     padding-left: clamp(16px, 2.5vw, 24px);
     padding-right: clamp(16px, 2.5vw, 24px);
+  }
+}
+
+@media (max-width: 640px) {
+  .ov-sec {
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .ov-sec__label {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0;
   }
 }
 

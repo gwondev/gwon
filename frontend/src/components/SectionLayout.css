@@ -797,14 +797,13 @@
   gap: var(--bubble-gap);
 }
 .records--bubble-grid > * {
-  flex-grow: 1;
+  /* 고정 크기(늘어나지 않음) → 위/아래 줄 버블 크기가 동일.
+     덜 찬 줄은 justify-content:center 로 가운데 정렬된다. */
+  flex-grow: 0;
   flex-shrink: 1;
-  flex-basis: max(
-    148px,
-    calc((100% - (var(--bubble-cols) - 1) * var(--bubble-gap)) / var(--bubble-cols))
-  );
+  flex-basis: calc((100% - (var(--bubble-cols) - 1) * var(--bubble-gap)) / var(--bubble-cols));
+  min-width: 120px;
   max-width: 520px;
-  min-width: 0;
 }
 /* 수정 중인 버블은 한 줄 전체로 펼쳐서 폼이 정상적으로 보이게 */
 .records--bubble-grid > *:has(.record--editing),
@@ -904,15 +903,10 @@
 
 @media (max-width: 560px) {
   .records--bubble-grid {
-    --bubble-cols: 2;
     --bubble-gap: 9px;
   }
   .records--bubble-grid > * {
-    flex-basis: max(
-      120px,
-      calc((100% - (var(--bubble-cols) - 1) * var(--bubble-gap)) / var(--bubble-cols))
-    );
-    max-width: 100%;
+    min-width: 108px;
   }
   .certbubble__nameline {
     font-size: 1.02rem;
