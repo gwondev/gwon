@@ -805,6 +805,16 @@
   min-width: 120px;
   max-width: 520px;
 }
+/* 드래그 정렬용 셀: 안쪽 카드가 셀의 가로/세로를 꽉 채우게 */
+.bubble-cell {
+  display: flex;
+  min-width: 0;
+}
+.bubble-cell > .record {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
 /* 수정 중인 버블은 한 줄 전체로 펼쳐서 폼이 정상적으로 보이게 */
 .records--bubble-grid > *:has(.record--editing),
 .records--bubble-grid > .record--editing {

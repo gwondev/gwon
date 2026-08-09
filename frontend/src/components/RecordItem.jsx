@@ -12,6 +12,8 @@ function RecordBody({
   sortable,
   bubble,
   detail,
+  dragHandleProps,
+  plain,
   onUpdate,
   onRemove,
   editing,
@@ -64,12 +66,12 @@ function RecordBody({
     <>
       {isAdmin && !editing && (
         <>
-          {sortable && (
+          {(sortable || dragHandleProps) && (
             <button
               type="button"
               className="record__drag"
               aria-label="순서 변경"
-              onPointerDown={(e) => controls.start(e)}
+              {...(dragHandleProps || { onPointerDown: (e) => controls.start(e) })}
             >
               ⠿
             </button>
@@ -145,6 +147,11 @@ function RecordBody({
   );
 
   const className = `record ${editing ? "record--editing" : ""} ${sortable ? "record--sortable" : ""} ${bubble ? "record--bubble" : ""}`;
+
+  // 그리드 리오더: 바깥(motion.div)이 애니메이션/드래그를 담당하므로 여기선 평범한 article
+  if (plain) {
+    return <article className={className}>{body}</article>;
+  }
 
   if (sortable) {
     return (
