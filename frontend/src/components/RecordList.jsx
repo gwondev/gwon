@@ -9,10 +9,14 @@ export default function RecordList({
   onRemove,
   onReorder,
   renderItem,
+  renderDetail,
+  layout,
 }) {
+  // 공개(또는 관리자의 "사용자 보기") 화면: layout="bubble" 이면 격자 버블로 표시
   if (!isAdmin) {
+    const bubble = layout === "bubble";
     return (
-      <div className="records">
+      <div className={`records ${bubble ? "records--bubble-grid" : ""}`}>
         {items.map((item, i) => (
           <RecordItem
             key={item.id}
@@ -20,6 +24,8 @@ export default function RecordList({
             fields={fields}
             index={i}
             isAdmin={false}
+            bubble={bubble}
+            detail={renderDetail ? renderDetail(item) : undefined}
             onUpdate={onUpdate}
             onRemove={onRemove}
           >
@@ -45,6 +51,7 @@ export default function RecordList({
           index={i}
           isAdmin
           sortable
+          detail={renderDetail ? renderDetail(item) : undefined}
           onUpdate={onUpdate}
           onRemove={onRemove}
         >

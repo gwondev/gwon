@@ -223,6 +223,57 @@ function MultiSelect({ value, options, onChange }) {
   );
 }
 
+function ImageField({ value, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const handleFile = async (fileList) => {
+    const file = Array.from(fileList || [])[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file);
+      onChange(dataUrl);
+    } catch (err) {
+      alert(err.message || "이미지를 불러오지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="image-field">
+      {value ? (
+        <div className="image-field__preview">
+          <img src={value} alt="" />
+          <button
+            type="button"
+            className="image-field__remove"
+            onClick={() => onChange("")}
+            aria-label="이미지 제거"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+      <label className="image-field__upload">
+        {busy ? "처리 중…" : value ? "이미지 변경" : "＋ 이미지 선택"}
+        <input
+          type="file"
+          accept="image/*"
+          hidden
+          disabled={busy}
+          onChange={(e) => {
+            handleFile(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
 function MediaEditor({ value, onChange }) {
   const list = parseMedia(value);
   const [busy, setBusy] = useState(false);
@@ -431,6 +482,8 @@ export default function FieldGrid({ fields, form, onChange, idPrefix = "" }) {
               />
             ) : f.type === "media" ? (
               <MediaEditor value={form[f.name]} onChange={(v) => set(f.name, v)} />
+            ) : f.type === "image" ? (
+              <ImageField value={form[f.name]} onChange={(v) => set(f.name, v)} />
             ) : f.type === "checkbox" ? (
               <label className="field-checkbox">
                 <input

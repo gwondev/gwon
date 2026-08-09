@@ -1,3 +1,4 @@
+import { useState } from "react";
 import SectionLayout from "../components/SectionLayout";
 import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
@@ -8,18 +9,83 @@ const FIELDS = [
   { name: "title", label: "자격증명", required: true, placeholder: "예: 정보처리기사" },
   { name: "issuer", label: "발급기관", placeholder: "예: 한국산업인력공단" },
   { name: "acquired", label: "취득일", type: "ymd" },
-  { name: "score", label: "등급 / 점수", placeholder: "예: 합격 / 920점" },
-  { name: "description", label: "비고", type: "textarea", span: true, placeholder: "관련 내용" },
+  { name: "score", label: "등급 / 점수", placeholder: "예: 합격 / 920점 (비우면 표시 안 함)" },
+  { name: "description", label: "비고", type: "textarea", span: true, placeholder: "관련 내용 (클릭 시 팝업으로 표시)" },
+  { name: "logo", label: "발급처 로고 이미지 (버블에 표시)", type: "image", span: true },
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
+
+// 버블(격자) 화면에 보이는 내용: 로고 · 발급처(작게) · 자격증명(크게)+등급/점수(옆에 노랗게)
+function renderBubble(c) {
+  const score = c.score && c.score.trim();
+  return (
+    <>
+      {c.logo && <img className="certbubble__logo" src={c.logo} alt="" />}
+      <div className="certbubble__body">
+        {c.issuer && <span className="certbubble__issuer">{c.issuer}</span>}
+        <span className="certbubble__nameline">
+          <span className="certbubble__name">{c.title}</span>
+          {score && <span className="certbubble__score">{score}</span>}
+        </span>
+      </div>
+    </>
+  );
+}
+
+// 클릭 시 팝업에 보이는 상세 내용 (비고 포함)
+function renderDetail(c) {
+  const score = c.score && c.score.trim();
+  return (
+    <>
+      <div className="record__head">
+        <span className="record__title">
+          {c.title}
+          {score && <span className="record__title-score"> {score}</span>}
+        </span>
+      </div>
+      <div className="record__meta">
+        {c.issuer && <span><b>발급</b>{c.issuer}</span>}
+        {c.acquired && <span><b>취득</b>{c.acquired}</span>}
+      </div>
+      {c.description && <p className="record__desc">{c.description}</p>}
+    </>
+  );
+}
 
 export default function CertificationsPage() {
   const { items, loading, error, create, update, remove, reorder } = useResource("certifications");
   const { isAdmin } = useAuth();
+  const [viewAsUser, setViewAsUser] = useState(false);
+
+  const manageMode = isAdmin && !viewAsUser;
 
   return (
     <SectionLayout active="certifications" title="자격증" sub="Certifications" count={items.length} showPageHint>
-      <Adder label="자격증 추가" fields={FIELDS} onCreate={create} />
+      {isAdmin && (
+        <div className="viewmode" role="radiogroup" aria-label="보기 모드">
+          <span className="viewmode__label">보기</span>
+          <label className={`viewmode__opt ${!viewAsUser ? "is-on" : ""}`}>
+            <input
+              type="radio"
+              name="cert-viewmode"
+              checked={!viewAsUser}
+              onChange={() => setViewAsUser(false)}
+            />
+            <span>관리자</span>
+          </label>
+          <label className={`viewmode__opt ${viewAsUser ? "is-on" : ""}`}>
+            <input
+              type="radio"
+              name="cert-viewmode"
+              checked={viewAsUser}
+              onChange={() => setViewAsUser(true)}
+            />
+            <span>사용자 시점</span>
+          </label>
+        </div>
+      )}
+
+      {manageMode && <Adder label="자격증 추가" fields={FIELDS} onCreate={create} />}
 
       {loading ? (
         <div className="state">불러오는 중…</div>
@@ -31,23 +97,13 @@ export default function CertificationsPage() {
         <RecordList
           items={items}
           fields={FIELDS}
-          isAdmin={isAdmin}
+          isAdmin={manageMode}
+          layout="bubble"
           onUpdate={update}
           onRemove={remove}
           onReorder={reorder}
-          renderItem={(c) => (
-            <>
-              <div className="record__head">
-                <span className="record__title">{c.title}</span>
-                {c.score && <span className="record__tag">{c.score}</span>}
-              </div>
-              <div className="record__meta">
-                {c.issuer && <span><b>발급</b>{c.issuer}</span>}
-                {c.acquired && <span><b>취득</b>{c.acquired}</span>}
-              </div>
-              {c.description && <p className="record__desc">{c.description}</p>}
-            </>
-          )}
+          renderItem={renderBubble}
+          renderDetail={renderDetail}
         />
       )}
     </SectionLayout>

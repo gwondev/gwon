@@ -6,7 +6,7 @@ import { requireAdmin } from "../auth-middleware.js";
 const RESOURCES = {
   projects: ["title", "category", "host", "team_name", "members", "award", "period", "url", "github_url", "description", "media", "home_featured"],
   activities: ["title", "organization", "role", "period", "description", "media"],
-  certifications: ["title", "issuer", "acquired", "score", "description", "media"],
+  certifications: ["title", "issuer", "acquired", "score", "description", "logo", "media"],
   careers: ["title", "category", "position", "period", "description", "media"],
 };
 
@@ -32,7 +32,9 @@ export function crudRouter(table) {
   if (!columns) throw new Error(`unknown resource: ${table}`);
   const router = Router();
 
-  const pick = (body) => {
+  // allowEmpty: 수정(PUT) 시 사용자가 값을 비우면 실제로 비워지도록 허용.
+  // (생성 시엔 빈 값은 건너뛰어 DB 기본값을 쓰게 둔다)
+  const pick = (body, { allowEmpty = false } = {}) => {
     const data = {};
     for (const col of columns) {
       if (body[col] === undefined || body[col] === null) continue;
@@ -40,8 +42,9 @@ export function crudRouter(table) {
         data[col] = body[col] === true || body[col] === 1 || body[col] === "1" ? 1 : 0;
         continue;
       }
-      if (String(body[col]).trim() !== "") {
-        data[col] = String(body[col]);
+      const str = String(body[col]);
+      if (str.trim() !== "" || allowEmpty) {
+        data[col] = str;
       }
     }
     return data;
@@ -132,7 +135,7 @@ export function crudRouter(table) {
   // PUT 수정 (관리자 전용)
   router.put("/:id", requireAdmin, async (req, res, next) => {
     try {
-      const data = pick(req.body || {});
+      const data = pick(req.body || {}, { allowEmpty: true });
       const keys = Object.keys(data);
       if (keys.length === 0) return res.status(400).json({ error: "수정할 내용이 없습니다." });
       await capHomeFeatured(data, req.params.id);

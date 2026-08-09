@@ -333,6 +333,7 @@ async function runMigrations(conn) {
     "ALTER TABLE projects ADD COLUMN media LONGTEXT AFTER description",
     "ALTER TABLE activities ADD COLUMN media LONGTEXT AFTER description",
     "ALTER TABLE certifications ADD COLUMN media LONGTEXT AFTER description",
+    "ALTER TABLE certifications ADD COLUMN logo LONGTEXT AFTER description",
     "ALTER TABLE careers ADD COLUMN media LONGTEXT AFTER description",
     "ALTER TABLE projects ADD COLUMN url VARCHAR(512) AFTER period",
     "ALTER TABLE projects ADD COLUMN github_url VARCHAR(512) AFTER url",

@@ -10,6 +10,8 @@ function RecordBody({
   index,
   isAdmin,
   sortable,
+  bubble,
+  detail,
   onUpdate,
   onRemove,
   editing,
@@ -133,7 +135,7 @@ function RecordBody({
             media={modalMedia}
             showHiddenBadge={isAdmin}
           >
-            {children}
+            {detail ?? children}
           </DetailModal>
         </>
       ) : (
@@ -142,7 +144,7 @@ function RecordBody({
     </>
   );
 
-  const className = `record ${editing ? "record--editing" : ""} ${sortable ? "record--sortable" : ""}`;
+  const className = `record ${editing ? "record--editing" : ""} ${sortable ? "record--sortable" : ""} ${bubble ? "record--bubble" : ""}`;
 
   if (sortable) {
     return (
