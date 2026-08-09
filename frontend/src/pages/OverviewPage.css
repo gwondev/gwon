@@ -50,9 +50,11 @@
   gap: clamp(12px, 1.5vw, 18px);
 }
 
+/* 라벨(왼쪽) + 버블들(오른쪽) 가로 배치 → 위아래 공간 절약 */
 .ov-section {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
   border-radius: var(--radius-xl);
   border: 1px solid var(--line);
   background:
@@ -62,29 +64,31 @@
 }
 
 .ov-section__head {
+  flex: 0 0 clamp(116px, 13vw, 156px);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: clamp(12px, 1.4vw, 16px) clamp(16px, 1.8vw, 20px);
-  border-bottom: 1px solid var(--line);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: clamp(10px, 1.2vw, 14px) clamp(12px, 1.4vw, 16px);
+  border-right: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg-soft) 60%, transparent);
 }
 
 .ov-section__title {
   margin: 0;
-  font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+  font-size: clamp(0.9rem, 1.4vw, 1.05rem);
   font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .ov-section__count {
   flex: none;
-  padding: 0.2rem 0.55rem;
+  padding: 0.15rem 0.5rem;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 700;
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
@@ -92,24 +96,28 @@
 
 .ov-section__body {
   flex: 1;
-  padding: clamp(10px, 1.2vw, 14px) clamp(14px, 1.6vw, 18px) clamp(12px, 1.4vw, 16px);
+  min-width: 0;
+  padding: clamp(10px, 1.2vw, 13px) clamp(12px, 1.5vw, 16px);
 }
 
-/* 사진 없는 작은 버블들의 격자 */
+/* 사진 없는 작은 버블들 (가로로 흐르며 줄바꿈) */
 .ov-bubbles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
 }
 
 .ov-bubble {
+  flex: 0 1 auto;
+  max-width: 260px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   gap: 2px;
-  padding: 8px 10px;
+  padding: 7px 12px;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--bg-soft);
@@ -157,6 +165,21 @@
     max-width: none;
     padding-left: clamp(16px, 2.5vw, 24px);
     padding-right: clamp(16px, 2.5vw, 24px);
+  }
+}
+
+@media (max-width: 640px) {
+  .ov-section {
+    flex-direction: column;
+  }
+  .ov-section__head {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
   }
 }
 

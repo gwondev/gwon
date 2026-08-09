@@ -785,11 +785,29 @@
 }
 
 /* 자격증 버블 격자 (최대 5열, 직사각형 카드) */
+/* 버블들을 가운데에서부터 배치 (칸이 덜 차도 왼쪽으로 쏠리지 않게) */
 .records--bubble-grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: stretch;
+  gap: 12px;
+}
+.records--bubble-grid > * {
+  flex: 0 1 clamp(140px, 14vw, 168px);
+  min-width: 0;
+}
+/* 수정 중인 버블은 한 줄 전체로 펼쳐서 폼이 정상적으로 보이게 */
+.records--bubble-grid > *:has(.record--editing),
+.records--bubble-grid > .record--editing {
+  flex: 1 1 100%;
+  max-width: 100%;
+}
+.record--bubble.record--editing {
+  align-items: stretch;
+  text-align: left;
+  padding: clamp(14px, 1.9vw, 19px) clamp(14px, 1.8vw, 18px);
 }
 .record--bubble {
   padding: clamp(12px, 1.4vw, 16px) 10px;
@@ -876,25 +894,12 @@
   font-weight: 700;
 }
 
-@media (max-width: 1240px) {
-  .records--bubble-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-@media (max-width: 1040px) {
-  .records--bubble-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-@media (max-width: 800px) {
-  .records--bubble-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
 @media (max-width: 560px) {
   .records--bubble-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 9px;
+  }
+  .records--bubble-grid > * {
+    flex: 0 1 clamp(120px, 42vw, 150px);
   }
   .certbubble__nameline {
     font-size: 1.02rem;
