@@ -71,6 +71,13 @@ export function mediaDisplayName(m, indexByKind) {
   return `${mediaKindLabel(m)}${indexByKind}`;
 }
 
+// 버블 카드 대표 사진 (공개 미디어 우선, 없으면 첫 이미지)
+export function mediaCoverImage(raw) {
+  const list = parseMedia(raw);
+  const pick = list.find((m) => m.image && isMediaVisible(m)) || list.find((m) => m.image);
+  return pick?.image || "";
+}
+
 export function splitTags(raw) {
   return String(raw || "")
     .split(/[,，]/)

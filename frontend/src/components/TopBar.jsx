@@ -7,7 +7,7 @@ import { IconHome } from "./ActionIcons";
 import SideDrawer from "./SideDrawer";
 import "./TopBar.css";
 
-const VIEWMODE_PATHS = ["/certifications", "/activities"];
+const VIEWMODE_PATHS = ["/certifications", "/activities", "/competitions", "/projects", "/career"];
 
 export default function TopBar() {
   const { user, isAuthed, isAdmin } = useAuth();

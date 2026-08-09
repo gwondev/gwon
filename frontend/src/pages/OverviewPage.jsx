@@ -10,16 +10,10 @@ import { formatCareerPeriodPreview } from "../lib/format";
 import { splitTags } from "../lib/media";
 import "./OverviewPage.css";
 
-const PREVIEW_LIMIT = 3;
-
 const fade = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
 };
-
-function joinMeta(parts) {
-  return parts.filter(Boolean).join(" · ");
-}
 
 function OverviewSection({ section, countLabel, children }) {
   return (
@@ -33,9 +27,9 @@ function OverviewSection({ section, countLabel, children }) {
   );
 }
 
-function CompactLine({ main, meta, tag }) {
+function CompactLine({ main, meta, tag, wrap = false }) {
   return (
-    <p className="ov-line">
+    <p className={`ov-line ${wrap ? "ov-line--wrap" : ""}`}>
       <span className="ov-line__main">{main}</span>
       {tag ? (
         <>
@@ -123,6 +117,7 @@ export default function OverviewPage() {
                   key={g.group}
                   main={g.group}
                   meta={g.items.map(formatTechItemLabel).join(", ")}
+                  wrap
                 />
               ))
             ) : (
@@ -135,12 +130,12 @@ export default function OverviewPage() {
             countLabel={competitions.length ? `${competitions.length}건` : null}
           >
             {competitions.length ? (
-              competitions.slice(0, PREVIEW_LIMIT).map((it) => (
+              competitions.map((it) => (
                 <CompactLine
                   key={it.id}
-                  main={it.team_name || it.title}
+                  main={it.title}
                   tag={it.award || null}
-                  meta={joinMeta([splitTags(it.category).join(" · "), it.period])}
+                  meta={it.team_name || null}
                 />
               ))
             ) : (
@@ -153,12 +148,11 @@ export default function OverviewPage() {
             countLabel={projectList.length ? `${projectList.length}건` : null}
           >
             {projectList.length ? (
-              projectList.slice(0, PREVIEW_LIMIT).map((it) => (
+              projectList.map((it) => (
                 <CompactLine
                   key={it.id}
-                  main={it.team_name || it.title}
-                  tag={splitTags(it.category)[0] || null}
-                  meta={joinMeta([it.host, it.period])}
+                  main={it.title}
+                  tag={splitTags(it.category).join(" · ") || null}
                 />
               ))
             ) : (
@@ -171,13 +165,8 @@ export default function OverviewPage() {
             countLabel={activityList.length ? `${activityList.length}건` : null}
           >
             {activityList.length ? (
-              activityList.slice(0, PREVIEW_LIMIT).map((it) => (
-                <CompactLine
-                  key={it.id}
-                  main={it.title}
-                  tag={it.role || null}
-                  meta={joinMeta([it.organization, it.period])}
-                />
+              activityList.map((it) => (
+                <CompactLine key={it.id} main={it.title} tag={it.role || null} />
               ))
             ) : (
               <EmptyNote />
@@ -189,13 +178,8 @@ export default function OverviewPage() {
             countLabel={certList.length ? `${certList.length}건` : null}
           >
             {certList.length ? (
-              certList.slice(0, PREVIEW_LIMIT).map((it) => (
-                <CompactLine
-                  key={it.id}
-                  main={it.title}
-                  tag={it.score || null}
-                  meta={joinMeta([it.issuer, it.acquired])}
-                />
+              certList.map((it) => (
+                <CompactLine key={it.id} main={it.title} tag={it.score || null} />
               ))
             ) : (
               <EmptyNote />
@@ -207,15 +191,11 @@ export default function OverviewPage() {
             countLabel={careerList.length ? `${careerList.length}건` : null}
           >
             {careerList.length ? (
-              careerList.slice(0, PREVIEW_LIMIT).map((it) => (
+              careerList.map((it) => (
                 <CompactLine
                   key={it.id}
                   main={it.title}
-                  tag={it.category || null}
-                  meta={joinMeta([
-                    it.position,
-                    formatCareerPeriodPreview(it.period) || it.period,
-                  ])}
+                  meta={formatCareerPeriodPreview(it.period) || it.period || null}
                 />
               ))
             ) : (

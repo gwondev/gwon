@@ -4,7 +4,7 @@ import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
 import { useViewMode } from "../context/ViewModeContext";
-import { parseMedia, isMediaVisible } from "../lib/media";
+import { mediaCoverImage } from "../lib/media";
 
 const FIELDS = [
   { name: "title", label: "활동명", required: true, placeholder: "예: 멋쟁이사자처럼 13기" },
@@ -15,16 +15,9 @@ const FIELDS = [
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
-// 버블에 쓸 대표 사진 (공개 미디어 우선)
-function coverImage(a) {
-  const list = parseMedia(a.media);
-  const pick = list.find((m) => m.image && isMediaVisible(m)) || list.find((m) => m.image);
-  return pick?.image || "";
-}
-
 // 버블(격자): 사진 · 활동명(크게) · 단체(아래, 작게)
 function renderBubble(a) {
-  const img = coverImage(a);
+  const img = mediaCoverImage(a.media);
   return (
     <>
       {img && <img className="certbubble__logo certbubble__logo--photo" src={img} alt="" />}

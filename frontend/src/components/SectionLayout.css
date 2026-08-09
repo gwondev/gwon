@@ -787,7 +787,7 @@
 /* 자격증 버블 격자 (최대 5열, 직사각형 카드) */
 .records--bubble-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
   align-items: stretch;
 }
@@ -873,17 +873,22 @@
   font-weight: 700;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1240px) {
+  .records--bubble-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1040px) {
   .records--bubble-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
-@media (max-width: 860px) {
+@media (max-width: 800px) {
   .records--bubble-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-@media (max-width: 600px) {
+@media (max-width: 560px) {
   .records--bubble-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 9px;

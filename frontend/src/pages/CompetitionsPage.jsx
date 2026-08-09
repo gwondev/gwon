@@ -3,8 +3,9 @@ import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
+import { useViewMode } from "../context/ViewModeContext";
 import { PROJECT_CATEGORIES, isCompetition } from "../lib/sections";
-import { splitTags } from "../lib/media";
+import { splitTags, mediaCoverImage } from "../lib/media";
 import RecordUrl from "../components/RecordUrl";
 
 const FIELDS = [
@@ -22,15 +23,63 @@ const FIELDS = [
     label: "설명",
     type: "textarea",
     span: true,
-    placeholder: "공모전 개요, 역할, 성과 등",
+    placeholder: "공모전 개요, 역할, 성과 등 (클릭 시 팝업으로 표시)",
   },
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
+// 버블(격자): 사진 · 공모전명(크게)+수상(옆에 노랗게) · 팀명(아래, 작게)
+function renderBubble(p) {
+  const img = mediaCoverImage(p.media);
+  const award = p.award && p.award.trim();
+  return (
+    <>
+      {img && <img className="certbubble__logo certbubble__logo--photo" src={img} alt="" />}
+      <div className="certbubble__body">
+        <span className="certbubble__nameline">
+          <span className="certbubble__name">{p.title}</span>
+          {award && <span className="certbubble__score">{award}</span>}
+        </span>
+        {p.team_name && <span className="certbubble__issuer">{p.team_name}</span>}
+      </div>
+    </>
+  );
+}
+
+function renderDetail(p) {
+  const award = p.award && p.award.trim();
+  return (
+    <>
+      <div className="record__head">
+        <span className="record__title">
+          {p.title}
+          {award && <span className="record__title-score"> {award}</span>}
+        </span>
+        {splitTags(p.category).map((c) => (
+          <span className="record__tag" key={c}>
+            {c}
+          </span>
+        ))}
+      </div>
+      <div className="record__meta">
+        {p.host && <span><b>주관처</b>{p.host}</span>}
+        {p.team_name && <span><b>팀명</b>{p.team_name}</span>}
+        {p.members && <span><b>팀원</b>{p.members}</span>}
+        {p.period && <span><b>기간</b>{p.period}</span>}
+      </div>
+      <RecordUrl url={p.url} githubUrl={p.github_url} />
+      {p.description && <p className="record__desc">{p.description}</p>}
+    </>
+  );
+}
+
 export default function CompetitionsPage() {
   const { items: all, loading, error, create, update, remove, reorder } = useResource("projects");
   const { isAdmin } = useAuth();
+  const { viewAsUser } = useViewMode();
   const items = all.filter(isCompetition);
+
+  const manageMode = isAdmin && !viewAsUser;
 
   return (
     <SectionLayout
@@ -40,7 +89,7 @@ export default function CompetitionsPage() {
       count={items.length}
       showPageHint
     >
-      <Adder label="공모전 · 수상 추가" fields={FIELDS} onCreate={create} />
+      {manageMode && <Adder label="공모전 · 수상 추가" fields={FIELDS} onCreate={create} />}
 
       {loading ? (
         <div className="state">불러오는 중…</div>
@@ -52,56 +101,13 @@ export default function CompetitionsPage() {
         <RecordList
           items={items}
           fields={FIELDS}
-          isAdmin={isAdmin}
+          isAdmin={manageMode}
+          layout="bubble"
           onUpdate={update}
           onRemove={remove}
           onReorder={reorder}
-          renderItem={(p) => (
-            <>
-              <div className="record__head">
-                <span className="record__title">{p.title}</span>
-                {splitTags(p.category).map((c) => (
-                  <span className="record__tag" key={c}>
-                    {c}
-                  </span>
-                ))}
-              </div>
-              <div className="record__meta">
-                {p.host && (
-                  <span>
-                    <b>주관처</b>
-                    {p.host}
-                  </span>
-                )}
-                {p.team_name && (
-                  <span>
-                    <b>팀명</b>
-                    {p.team_name}
-                  </span>
-                )}
-                {p.members && (
-                  <span>
-                    <b>팀원</b>
-                    {p.members}
-                  </span>
-                )}
-                {p.award && (
-                  <span>
-                    <b>결과</b>
-                    {p.award}
-                  </span>
-                )}
-                {p.period && (
-                  <span>
-                    <b>기간</b>
-                    {p.period}
-                  </span>
-                )}
-              </div>
-              <RecordUrl url={p.url} githubUrl={p.github_url} />
-              {p.description && <p className="record__desc">{p.description}</p>}
-            </>
-          )}
+          renderItem={renderBubble}
+          renderDetail={renderDetail}
         />
       )}
     </SectionLayout>
