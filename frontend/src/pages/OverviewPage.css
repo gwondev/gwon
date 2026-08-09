@@ -43,11 +43,11 @@
   overflow-wrap: break-word;
 }
 
-/* 3×2 → 2×3 그리ㄴss드 */
+/* 세로로 단순히 쌓기 */
 .overview__sections {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(14px, 1.6vw, 20px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.5vw, 18px);
 }
 
 .ov-section {
@@ -93,47 +93,62 @@
 .ov-section__body {
   flex: 1;
   padding: clamp(10px, 1.2vw, 14px) clamp(14px, 1.6vw, 18px) clamp(12px, 1.4vw, 16px);
+}
+
+/* 사진 없는 작은 버블들의 격자 */
+.ov-bubbles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.ov-bubble {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+}
+.ov-bubble:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-elev);
 }
 
-.ov-line {
-  margin: 0;
-  font-size: clamp(0.78rem, 1vw, 0.88rem);
-  line-height: 1.5;
-  color: var(--text-dim);
-  /* 한 줄로만 (줄바꿈 없이) — 넘치면 말줄임 */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.ov-bubble__nameline {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3em;
+  font-size: 0.8rem;
+  line-height: 1.2;
 }
-
-.ov-line--wrap {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
+.ov-bubble__name {
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.ov-bubble__tag {
+  color: var(--accent);
+  font-weight: 700;
+}
+.ov-bubble__sub {
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: var(--text-faint);
   word-break: keep-all;
   overflow-wrap: break-word;
 }
 
-.ov-line__main {
-  font-weight: 700;
-  color: var(--text);
-}
-
-.ov-line__tag {
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.ov-line__meta {
-  color: var(--text-dim);
-}
-
 .ov-empty {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   color: var(--text-faint);
 }
 
@@ -142,10 +157,6 @@
     max-width: none;
     padding-left: clamp(16px, 2.5vw, 24px);
     padding-right: clamp(16px, 2.5vw, 24px);
-  }
-
-  .overview__sections {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -160,12 +171,15 @@
   }
 
   .ov-section {
-    min-height: 140px;
     border-radius: var(--radius-lg);
   }
 
-  .ov-line {
-    font-size: 0.72rem;
+  .ov-bubbles {
+    grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  }
+
+  .ov-bubble__nameline {
+    font-size: 0.74rem;
   }
 
   .ov-section__title {

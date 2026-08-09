@@ -22,28 +22,21 @@ function OverviewSection({ section, countLabel, children }) {
         <h2 className="ov-section__title">{section.title}</h2>
         {countLabel ? <span className="ov-section__count">{countLabel}</span> : null}
       </header>
-      <div className="ov-section__body">{children}</div>
+      <div className="ov-section__body ov-bubbles">{children}</div>
     </section>
   );
 }
 
-function CompactLine({ main, meta, tag, wrap = false }) {
+// 사진 없는 작은 버블 (자격증 버블을 축소한 느낌)
+function OvBubble({ name, tag, sub }) {
   return (
-    <p className={`ov-line ${wrap ? "ov-line--wrap" : ""}`}>
-      <span className="ov-line__main">{main}</span>
-      {tag ? (
-        <>
-          {" · "}
-          <span className="ov-line__tag">{tag}</span>
-        </>
-      ) : null}
-      {meta ? (
-        <>
-          {" · "}
-          <span className="ov-line__meta">{meta}</span>
-        </>
-      ) : null}
-    </p>
+    <div className="ov-bubble">
+      <span className="ov-bubble__nameline">
+        <span className="ov-bubble__name">{name}</span>
+        {tag ? <span className="ov-bubble__tag">{tag}</span> : null}
+      </span>
+      {sub ? <span className="ov-bubble__sub">{sub}</span> : null}
+    </div>
   );
 }
 
@@ -60,14 +53,8 @@ export default function OverviewPage() {
   const { groups: techGroupsRaw } = useTechStack();
   const techGroups = techGroupsRaw.length ? techGroupsRaw : TECH_STACK_FALLBACK;
 
-  const competitions = useMemo(
-    () => projects.filter(isCompetition),
-    [projects]
-  );
-  const projectList = useMemo(
-    () => projects.filter(isProjectRecord),
-    [projects]
-  );
+  const competitions = useMemo(() => projects.filter(isCompetition), [projects]);
+  const projectList = useMemo(() => projects.filter(isProjectRecord), [projects]);
   const activityList = activities;
   const certList = certifications;
   const careerList = career;
@@ -113,11 +100,10 @@ export default function OverviewPage() {
           >
             {techGroups.length ? (
               techGroups.map((g) => (
-                <CompactLine
+                <OvBubble
                   key={g.group}
-                  main={g.group}
-                  meta={g.items.map(formatTechItemLabel).join(", ")}
-                  wrap
+                  name={g.group}
+                  sub={g.items.map(formatTechItemLabel).join(", ")}
                 />
               ))
             ) : (
@@ -131,12 +117,7 @@ export default function OverviewPage() {
           >
             {competitions.length ? (
               competitions.map((it) => (
-                <CompactLine
-                  key={it.id}
-                  main={it.title}
-                  tag={it.award || null}
-                  meta={it.team_name || null}
-                />
+                <OvBubble key={it.id} name={it.title} tag={it.award || null} sub={it.team_name || null} />
               ))
             ) : (
               <EmptyNote />
@@ -149,11 +130,7 @@ export default function OverviewPage() {
           >
             {projectList.length ? (
               projectList.map((it) => (
-                <CompactLine
-                  key={it.id}
-                  main={it.title}
-                  tag={splitTags(it.category).join(" · ") || null}
-                />
+                <OvBubble key={it.id} name={it.title} tag={splitTags(it.category).join(" · ") || null} />
               ))
             ) : (
               <EmptyNote />
@@ -166,7 +143,7 @@ export default function OverviewPage() {
           >
             {activityList.length ? (
               activityList.map((it) => (
-                <CompactLine key={it.id} main={it.title} tag={it.role || null} />
+                <OvBubble key={it.id} name={it.title} tag={it.role || null} />
               ))
             ) : (
               <EmptyNote />
@@ -179,7 +156,7 @@ export default function OverviewPage() {
           >
             {certList.length ? (
               certList.map((it) => (
-                <CompactLine key={it.id} main={it.title} tag={it.score || null} />
+                <OvBubble key={it.id} name={it.title} tag={it.score || null} />
               ))
             ) : (
               <EmptyNote />
@@ -192,10 +169,10 @@ export default function OverviewPage() {
           >
             {careerList.length ? (
               careerList.map((it) => (
-                <CompactLine
+                <OvBubble
                   key={it.id}
-                  main={it.title}
-                  meta={formatCareerPeriodPreview(it.period) || it.period || null}
+                  name={it.title}
+                  sub={formatCareerPeriodPreview(it.period) || it.period || null}
                 />
               ))
             ) : (

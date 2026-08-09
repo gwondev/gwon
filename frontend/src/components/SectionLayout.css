@@ -820,9 +820,6 @@
   background: var(--bg-elev);
   padding: 0;
 }
-.record:not(.record--bubble) .certbubble__logo--photo {
-  width: 120px;
-}
 .certbubble__body {
   display: flex;
   flex-direction: column;
@@ -854,17 +851,23 @@
   font-weight: 700;
 }
 
-/* 관리자 목록(비버블)에서는 자격증 버블 내용을 왼쪽 정렬로 */
-.record:not(.record--bubble) .certbubble__body,
-.record:not(.record--bubble) .certbubble__nameline {
-  align-items: flex-start;
-  justify-content: flex-start;
+/* 버블 + 관리자(정렬 가능) 모드: 드래그 핸들/액션이 가운데 정렬을 깨지 않도록 모서리로 */
+.record--bubble.record--sortable {
+  padding-left: clamp(12px, 1.4vw, 16px);
 }
-.record:not(.record--bubble) .record__clickable {
-  align-items: stretch;
+.record--bubble .record__drag {
+  top: 6px;
+  left: 6px;
+  height: 22px;
+  transform: none;
 }
-.record:not(.record--bubble) .certbubble__logo {
-  align-self: flex-start;
+.record--bubble .record__actions {
+  top: 6px;
+  right: 6px;
+}
+.record--bubble.record:has(.record__actions) .record__head,
+.record--bubble.record--sortable .record__head {
+  padding-right: 0;
 }
 
 /* 팝업(상세)의 등급/점수 — 자격증명 옆, 살짝 노랗게, 같은 크기 */
