@@ -1,15 +1,21 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import { useViewMode } from "../context/ViewModeContext";
 import { IconHome } from "./ActionIcons";
 import SideDrawer from "./SideDrawer";
 import "./TopBar.css";
 
+const VIEWMODE_PATHS = ["/certifications", "/activities"];
+
 export default function TopBar() {
-  const { user, isAuthed } = useAuth();
+  const { user, isAuthed, isAdmin } = useAuth();
+  const { viewAsUser, setViewAsUser } = useViewMode();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const showViewMode = isAdmin && VIEWMODE_PATHS.includes(location.pathname);
 
   const greeting = isAuthed
     ? `${user.nickname || user.name || "회원"}님 반갑습니다.`
@@ -40,6 +46,29 @@ export default function TopBar() {
             {greeting}
           </motion.span>
         </button>
+
+        {showViewMode && (
+          <div className="topbar__viewmode viewmode" role="radiogroup" aria-label="보기 모드">
+            <label className={`viewmode__opt ${!viewAsUser ? "is-on" : ""}`}>
+              <input
+                type="radio"
+                name="topbar-viewmode"
+                checked={!viewAsUser}
+                onChange={() => setViewAsUser(false)}
+              />
+              <span>관리자</span>
+            </label>
+            <label className={`viewmode__opt ${viewAsUser ? "is-on" : ""}`}>
+              <input
+                type="radio"
+                name="topbar-viewmode"
+                checked={viewAsUser}
+                onChange={() => setViewAsUser(true)}
+              />
+              <span>사용자 시점</span>
+            </label>
+          </div>
+        )}
 
         <div className="topbar__right">
           <button

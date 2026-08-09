@@ -1,9 +1,9 @@
-import { useState } from "react";
 import SectionLayout from "../components/SectionLayout";
 import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
+import { useViewMode } from "../context/ViewModeContext";
 
 const FIELDS = [
   { name: "title", label: "자격증명", required: true, placeholder: "예: 정보처리기사" },
@@ -15,18 +15,18 @@ const FIELDS = [
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
 
-// 버블(격자) 화면에 보이는 내용: 로고 · 발급처(작게) · 자격증명(크게)+등급/점수(옆에 노랗게)
+// 버블(격자) 화면에 보이는 내용: 로고 · 자격증명(크게)+등급/점수(옆에 노랗게) · 발급처(아래, 작게)
 function renderBubble(c) {
   const score = c.score && c.score.trim();
   return (
     <>
       {c.logo && <img className="certbubble__logo" src={c.logo} alt="" />}
       <div className="certbubble__body">
-        {c.issuer && <span className="certbubble__issuer">{c.issuer}</span>}
         <span className="certbubble__nameline">
           <span className="certbubble__name">{c.title}</span>
           {score && <span className="certbubble__score">{score}</span>}
         </span>
+        {c.issuer && <span className="certbubble__issuer">{c.issuer}</span>}
       </div>
     </>
   );
@@ -55,36 +55,12 @@ function renderDetail(c) {
 export default function CertificationsPage() {
   const { items, loading, error, create, update, remove, reorder } = useResource("certifications");
   const { isAdmin } = useAuth();
-  const [viewAsUser, setViewAsUser] = useState(false);
+  const { viewAsUser } = useViewMode();
 
   const manageMode = isAdmin && !viewAsUser;
 
   return (
     <SectionLayout active="certifications" title="자격증" sub="Certifications" count={items.length} showPageHint>
-      {isAdmin && (
-        <div className="viewmode" role="radiogroup" aria-label="보기 모드">
-          <span className="viewmode__label">보기</span>
-          <label className={`viewmode__opt ${!viewAsUser ? "is-on" : ""}`}>
-            <input
-              type="radio"
-              name="cert-viewmode"
-              checked={!viewAsUser}
-              onChange={() => setViewAsUser(false)}
-            />
-            <span>관리자</span>
-          </label>
-          <label className={`viewmode__opt ${viewAsUser ? "is-on" : ""}`}>
-            <input
-              type="radio"
-              name="cert-viewmode"
-              checked={viewAsUser}
-              onChange={() => setViewAsUser(true)}
-            />
-            <span>사용자 시점</span>
-          </label>
-        </div>
-      )}
-
       {manageMode && <Adder label="자격증 추가" fields={FIELDS} onCreate={create} />}
 
       {loading ? (

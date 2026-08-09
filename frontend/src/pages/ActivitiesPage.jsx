@@ -3,23 +3,68 @@ import Adder from "../components/Adder";
 import RecordList from "../components/RecordList";
 import { useResource } from "../lib/useResource";
 import { useAuth } from "../context/AuthContext";
+import { useViewMode } from "../context/ViewModeContext";
+import { parseMedia, isMediaVisible } from "../lib/media";
 
 const FIELDS = [
   { name: "title", label: "활동명", required: true, placeholder: "예: 멋쟁이사자처럼 13기" },
   { name: "organization", label: "기관 / 단체", placeholder: "예: 멋쟁이사자처럼" },
   { name: "role", label: "역할", placeholder: "예: 백엔드 리드" },
   { name: "period", label: "기간", type: "period-ymd" },
-  { name: "description", label: "설명", type: "textarea", span: true, placeholder: "활동 내용, 성과 등" },
+  { name: "description", label: "설명", type: "textarea", span: true, placeholder: "활동 내용, 성과 등 (클릭 시 팝업으로 표시)" },
   { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
 ];
+
+// 버블에 쓸 대표 사진 (공개 미디어 우선)
+function coverImage(a) {
+  const list = parseMedia(a.media);
+  const pick = list.find((m) => m.image && isMediaVisible(m)) || list.find((m) => m.image);
+  return pick?.image || "";
+}
+
+// 버블(격자): 사진 · 활동명(크게) · 단체(아래, 작게)
+function renderBubble(a) {
+  const img = coverImage(a);
+  return (
+    <>
+      {img && <img className="certbubble__logo certbubble__logo--photo" src={img} alt="" />}
+      <div className="certbubble__body">
+        <span className="certbubble__nameline">
+          <span className="certbubble__name">{a.title}</span>
+        </span>
+        {a.organization && <span className="certbubble__issuer">{a.organization}</span>}
+      </div>
+    </>
+  );
+}
+
+// 클릭 시 팝업 상세 내용
+function renderDetail(a) {
+  return (
+    <>
+      <div className="record__head">
+        <span className="record__title">{a.title}</span>
+        {a.role && <span className="record__tag">{a.role}</span>}
+      </div>
+      <div className="record__meta">
+        {a.organization && <span><b>단체</b>{a.organization}</span>}
+        {a.period && <span><b>기간</b>{a.period}</span>}
+      </div>
+      {a.description && <p className="record__desc">{a.description}</p>}
+    </>
+  );
+}
 
 export default function ActivitiesPage() {
   const { items, loading, error, create, update, remove, reorder } = useResource("activities");
   const { isAdmin } = useAuth();
+  const { viewAsUser } = useViewMode();
+
+  const manageMode = isAdmin && !viewAsUser;
 
   return (
     <SectionLayout active="activities" title="활동" sub="Activities" count={items.length} showPageHint>
-      <Adder label="활동 추가" fields={FIELDS} onCreate={create} />
+      {manageMode && <Adder label="활동 추가" fields={FIELDS} onCreate={create} />}
 
       {loading ? (
         <div className="state">불러오는 중…</div>
@@ -31,23 +76,13 @@ export default function ActivitiesPage() {
         <RecordList
           items={items}
           fields={FIELDS}
-          isAdmin={isAdmin}
+          isAdmin={manageMode}
+          layout="bubble"
           onUpdate={update}
           onRemove={remove}
           onReorder={reorder}
-          renderItem={(a) => (
-            <>
-              <div className="record__head">
-                <span className="record__title">{a.title}</span>
-                {a.role && <span className="record__tag">{a.role}</span>}
-              </div>
-              <div className="record__meta">
-                {a.organization && <span><b>단체</b>{a.organization}</span>}
-                {a.period && <span><b>기간</b>{a.period}</span>}
-              </div>
-              {a.description && <p className="record__desc">{a.description}</p>}
-            </>
-          )}
+          renderItem={renderBubble}
+          renderDetail={renderDetail}
         />
       )}
     </SectionLayout>

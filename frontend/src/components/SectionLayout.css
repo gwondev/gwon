@@ -811,6 +811,18 @@
   padding: 4px;
   flex: none;
 }
+/* 활동 등: 대표 사진을 카드 상단 커버로 크게 */
+.certbubble__logo--photo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--bg-elev);
+  padding: 0;
+}
+.record:not(.record--bubble) .certbubble__logo--photo {
+  width: 120px;
+}
 .certbubble__body {
   display: flex;
   flex-direction: column;
@@ -820,7 +832,7 @@
   width: 100%;
 }
 .certbubble__issuer {
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   color: var(--text-faint);
   letter-spacing: 0.01em;
 }
@@ -830,8 +842,8 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.35em;
-  font-size: 1rem;
-  line-height: 1.25;
+  font-size: 1.16rem;
+  line-height: 1.22;
 }
 .certbubble__name {
   font-weight: 700;
@@ -877,6 +889,6 @@
     gap: 9px;
   }
   .certbubble__nameline {
-    font-size: 0.92rem;
+    font-size: 1.02rem;
   }
 }

@@ -46,6 +46,12 @@
   box-shadow: 0 0 12px 2px var(--accent-soft);
 }
 
+/* 인사말 오른쪽에 붙는 "관리자 / 사용자 시점" 토글 */
+.topbar .topbar__viewmode {
+  pointer-events: auto;
+  margin: 0 auto 0 14px;
+}
+
 .topbar__right {
   display: flex;
   align-items: center;
@@ -145,5 +151,13 @@
   .topbar__orb {
     width: 38px;
     height: 38px;
+  }
+  .topbar .topbar__viewmode {
+    margin-left: 8px;
+    padding: 3px;
+  }
+  .topbar__viewmode .viewmode__opt {
+    padding: 0.24rem 0.5rem;
+    font-size: 0.7rem;
   }
 }
