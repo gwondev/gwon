@@ -27,7 +27,7 @@
 
 .overview__title {
   margin: 0;
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-size: clamp(1.3rem, 2.5vw, 1.85rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -36,8 +36,8 @@
 .overview__intro {
   margin: 0;
   max-width: 72ch;
-  font-size: clamp(0.92rem, 1.4vw, 1.05rem);
-  line-height: 1.65;
+  font-size: clamp(0.82rem, 1.2vw, 0.95rem);
+  line-height: 1.6;
   color: var(--text-dim);
   word-break: keep-all;
   overflow-wrap: break-word;
@@ -74,7 +74,7 @@
 
 .ov-sec__title {
   margin: 0;
-  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
+  font-size: clamp(0.85rem, 1.3vw, 1rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -101,9 +101,17 @@
 }
 .ov-flow > .ov-bubble.record--bubble {
   flex: 0 0 auto;
-  min-width: 118px;
-  max-width: 240px;
-  padding: clamp(8px, 1vw, 11px) 12px;
+  min-width: 108px;
+  max-width: 230px;
+  padding: clamp(7px, 0.9vw, 10px) 11px;
+  gap: 5px;
+}
+/* 요약 페이지 버블은 폰트를 세부페이지보다 작게 */
+.ov-bubble .certbubble__nameline {
+  font-size: 0.88rem;
+}
+.ov-bubble .certbubble__issuer {
+  font-size: 0.6rem;
 }
 
 .ov-empty {

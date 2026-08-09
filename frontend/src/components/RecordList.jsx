@@ -14,8 +14,8 @@ export default function RecordList({
 }) {
   const bubble = layout === "bubble";
   const baseClass = `records ${bubble ? "records--bubble-grid" : ""}`;
-  // 2행으로 나눠 균형 배치 (한 행 최소 3열). ex) 7→4·3, 8→4·4, 9→5·4
-  const cols = Math.max(3, Math.ceil((items.length || 1) / 2));
+  // 2행으로 나눠 균형 배치 (한 행 최소 4열). ex) 9→5·4, 10→5·5, 11→6·5
+  const cols = Math.max(4, Math.ceil((items.length || 1) / 2));
   const gridStyle = bubble ? { "--bubble-cols": cols } : undefined;
 
   if (!isAdmin) {
