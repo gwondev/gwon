@@ -906,9 +906,12 @@
     --bubble-gap: 9px;
   }
   .records--bubble-grid > * {
-    min-width: 108px;
+    min-width: 104px;
   }
   .certbubble__nameline {
-    font-size: 1.02rem;
+    font-size: 0.94rem;
+  }
+  .certbubble__issuer {
+    font-size: 0.6rem;
   }
 }

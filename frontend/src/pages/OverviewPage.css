@@ -90,14 +90,23 @@
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-/* 버블을 왼쪽부터 옆으로 흐르게(줄바꿈 허용), 내용 크기대로 */
+/* 버블을 한 줄(줄바꿈 없음)로 오른쪽으로 쭉 — 넘치면 가로 스크롤 */
 .ov-flow {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: stretch;
   gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+.ov-flow::-webkit-scrollbar {
+  display: none;
 }
 .ov-flow > .ov-bubble.record--bubble {
   flex: 0 0 auto;
@@ -142,17 +151,41 @@
   }
 }
 
+@media (max-width: 640px) {
+  .ov-sec__title {
+    font-size: 0.82rem;
+  }
+  .ov-sec__count {
+    font-size: 0.6rem;
+    padding: 0.12rem 0.4rem;
+  }
+  .ov-flow > .ov-bubble.record--bubble {
+    min-width: 92px;
+    max-width: 190px;
+    padding: 6px 9px;
+  }
+  .ov-bubble .certbubble__nameline {
+    font-size: 0.76rem;
+  }
+  .ov-bubble .certbubble__issuer {
+    font-size: 0.56rem;
+  }
+}
+
 @media (max-width: 520px) {
   .overview__title {
-    font-size: 1.25rem;
+    font-size: 1.12rem;
   }
 
   .overview__intro {
-    font-size: 0.78rem;
-    line-height: 1.5;
+    font-size: 0.72rem;
+    line-height: 1.45;
   }
 
   .ov-sec__title {
-    font-size: 0.9rem;
+    font-size: 0.78rem;
+  }
+  .ov-bubble .certbubble__nameline {
+    font-size: 0.72rem;
   }
 }
