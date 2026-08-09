@@ -43,47 +43,31 @@
   overflow-wrap: break-word;
 }
 
-/* 세로로 단순히 쌓기 */
+/* 섹션: 제목 아래 세부페이지와 동일한 버블들을 쭈욱 나열 */
 .overview__sections {
   display: flex;
   flex-direction: column;
-  gap: clamp(12px, 1.5vw, 18px);
+  gap: clamp(16px, 2.2vw, 26px);
 }
 
-/* 라벨(왼쪽) + 버블들(오른쪽) 가로 배치 → 위아래 공간 절약 */
-.ov-section {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--line);
-  background:
-    radial-gradient(120% 80% at 0% 0%, rgba(216, 193, 154, 0.06), transparent 55%),
-    linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
-  overflow: hidden;
-}
-
-.ov-section__head {
-  flex: 0 0 clamp(116px, 13vw, 156px);
+.ov-sec {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 0.35rem;
-  padding: clamp(10px, 1.2vw, 14px) clamp(12px, 1.4vw, 16px);
-  border-right: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg-soft) 60%, transparent);
+  gap: 0.7rem;
 }
 
-.ov-section__title {
+.ov-sec__title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   margin: 0;
-  font-size: clamp(0.9rem, 1.4vw, 1.05rem);
+  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
-.ov-section__count {
+.ov-sec__count {
   flex: none;
   padding: 0.15rem 0.5rem;
   border-radius: var(--radius-pill);
@@ -94,69 +78,14 @@
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-.ov-section__body {
-  flex: 1;
-  min-width: 0;
-  padding: clamp(10px, 1.2vw, 13px) clamp(12px, 1.5vw, 16px);
-}
-
-/* 사진 없는 작은 버블들 (가로로 흐르며 줄바꿈) */
-.ov-bubbles {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.ov-bubble {
-  flex: 0 1 auto;
-  max-width: 260px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 2px;
-  padding: 7px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--line);
-  background: var(--bg-soft);
-  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
-}
-.ov-bubble:hover {
-  border-color: var(--line-strong);
-  background: var(--bg-elev);
-}
-
-.ov-bubble__nameline {
-  display: inline-flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.3em;
-  font-size: 0.8rem;
-  line-height: 1.2;
-}
-.ov-bubble__name {
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.01em;
-}
-.ov-bubble__tag {
-  color: var(--accent);
-  font-weight: 700;
-}
-.ov-bubble__sub {
-  font-size: 0.66rem;
-  line-height: 1.35;
-  color: var(--text-faint);
-  word-break: keep-all;
-  overflow-wrap: break-word;
+/* 요약 페이지의 버블은 세부페이지보다 살짝 조밀하게 */
+.ov-bubble.record--bubble {
+  padding: clamp(9px, 1vw, 12px) 10px;
 }
 
 .ov-empty {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-faint);
 }
 
@@ -165,21 +94,6 @@
     max-width: none;
     padding-left: clamp(16px, 2.5vw, 24px);
     padding-right: clamp(16px, 2.5vw, 24px);
-  }
-}
-
-@media (max-width: 640px) {
-  .ov-section {
-    flex-direction: column;
-  }
-  .ov-section__head {
-    flex: 0 0 auto;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
   }
 }
 
@@ -193,19 +107,7 @@
     line-height: 1.5;
   }
 
-  .ov-section {
-    border-radius: var(--radius-lg);
-  }
-
-  .ov-bubbles {
-    grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-  }
-
-  .ov-bubble__nameline {
-    font-size: 0.74rem;
-  }
-
-  .ov-section__title {
-    font-size: 0.82rem;
+  .ov-sec__title {
+    font-size: 0.9rem;
   }
 }

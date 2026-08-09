@@ -11,13 +11,15 @@ export default function RecordList({
   renderItem,
   renderDetail,
   layout,
+  cols = 5,
 }) {
   const bubble = layout === "bubble";
   const baseClass = `records ${bubble ? "records--bubble-grid" : ""}`;
+  const gridStyle = bubble ? { "--bubble-cols": cols } : undefined;
 
   if (!isAdmin) {
     return (
-      <div className={baseClass}>
+      <div className={baseClass} style={gridStyle}>
         {items.map((item, i) => (
           <RecordItem
             key={item.id}
@@ -43,6 +45,7 @@ export default function RecordList({
       values={items}
       onReorder={onReorder}
       className={`${baseClass} records--sortable`}
+      style={gridStyle}
     >
       {items.map((item, i) => (
         <RecordItem

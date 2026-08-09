@@ -75,6 +75,7 @@ export default function CareerPage() {
           fields={FIELDS}
           isAdmin={manageMode}
           layout="bubble"
+          cols={4}
           onUpdate={update}
           onRemove={remove}
           onReorder={reorder}

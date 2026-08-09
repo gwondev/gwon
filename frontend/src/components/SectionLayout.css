@@ -784,18 +784,26 @@
   font-weight: 600;
 }
 
-/* 자격증 버블 격자 (최대 5열, 직사각형 카드) */
-/* 버블들을 가운데에서부터 배치 (칸이 덜 차도 왼쪽으로 쏠리지 않게) */
+/* 버블 격자: 페이지별 최대 열수(--bubble-cols)만큼 한 줄에 채우고,
+   덜 찬 줄의 버블은 남은 폭만큼 커진다(=적게 배치될수록 크게). 폰트는 그대로. */
 .records--bubble-grid {
+  --bubble-cols: 5;
+  --bubble-gap: 12px;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
   align-items: stretch;
-  gap: 12px;
+  gap: var(--bubble-gap);
 }
 .records--bubble-grid > * {
-  flex: 0 1 clamp(140px, 14vw, 168px);
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: max(
+    148px,
+    calc((100% - (var(--bubble-cols) - 1) * var(--bubble-gap)) / var(--bubble-cols))
+  );
+  max-width: 520px;
   min-width: 0;
 }
 /* 수정 중인 버블은 한 줄 전체로 펼쳐서 폼이 정상적으로 보이게 */
@@ -896,10 +904,15 @@
 
 @media (max-width: 560px) {
   .records--bubble-grid {
-    gap: 9px;
+    --bubble-cols: 2;
+    --bubble-gap: 9px;
   }
   .records--bubble-grid > * {
-    flex: 0 1 clamp(120px, 42vw, 150px);
+    flex-basis: max(
+      120px,
+      calc((100% - (var(--bubble-cols) - 1) * var(--bubble-gap)) / var(--bubble-cols))
+    );
+    max-width: 100%;
   }
   .certbubble__nameline {
     font-size: 1.02rem;
