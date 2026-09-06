@@ -1,9 +1,0 @@
-cd ~
-rm -rf gwon
-git clone https://github.com/gwondev/gwon.git
-cd gwon
-chmod +x scripts/prepare-env.sh
-./scripts/prepare-env.sh ../.env.production
-docker compose down
-docker compose up --build -d
-docker compose ps

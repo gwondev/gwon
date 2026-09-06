@@ -57,10 +57,10 @@ chmod +x scripts/prepare-env.sh
 
 # ── 3) Docker 재빌드 ─────────────────────────────────────────────────
 echo "[deploy] docker compose down …"
-COMPOSE_IGNORE_ORPHANS=true docker compose down
+docker compose down
 
 echo "[deploy] docker compose up --build -d …"
-COMPOSE_IGNORE_ORPHANS=true docker compose up --build -d
+docker compose up --build -d
 
 echo ""
 docker compose ps

@@ -84,7 +84,6 @@ fi
 # ── 4) .env 생성 ─────────────────────────────────────────────────────
 cat > "$OUT" <<EOF
 # 이 파일은 scripts/prepare-env.sh 가 자동 생성합니다. 직접 수정하지 마세요.
-COMPOSE_IGNORE_ORPHANS=true
 DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
 GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
 JWT_SECRET=${JWT_SECRET}
