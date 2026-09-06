@@ -420,7 +420,10 @@ ${JSON.stringify(topCoins, null, 2)}
 
 위 데이터를 바탕으로 지금 즉시 거미줄 숏을 치기에 가장 적합한 코인과, 구체적인 4단계 진입 가격대 및 주의사항을 브리핑해줘.`;
 
-    const result = await askGemini(systemPrompt, userMessage);
+    const result = await askGemini({
+      system: systemPrompt,
+      message: userMessage,
+    });
 
     // 진단 로그 저장
     await pool.query(

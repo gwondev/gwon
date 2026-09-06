@@ -112,7 +112,7 @@ export default function MyPage() {
                 className="btn btn-ghost"
                 onClick={() => navigate("/admin")}
               >
-                  ADMIN 페이지
+                ADMIN 페이지
               </button>
             )}
             {isSuperAdmin && (

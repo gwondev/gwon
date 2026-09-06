@@ -17,20 +17,44 @@ export function getBinanceCredentials() {
   };
 }
 
+let timeOffset = 0;
+let lastSyncTime = 0;
+
+async function syncTimeOffset(baseUrl) {
+  try {
+    const timePath = baseUrl.includes("fapi") ? "/fapi/v1/time" : "/api/v3/time";
+    const res = await fetch(`${baseUrl}${timePath}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.serverTime) {
+        timeOffset = Number(data.serverTime) - Date.now();
+        lastSyncTime = Date.now();
+      }
+    }
+  } catch (err) {
+    console.warn("[binance] time sync warning:", err.message);
+  }
+}
+
 function signQuery(queryString, secret) {
   return crypto.createHmac("sha256", secret).update(queryString).digest("hex");
 }
 
 /**
- * 서명된 바이낸스 API 호출 래퍼
+ * 서명된 바이낸스 API 호출 래퍼 (타임존 오프셋 자동 동기화 및 재시도 지원)
  */
-async function signedRequest(baseUrl, path, method = "GET", params = {}) {
+async function signedRequest(baseUrl, path, method = "GET", params = {}, isRetry = false) {
   const { apiKey, secretKey, hasCredentials } = getBinanceCredentials();
   if (!hasCredentials) {
     throw new Error("바이낸스 API 키(BINANCE_API_KEY, BINANCE_SECRET_KEY)가 설정되지 않았습니다.");
   }
 
-  const timestamp = Date.now();
+  // 10분마다 서버 시간 자동 재동기화
+  if (!lastSyncTime || Date.now() - lastSyncTime > 10 * 60 * 1000) {
+    await syncTimeOffset(baseUrl);
+  }
+
+  const timestamp = Date.now() + timeOffset;
   const searchParams = new URLSearchParams({
     ...params,
     recvWindow: "60000",
@@ -51,6 +75,12 @@ async function signedRequest(baseUrl, path, method = "GET", params = {}) {
 
   const data = await res.json();
   if (!res.ok) {
+    // 타임스탬프 오차(-1021) 발생 시 즉시 서버 시간 재동기화 후 1회 재시도
+    if (data.code === -1021 && !isRetry) {
+      console.warn("[binance] timestamp skew (-1021) detected. Resyncing server time...");
+      await syncTimeOffset(baseUrl);
+      return signedRequest(baseUrl, path, method, params, true);
+    }
     const msg = data.msg || data.message || `바이낸스 API 오류 (${res.status})`;
     const err = new Error(msg);
     err.code = data.code;
