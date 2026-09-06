@@ -1,0 +1,996 @@
+/* ==========================================================================
+   BINANCE QUANT TERMINAL PAGE STYLES
+   ========================================================================== */
+
+.binance-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1rem clamp(1rem, 2.5vw, 2.5rem) 5rem;
+  color: #eaecef;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* 1. 상단 터미널 헤더 */
+.b-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.b-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background: rgba(240, 185, 11, 0.12);
+  border: 1px solid rgba(240, 185, 11, 0.35);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #f0b90b;
+  margin-bottom: 0.35rem;
+}
+
+.b-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f0b90b;
+  box-shadow: 0 0 8px #f0b90b;
+}
+
+.b-title {
+  font-size: clamp(1.4rem, 2.4vw, 1.85rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.25rem 0;
+  color: #ffffff;
+}
+
+.b-title__gold {
+  color: #f0b90b;
+  text-shadow: 0 0 20px rgba(240, 185, 11, 0.35);
+}
+
+.b-subtitle {
+  font-size: 0.84rem;
+  color: #848e9c;
+}
+
+.b-header__right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.b-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  background: #181a20;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #b7bdc6;
+}
+
+.b-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.b-status-dot.is-live {
+  background: #0ecb81;
+  box-shadow: 0 0 8px #0ecb81;
+}
+
+.b-status-dot.is-demo {
+  background: #f0b90b;
+  box-shadow: 0 0 8px #f0b90b;
+}
+
+.b-auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: #848e9c;
+  cursor: pointer;
+}
+
+/* 2. 공통 카드 디자인 */
+.b-card {
+  background: #181a20;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.b-card:hover {
+  border-color: rgba(240, 185, 11, 0.25);
+}
+
+.b-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.b-card__tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #848e9c;
+}
+
+.b-card__hint {
+  font-size: 0.72rem;
+  color: #5e6673;
+}
+
+/* 3. 섹션 레이아웃 */
+.b-section {
+  margin-bottom: 1.75rem;
+}
+
+.b-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.b-section__header--tabs {
+  align-items: center;
+}
+
+.b-section__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.b-section__title {
+  font-size: 1.12rem;
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff;
+}
+
+.b-section__badge {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(240, 185, 11, 0.15);
+  color: #f0b90b;
+  font-weight: 700;
+}
+
+.b-section__desc {
+  font-size: 0.78rem;
+  color: #848e9c;
+}
+
+/* 4. 지갑 그리드 */
+.b-wallet__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.b-wallet__card--highlight {
+  border-color: rgba(240, 185, 11, 0.35);
+  background: linear-gradient(180deg, rgba(240, 185, 11, 0.05), #181a20 60%);
+}
+
+.b-wallet__val {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0.6rem 0;
+}
+
+.b-wallet__num {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.b-wallet__unit {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #848e9c;
+}
+
+.b-wallet__sub {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: #848e9c;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 0.55rem;
+}
+
+.b-wallet__sub strong {
+  color: #eaecef;
+}
+
+.b-asset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.b-asset-chip {
+  padding: 0.25rem 0.55rem;
+  border-radius: 4px;
+  background: #2b313a;
+  font-size: 0.75rem;
+  color: #eaecef;
+}
+
+.b-asset-chip strong {
+  color: #f0b90b;
+  margin-right: 0.25rem;
+}
+
+.b-alert {
+  margin-top: 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.b-alert--warning {
+  background: rgba(240, 185, 11, 0.08);
+  border: 1px solid rgba(240, 185, 11, 0.25);
+  color: #fcd535;
+}
+
+.b-alert code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  color: #ffffff;
+}
+
+/* 5. 포지션 카드 목록 */
+.b-empty-positions {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: #848e9c;
+}
+
+.b-empty-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.b-empty-positions strong {
+  display: block;
+  font-size: 1rem;
+  color: #ffffff;
+  margin-bottom: 0.25rem;
+}
+
+.b-empty-positions p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.b-pos-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1rem;
+}
+
+.b-pos-card {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.b-pos-card.is-tp {
+  border-color: rgba(14, 203, 129, 0.5);
+  background: linear-gradient(180deg, rgba(14, 203, 129, 0.06), #181a20 60%);
+}
+
+.b-pos-card.is-sl {
+  border-color: rgba(246, 70, 93, 0.5);
+  background: linear-gradient(180deg, rgba(246, 70, 93, 0.06), #181a20 60%);
+}
+
+.b-pos-card.is-ladder {
+  border-color: rgba(240, 185, 11, 0.5);
+  background: linear-gradient(180deg, rgba(240, 185, 11, 0.06), #181a20 60%);
+}
+
+.b-pos-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.b-pos-card__sym-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.b-side-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.18rem 0.45rem;
+  border-radius: 4px;
+}
+
+.b-side-badge.is-short {
+  background: rgba(246, 70, 93, 0.2);
+  color: #f6465d;
+  border: 1px solid rgba(246, 70, 93, 0.4);
+}
+
+.b-side-badge.is-long {
+  background: rgba(14, 203, 129, 0.2);
+  color: #0ecb81;
+  border: 1px solid rgba(14, 203, 129, 0.4);
+}
+
+.b-pos-card__sym {
+  font-size: 1.15rem;
+  color: #ffffff;
+}
+
+.b-pos-card__roe-box {
+  text-align: right;
+}
+
+.b-pos-card__roe-label {
+  display: block;
+  font-size: 0.68rem;
+  color: #848e9c;
+}
+
+.b-pos-card__roe {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.b-pos-card__pnl {
+  display: block;
+  font-size: 0.75rem;
+  color: #848e9c;
+}
+
+.b-pos-card__meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem 1rem;
+  font-size: 0.78rem;
+  color: #848e9c;
+  padding: 0.6rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 0.75rem;
+}
+
+.b-pos-card__meta strong {
+  color: #eaecef;
+}
+
+/* 추천 액션 박스 */
+.b-pos-action {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.b-pos-action__badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.b-pos-action__badge span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #f0b90b;
+  letter-spacing: 0.05em;
+}
+
+.b-pos-action__badge strong {
+  font-size: 0.85rem;
+  color: #ffffff;
+}
+
+.b-pos-action__desc {
+  margin: 0 0 0.55rem 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #b7bdc6;
+}
+
+.b-ladder-guide {
+  font-size: 0.72rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  padding-top: 0.45rem;
+}
+
+.b-ladder-guide__title {
+  display: block;
+  color: #848e9c;
+  margin-bottom: 0.25rem;
+}
+
+.b-ladder-guide__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  color: #eaecef;
+}
+
+.b-ladder-guide__steps span {
+  background: #2b313a;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+}
+
+.is-tp-text {
+  color: #0ecb81 !important;
+  font-weight: 700;
+}
+
+/* 6. 메인 2열 그리드 (스캐너 + 차트) */
+.b-grid-main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .b-grid-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 탭 버튼 */
+.b-tabs {
+  display: flex;
+  gap: 0.35rem;
+  background: #121418;
+  padding: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.b-tab {
+  border: none;
+  background: transparent;
+  color: #848e9c;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.b-tab:hover {
+  color: #eaecef;
+}
+
+.b-tab.is-active {
+  background: #2b313a;
+  color: #f0b90b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* 7. 스캐너 테이블 */
+.b-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.b-table-wrap {
+  overflow-x: auto;
+  max-height: 580px;
+}
+
+.b-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.b-table thead th {
+  position: sticky;
+  top: 0;
+  background: #1e2329;
+  color: #848e9c;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.b-table tbody td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.b-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.b-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.b-row.is-selected {
+  background: rgba(240, 185, 11, 0.08) !important;
+  border-left: 3px solid #f0b90b;
+}
+
+.b-td-sym {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.b-td-sym strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.b-1b-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: #f0b90b;
+  color: #000000;
+  box-shadow: 0 0 6px rgba(240, 185, 11, 0.4);
+}
+
+.b-td-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.b-td-dim {
+  color: #848e9c;
+}
+
+/* 숏 기회 점수 바 */
+.b-score-bar-wrap {
+  width: 110px;
+  height: 18px;
+  background: #2b313a;
+  border-radius: 9999px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.b-score-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #f0b90b, #f6465d);
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.b-score-text {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* 8. 차트 카드 */
+.b-chart-card {
+  padding: 0.5rem;
+  height: 480px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.b-chart-frame {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #121418;
+}
+
+.b-chart-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.b-selected-metric {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #f0b90b;
+  background: rgba(240, 185, 11, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* 거미줄 시뮬레이터 카드 */
+.b-ladder-card {
+  background: #121418;
+  border: 1px solid rgba(240, 185, 11, 0.2);
+}
+
+.b-ladder-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .b-ladder-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.b-ladder-box {
+  background: #181a20;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 0.6rem;
+  text-align: center;
+}
+
+.b-ladder-step {
+  display: block;
+  font-size: 0.68rem;
+  color: #848e9c;
+  margin-bottom: 0.25rem;
+}
+
+.b-ladder-price {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f0b90b;
+  margin-bottom: 0.2rem;
+}
+
+.b-ladder-ratio {
+  display: block;
+  font-size: 0.68rem;
+  color: #b7bdc6;
+}
+
+/* 9. 봇 설정 & AI 진단 그리드 */
+.b-bot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 960px) {
+  .b-bot-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.b-bot-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.b-toggle-group,
+.b-param-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.b-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #848e9c;
+  cursor: pointer;
+}
+
+.b-toggle-label input {
+  cursor: pointer;
+}
+
+.b-toggle-label .is-on {
+  color: #0ecb81;
+  font-weight: 700;
+}
+
+.b-toggle-label .is-off {
+  color: #f6465d;
+  font-weight: 700;
+}
+
+.b-toggle-label .is-paper {
+  color: #f0b90b;
+  font-weight: 700;
+}
+
+.b-toggle-label .is-live {
+  color: #0ecb81;
+  font-weight: 700;
+}
+
+.b-param-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: #848e9c;
+}
+
+.b-param-group select {
+  background: #2b313a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.b-field__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.45rem;
+}
+
+.b-field__label strong {
+  font-size: 0.85rem;
+  color: #eaecef;
+}
+
+.b-field__label span {
+  font-size: 0.72rem;
+  color: #848e9c;
+}
+
+.b-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #121418;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #eaecef;
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  font-family: monospace;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.b-textarea:focus {
+  outline: none;
+  border-color: #f0b90b;
+}
+
+.b-bot-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.b-bot-save-msg {
+  font-size: 0.8rem;
+  color: #0ecb81;
+  font-weight: 600;
+}
+
+/* Gemini AI 리포트 영역 */
+.b-ai-content {
+  min-height: 280px;
+  background: #121418;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.b-ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  height: 240px;
+  color: #f0b90b;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.b-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(240, 185, 11, 0.2);
+  border-top-color: #f0b90b;
+  border-radius: 50%;
+  animation: b-spin 0.8s linear infinite;
+}
+
+@keyframes b-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.b-ai-report pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: #eaecef;
+}
+
+.b-ai-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+  color: #5e6673;
+  font-size: 0.84rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.b-ai-error {
+  color: #f6465d;
+  font-size: 0.84rem;
+}
+
+/* 10. 공통 버튼 & 텍스트 유틸 */
+.b-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.78rem;
+}
+
+.b-btn--refresh {
+  background: #181a20;
+  color: #848e9c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.35rem 0.65rem;
+}
+
+.b-btn--refresh:hover {
+  color: #f0b90b;
+  border-color: #f0b90b;
+}
+
+.b-btn--primary {
+  background: #f0b90b;
+  color: #000000;
+  padding: 0.55rem 1.15rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.b-btn--primary:hover {
+  background: #fcd535;
+  box-shadow: 0 0 14px rgba(240, 185, 11, 0.4);
+}
+
+.b-btn--ai {
+  background: linear-gradient(90deg, #f0b90b, #e09800);
+  color: #000000;
+  padding: 0.4rem 0.85rem;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(240, 185, 11, 0.3);
+}
+
+.b-btn--ai:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 0 18px rgba(240, 185, 11, 0.5);
+}
+
+.b-btn--ai:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.b-btn--chart {
+  background: #2b313a;
+  color: #b7bdc6;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.b-btn--chart:hover {
+  color: #ffffff;
+  background: #3b414a;
+}
+
+.b-btn--chart.is-active {
+  background: #f0b90b;
+  color: #000000;
+  font-weight: 700;
+}
+
+.b-btn--xs {
+  background: transparent;
+  color: #f0b90b;
+  border: 1px solid rgba(240, 185, 11, 0.3);
+  padding: 0.15rem 0.45rem;
+  font-size: 0.68rem;
+  border-radius: 4px;
+}
+
+.b-btn--xs:hover {
+  background: rgba(240, 185, 11, 0.1);
+}
+
+.is-profit {
+  color: #0ecb81 !important;
+}
+
+.is-loss {
+  color: #f6465d !important;
+}
+
+.is-dim {
+  color: #848e9c !important;
+}
+
+.b-skeleton {
+  color: #5e6673;
+  font-size: 0.85rem;
+}

@@ -115,6 +115,15 @@ export default function MyPage() {
                   ADMIN 페이지
               </button>
             )}
+            {isSuperAdmin && (
+              <button
+                type="button"
+                className="btn btn-ghost mypage__binance-btn"
+                onClick={() => navigate("/BINANCE")}
+              >
+                BINANCE
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-ghost"

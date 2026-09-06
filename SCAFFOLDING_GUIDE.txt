@@ -1,0 +1,214 @@
+================================================================================
+           [서버 인프라 & 프로젝트 스캐폴딩 마스터 가이드]
+================================================================================
+이 문서는 동일한 서버 인프라(공유 Docker 네트워크, 공용 통합 MySQL, 
+Cloudflare 터널, Vite+Express 구조) 환경에 신규 프로젝트를 추가하거나
+새로운 AI에게 초기 아키텍처 및 제약사항을 전달할 때 "가장 먼저 읽히는" 가이드입니다.
+
+--------------------------------------------------------------------------------
+0. AI에게 전달할 때의 핵심 한 줄 요약
+--------------------------------------------------------------------------------
+"이 서버는 단일 공용 MySQL 컨테이너(gwon-db)와 Docker 공용 네트워크(global_network)를
+여러 프로젝트가 공유하는 멀티프로젝트 호스팅 환경이다. 
+절대 DB 컨테이너를 새로 띄우지 말고, 새 DB 스키마만 생성하여 네트워크로 접속해야 하며,
+모든 시크릿 키는 서버의 .env에서 백엔드로만 주입한다."
+
+--------------------------------------------------------------------------------
+1. 인프라 구조 및 절대 금지 규칙 (CRITICAL)
+--------------------------------------------------------------------------------
+1) 공용 MySQL 컨테이너 (gwon-db) 공유
+   - 서버에는 이미 'gwon-db'라는 이름의 MySQL 컨테이너가 항상 실행 중입니다.
+   - 기존 서비스들(ecolens, greeneye, unvail, gwon 등)의 실데이터가 저장되어 있습니다.
+   - ⚠️ 절대 금지:
+     * 새 프로젝트의 docker-compose.yml에 'db' 서비스를 새로 정의하지 마십시오.
+     * `docker compose down -v` 같은 볼륨 삭제 명령어를 절대 함부로 실행하지 마십시오.
+     * MySQL root 계정으로 작업 시 다른 프로젝트 DB를 DROP/ALTER 하지 않도록 주의하십시오.
+   - 올바른 방법:
+     * MySQL에 접속하여 새 프로젝트 전용 데이터베이스만 새로 만듭니다.
+       예: `CREATE DATABASE <새프로젝트명> CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+     * 백엔드는 `DB_HOST: gwon-db`, `DB_NAME: <새프로젝트명>`으로 연결만 합니다.
+
+2) Docker 공용 네트워크 (global_network)
+   - 모든 프로젝트는 `global_network`라는 외부 네트워크(external: true)를 공유합니다.
+   - 새 프로젝트의 docker-compose.yml 하단에는 항상 다음 선언이 들어가야 합니다:
+     ```yaml
+     networks:
+       global_network:
+         external: true
+     ```
+   - 컨테이너 간의 통신은 컨테이너 이름(예: http://<프로젝트>-backend:8080)을 도메인 삼아 이루어집니다.
+
+3) 컨테이너 이름(container_name) 고유성 유지
+   - Docker 호스트 전체에서 컨테이너 이름은 유일해야 합니다.
+   - 'backend', 'frontend', 'app'처럼 흔한 이름 대신 반드시 프로젝트 접두사를 붙이십시오:
+     * `<새프로젝트>-backend`
+     * `<새프로젝트>-frontend`
+     * `<새프로젝트>-cloudflared`
+
+--------------------------------------------------------------------------------
+2. 환경변수 및 보안 원칙 (API 키 & DB 접속)
+--------------------------------------------------------------------------------
+1) 모든 시크릿 키는 "서버의 .env"에만 존재
+   - Git 저장소에는 절대 API 키, DB 비밀번호, JWT 시크릿을 커밋하지 않습니다. (.gitignore 필수)
+   - 서버의 프로젝트 루트 폴더에 `.env` (또는 `.env.production`)를 생성하고 관리합니다.
+
+2) 백엔드 주입 방식 (Runtime Environment)
+   - docker-compose.yml이 호스트의 `.env` 값을 읽어 백엔드 컨테이너의 환경변수로 넘겨줍니다.
+   - 백엔드는 Node.js 코드 내에서 `process.env.GEMINI_API_KEY`, `process.env.DB_PASSWORD` 등으로 사용합니다.
+
+3) 프론트엔드 보안 원칙 (절대 API 키 노출 금지)
+   - 외부 API 키(Gemini API 키, 결제 Secret, 외부 연동 토큰 등)는 프론트엔드 코드나 빌드 인자로 절대 넣지 않습니다.
+   - 프론트엔드는 오직 자체 백엔드(`/api/*`)로만 요청을 보냅니다.
+   - 백엔드가 API 키를 사용해 외부 서비스를 대신 호출한 후, 정제된 결과만 프론트엔드에 반환하는 프록시/중계 구조를 유지합니다.
+   - 프론트에 전달 가능한 것은 공개 식별자(예: Google OAuth Client ID) 및 API 기본 경로(`VITE_API_BASE=/api`) 뿐입니다.
+
+--------------------------------------------------------------------------------
+3. 표준 프로젝트 디렉토리 구조
+--------------------------------------------------------------------------------
+<새프로젝트 루트>/
+├── .env                     <- (서버 전용, Git 제외) DB 비밀번호, API 키, 터널 토큰
+├── .gitignore               <- node_modules, dist, .env 등 제외
+├── docker-compose.yml       <- backend, frontend, cloudflare 서비스 정의
+├── backend/
+│   ├── Dockerfile           <- node:24-alpine 경량 빌드
+│   ├── package.json         <- "type": "module" (ESM 사용)
+│   └── src/
+│       ├── index.js         <- Express 엔트리, CORS, JSON 파서, 라우터 등록
+│       ├── db.js            <- mysql2/promise Connection Pool 설정
+│       ├── auth-middleware.js <- JWT 검증 및 권한 분기
+│       └── routes/          <- 기능별 API 라우터 (/api/...)
+└── frontend/
+    ├── Dockerfile           <- 빌드 타임 Vite 빌드 + serve SPA 서빙
+    ├── package.json
+    ├── vite.config.js
+    └── src/
+        ├── lib/api.js       <- 백엔드 fetch 공통 래퍼 (VITE_API_BASE 기반)
+        ├── App.jsx          <- 라우터 구성
+        └── ...
+
+--------------------------------------------------------------------------------
+4. 표준 docker-compose.yml 템플릿
+--------------------------------------------------------------------------------
+```yaml
+services:
+  backend:
+    container_name: <새프로젝트>-backend
+    restart: always
+    build: ./backend
+    environment:
+      PORT: 8080
+      DB_HOST: gwon-db                  # ⚠️ 공용 MySQL 컨테이너 이름
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD}  # 서버 .env에서 주입
+      DB_NAME: <새프로젝트_DB명>
+      JWT_SECRET: ${JWT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY} # 필요한 외부 API 키
+    expose:
+      - "8080"
+    networks:
+      - global_network
+
+  frontend:
+    container_name: <새프로젝트>-frontend
+    restart: always
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: /api             # 리버스 프록시 또는 터널 경로에 맞춤
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID} # 공개 가능한 키만
+    expose:
+      - "5173"
+    networks:
+      - global_network
+    depends_on:
+      - backend
+
+  cloudflare:
+    image: cloudflare/cloudflared:latest
+    container_name: <새프로젝트>-cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - global_network
+    depends_on:
+      - frontend
+      - backend
+
+networks:
+  global_network:
+    external: true
+```
+
+--------------------------------------------------------------------------------
+5. 백엔드(Node.js/Express) 개발 시 주의사항
+--------------------------------------------------------------------------------
+1) MySQL 연결 풀 (mysql2/promise)
+   - 날짜 필드(DATE) 사용 시 반드시 `dateStrings: ['DATE']` 옵션을 적용하십시오.
+     이 옵션이 없으면 MySQL DATE를 자바스크립트 Date 객체로 파싱하면서
+     UTC 변환으로 인해 한국 시간 기준 하루 전/후로 날짜가 밀리는 버그가 발생합니다.
+   ```javascript
+   const pool = mysql.createPool({
+     host: process.env.DB_HOST || "gwon-db",
+     port: Number(process.env.DB_PORT || 3306),
+     user: process.env.DB_USER || "root",
+     password: process.env.DB_PASSWORD,
+     database: process.env.DB_NAME,
+     waitForConnections: true,
+     connectionLimit: 10,
+     charset: "utf8mb4",
+     dateStrings: ["DATE"],
+   });
+   ```
+
+2) 대용량 미디어 필드(LONGTEXT/base64)와 성능 최적화
+   - 사진, 영상, PDF를 DB에 직접 LONGTEXT나 긴 문자열로 저장하는 경우:
+     * 메인 화면이나 단순 목록 조회 엔드포인트에서는 반드시 해당 컬럼을 제외하고 SELECT 하십시오.
+       (예: `GET /api/posts/preview`)
+     * 상세 팝업이나 편집 모드에서만 해당 미디어 데이터를 단건 조회하도록 분리해야
+       페이지 첫 진입 시 수십 MB의 네트워크 병목이 생기지 않습니다.
+
+3) JSON 요청 본문 크기 제한
+   - base64 파일 업로드 등을 처리한다면 `express.json({ limit: "40mb" })`처럼
+     바디 파서 크기를 넉넉히 설정하십시오. (기본값은 100kb로 너무 작음)
+
+--------------------------------------------------------------------------------
+6. 프론트엔드(React + Vite) 개발 시 주의사항
+--------------------------------------------------------------------------------
+1) Dockerfile 빌드 타임 환경변수(ARG vs ENV)
+   - Vite는 빌드 시점(`npm run build`)에 `VITE_*` 환경변수를 코드에 하드코딩 형태로 번들링합니다.
+   - 따라서 프론트엔드 Dockerfile은 `ARG VITE_...` 형태로 compose에서 전달받아야 합니다.
+   - 런타임 환경변수(docker run 시 전달하는 -e)는 Vite 정적 빌드 파일에 아무런 영향을 주지 못합니다.
+
+2) SPA 라우팅 새로고침 404 방지
+   - `serve` 패키지로 정적 파일을 서빙할 때는 반드시 `-s` (Single Page Application) 플래그를 붙여야
+     `/schedule`, `/profile` 등 하위 URL에서 새로고침 시 404 에러가 나지 않고 index.html로 폴백됩니다.
+     예: `CMD ["serve", "-s", "dist", "-l", "5173"]`
+
+3) API 요청 공통 모듈 (`lib/api.js`)
+   - 프론트엔드에서 백엔드를 호출할 때는 하드코딩된 localhost나 IP 주소를 쓰지 마십시오.
+   - `import.meta.env.VITE_API_BASE || "/api"`를 기반으로 호출하여
+     로컬 개발 환경과 Cloudflare 터널 배포 환경 양쪽에서 코드 수정 없이 동작하게 합니다.
+
+--------------------------------------------------------------------------------
+7. 배포 및 실행 체크리스트 (새 프로젝트 띄울 때)
+--------------------------------------------------------------------------------
+[ ] 1. 공용 네트워크 확인: `docker network ls`에서 `global_network`가 있는지 확인
+[ ] 2. 공용 DB 확인: `docker ps`에서 `gwon-db` 컨테이너가 정상 작동 중인지 확인
+[ ] 3. MySQL 데이터베이스 생성: MySQL에 접속하여 새 프로젝트 전용 DB 생성 (`CREATE DATABASE ...`)
+[ ] 4. Cloudflare 터널 생성: Cloudflare Zero Trust 대시보드에서 새 프로젝트용 Tunnel 생성 및 토큰 발급
+       - Public Hostname 라우팅 설정:
+         * 도메인 루트(예: sub.domain.com/*) -> http://<새프로젝트>-frontend:5173
+         * API 경로(예: sub.domain.com/api/*) -> http://<새프로젝트>-backend:8080/api/*
+[ ] 5. 서버에 .env 작성:
+       - `DB_ROOT_PASSWORD=...`
+       - `CLOUDFLARE_TUNNEL_TOKEN=...`
+       - `JWT_SECRET=...`
+       - 필요한 외부 API 키들...
+[ ] 6. 빌드 및 기동:
+       - `docker compose build --no-cache`
+       - `docker compose up -d`
+[ ] 7. 컨테이너 상태 점검:
+       - `docker compose ps`
+       - `docker compose logs -f backend`
+================================================================================

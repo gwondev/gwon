@@ -265,6 +265,31 @@ const SCHEMA = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_chat_logs_created (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS binance_bot_settings (
+    id INT PRIMARY KEY DEFAULT 1,
+    prompt TEXT NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    paper_mode TINYINT(1) NOT NULL DEFAULT 1,
+    leverage INT NOT NULL DEFAULT 5,
+    order_size_percent DECIMAL(5, 2) NOT NULL DEFAULT 3.00,
+    min_volume_threshold BIGINT NOT NULL DEFAULT 1000000000,
+    min_funding_rate DECIMAL(6, 4) NOT NULL DEFAULT 0.0000,
+    max_ladder_levels INT NOT NULL DEFAULT 4,
+    tp_percent DECIMAL(5, 2) NOT NULL DEFAULT 3.00,
+    sl_percent DECIMAL(5, 2) NOT NULL DEFAULT 10.00,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS binance_bot_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    symbol VARCHAR(32) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    message TEXT NOT NULL,
+    details JSON NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_b_logs_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 const CONTENT_TABLES = ["projects", "activities", "certifications", "careers"];
@@ -309,6 +334,32 @@ async function seedDefaultSettings(conn) {
     } else if (key === "tech_stack" && !String(rows[0].value || "").trim()) {
       await conn.query("UPDATE settings SET value = ? WHERE `key` = ?", [value, key]);
     }
+  }
+
+  // 봇 기본 프롬프트 & 전략 설정 초기화
+  const defaultPrompt = `[1B 이상 급등 코인 거미줄 숏 매매 규칙]
+1. 모니터링 대상: 24시간 거래대금 1,000,000,000 USDT (1B) 이상이며 24시간 변동률이 +8% 이상 급등한 대형/준대형 코인
+2. 펀딩비 필터:
+   - 양수 펀딩비 (+0.01% 이상): 롱이 숏에게 펀딩비를 지급하므로 거미줄 숏 유지 시 펀딩비 수익 발생 (우선 진입 타겟)
+   - 극단적 음수 펀딩비 (-0.05% 이하): 숏 포지션이 펀딩비를 지불해야 하고 숏 스퀴즈 위험이 크므로 신규 진입 배제
+3. 거미줄(DCA) 진입 규칙:
+   - 1차 진입 (25%): 24시간 고점 인근 또는 저항선 터치 시
+   - 2차 진입 (25%): 1차 진입가 대비 +2.0%
+   - 3차 진입 (25%): 1차 진입가 대비 +4.5%
+   - 4차 진입 (25%): 1차 진입가 대비 +7.5%
+4. 수익 실현 (TP):
+   - 평단가 대비 -3.0% 도달 시 50% 부분 익절 및 본절 스탑로스 설정
+   - 평단가 대비 -6.0% 도달 시 잔여 물량 전량 익절
+5. 리스크 관리 (SL):
+   - 4차 거미줄까지 체결된 후 추가로 +4.0% 이상 대량 거래량 동반 돌파 시 손절 실행`;
+
+  const [bRows] = await conn.query("SELECT id FROM binance_bot_settings WHERE id = 1");
+  if (!bRows.length) {
+    await conn.query(
+      `INSERT INTO binance_bot_settings (id, prompt, is_active, paper_mode, leverage, order_size_percent, min_volume_threshold, min_funding_rate, max_ladder_levels, tp_percent, sl_percent)
+       VALUES (1, ?, 1, 1, 5, 3.00, 1000000000, 0.0000, 4, 3.00, 10.00)`,
+      [defaultPrompt]
+    );
   }
 }
 

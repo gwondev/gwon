@@ -9,6 +9,7 @@ import chatRouter from "./routes/chat.js";
 import calendarRouter from "./routes/calendar.js";
 import techStackRouter from "./routes/tech-stack.js";
 import portfolioRouter from "./routes/portfolio.js";
+import binanceRouter from "./routes/binance.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 8080);
@@ -34,6 +35,7 @@ app.use("/api/chat", chatRouter);
 app.use("/api/calendar", calendarRouter);
 app.use("/api/tech-stack", techStackRouter);
 app.use("/api/portfolio", portfolioRouter);
+app.use("/api/binance", binanceRouter);
 app.use("/api/projects", crudRouter("projects"));
 app.use("/api/activities", crudRouter("activities"));
 app.use("/api/certifications", crudRouter("certifications"));
