@@ -56,10 +56,8 @@ chmod +x scripts/prepare-env.sh
 ./scripts/prepare-env.sh "${ENV_SRC}"
 
 # ── 3) Docker 재빌드 ─────────────────────────────────────────────────
-echo "[deploy] 앱 컨테이너만 정리 (gwon-db / mosquitto 는 유지) …"
-docker rm -f gwon-backend gwon-frontend gwon-cloudflared 2>/dev/null || true
 echo "[deploy] docker compose down …"
-docker compose down
+COMPOSE_IGNORE_ORPHANS=true docker compose down
 
 echo "[deploy] docker compose up --build -d …"
 COMPOSE_IGNORE_ORPHANS=true docker compose up --build -d

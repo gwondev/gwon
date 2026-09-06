@@ -1,17 +1,9 @@
-# 서버에서 쓰는 깨끗한 재배포 (복붙용)
-# 운영 DB(/home/gwon/mysql_data, gwon-db)는 절대 건드리지 않는다.
-# cd m 이 아니라 cd gwon 이다.
-
 cd ~
-if [ -d "$HOME/gwon/mysql_data" ]; then
-  docker run --rm -v "$HOME/gwon:/repo" alpine rm -rf /repo/mysql_data
-fi
 rm -rf gwon
 git clone https://github.com/gwondev/gwon.git
 cd gwon
 chmod +x scripts/prepare-env.sh
 ./scripts/prepare-env.sh ../.env.production
-docker rm -f gwon-backend gwon-frontend gwon-cloudflared
 docker compose down
 docker compose up --build -d
 docker compose ps
