@@ -30,6 +30,7 @@ cd "$REPO_DIR"
 chmod +x scripts/prepare-env.sh
 ./scripts/prepare-env.sh "$ENV_SRC"
 
+docker rm -f gwon-backend gwon-frontend gwon-cloudflared 2>/dev/null || true
 docker compose down
 docker compose up --build -d
 docker compose ps

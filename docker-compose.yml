@@ -1,6 +1,5 @@
-# gwon-db / gwon-mosquitto 와 프로젝트 이름을 분리해서 orphan 경고가 안 나게 한다.
-# --remove-orphans 는 쓰지 말 것 (공용 DB 가 내려감).
-name: gwon-web
+# --remove-orphans 는 쓰지 말 것 (gwon-db 가 내려감).
+# orphan 경고는 .env 의 COMPOSE_IGNORE_ORPHANS=true 로 끈다.
 
 services:
   # ⚠️ db 서비스는 정의하지 않습니다.
