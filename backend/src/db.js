@@ -4,12 +4,18 @@ import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./lib/chat-prompt-defaults.js";
 import { DEFAULT_TECH_STACK } from "./lib/tech-stack-defaults.js";
 import { seedDemoContent } from "./lib/demo-seed.js";
 
+const DB_HOST = process.env.DB_HOST || "gwon-db";
+const DB_PORT = Number(process.env.DB_PORT || 3306);
+const DB_USER = process.env.DB_USER || "root";
+const DB_PASSWORD = process.env.DB_PASSWORD || "";
+const DB_NAME = process.env.DB_NAME || "gwon";
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || "db",
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "gwon",
+  host: DB_HOST,
+  port: DB_PORT,
+  user: DB_USER,
+  password: DB_PASSWORD,
+  database: DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   charset: "utf8mb4",
@@ -18,6 +24,24 @@ const pool = mysql.createPool({
   //  캘린더 날짜 매칭이 어긋나는 문제가 생긴다.)
   dateStrings: ["DATE"],
 });
+
+/** 풀은 DB_NAME 에 붙으므로, 스키마가 없으면 서버에만 붙어서 만든다. */
+async function ensureDatabase() {
+  const conn = await mysql.createConnection({
+    host: DB_HOST,
+    port: DB_PORT,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    charset: "utf8mb4",
+  });
+  try {
+    await conn.query(
+      `CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+  } finally {
+    await conn.end();
+  }
+}
 
 // ── 최근 DB 쿼리 로그(메모리 링버퍼) ─────────────────────────────────
 // 전체 쿼리(SELECT 포함)와 쓰기 작업(INSERT/UPDATE/DELETE)을 분리 보관한다.
@@ -428,6 +452,7 @@ async function runMigrations(conn) {
 export async function initDb(retries = 15, delayMs = 3000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      await ensureDatabase();
       const conn = await pool.getConnection();
       try {
         for (const sql of SCHEMA) await conn.query(sql);
