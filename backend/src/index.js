@@ -10,6 +10,8 @@ import calendarRouter from "./routes/calendar.js";
 import techStackRouter from "./routes/tech-stack.js";
 import portfolioRouter from "./routes/portfolio.js";
 import binanceRouter from "./routes/binance.js";
+import { startNewsDigestScheduler } from "./lib/binance-news.js";
+import { startBotEngine } from "./lib/binance-bot-engine.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 8080);
@@ -50,6 +52,8 @@ app.use((err, _req, res, _next) => {
 initDb()
   .then(() => {
     app.listen(PORT, () => console.log(`[backend] listening on :${PORT}`));
+    startNewsDigestScheduler();
+    startBotEngine();
   })
   .catch((err) => {
     console.error("[backend] DB 초기화 실패, 종료합니다.", err.message);

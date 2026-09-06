@@ -994,3 +994,254 @@
   color: #5e6673;
   font-size: 0.85rem;
 }
+
+/* ==========================================================================
+   재설계: 접이식 지갑 바 / 사용자·봇 2포지션 패널 / 통합 기회 리스트 / 규칙 패널
+   ========================================================================== */
+
+.b-subtitle {
+  font-size: 0.85rem;
+  color: #848e9c;
+}
+
+.b-field {
+  margin-bottom: 1.25rem;
+}
+
+.b-empty-box,
+.b-loading-box {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #848e9c;
+  font-size: 0.9rem;
+}
+
+.b-col-hide-sm {
+  white-space: nowrap;
+}
+
+.b-paper-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(240, 185, 11, 0.15);
+  color: #f0b90b;
+  border: 1px solid rgba(240, 185, 11, 0.35);
+}
+
+/* 지갑 바 */
+.b-wallet-bar {
+  background: #181a20;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.b-wallet-bar__summary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #eaecef;
+  font: inherit;
+  text-align: left;
+}
+
+.b-wallet-bar__label {
+  font-size: 0.78rem;
+  color: #848e9c;
+}
+
+.b-wallet-bar__value {
+  font-size: 1.1rem;
+  margin-right: auto;
+}
+
+.b-wallet-bar__chevron {
+  color: #848e9c;
+  font-size: 0.75rem;
+}
+
+.b-wallet-bar__detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0 1.25rem 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 1rem;
+}
+
+.b-wallet-bar__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: #848e9c;
+}
+
+.b-wallet-bar__stat strong {
+  font-size: 1rem;
+  color: #eaecef;
+}
+
+/* 사용자/봇 2포지션 그리드 */
+.b-position-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.b-pos-panel {
+  background: #181a20;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 1.1rem;
+}
+
+.b-pos-panel--bot {
+  border-color: rgba(240, 185, 11, 0.2);
+}
+
+.b-pos-panel.is-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  text-align: center;
+}
+
+.b-pos-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.b-pos-panel__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.b-pos-panel__symbol {
+  font-size: 1.05rem;
+}
+
+.b-pos-panel h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: #848e9c;
+}
+
+.b-pos-panel__empty {
+  color: #5e6673;
+  font-size: 0.85rem;
+}
+
+.b-pos-panel__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #848e9c;
+  margin-bottom: 0.75rem;
+}
+
+.b-pos-panel__metrics strong {
+  color: #eaecef;
+}
+
+.b-pos-panel__reason {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  color: #848e9c;
+  line-height: 1.5;
+}
+
+/* 타임프레임 선택기 */
+.b-timeframe {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.b-timeframe__btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #848e9c;
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.b-timeframe__btn.is-active {
+  background: rgba(240, 185, 11, 0.15);
+  border-color: rgba(240, 185, 11, 0.4);
+  color: #f0b90b;
+}
+
+/* 안전 컨트롤 (활성화 / paper-live / 최대증거금) */
+.b-safety-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.b-margin-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #848e9c;
+}
+
+.b-margin-input input {
+  width: 90px;
+  background: #0f1115;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #eaecef;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.b-status-pill--warn {
+  background: rgba(246, 70, 93, 0.15);
+  color: #f6465d;
+  border: 1px solid rgba(246, 70, 93, 0.35);
+}
+
+@media (max-width: 1100px) {
+  .b-position-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .b-col-hide-sm {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .b-wallet-bar__detail {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}

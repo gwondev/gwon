@@ -43,7 +43,7 @@ function signQuery(queryString, secret) {
 /**
  * 서명된 바이낸스 API 호출 래퍼 (타임존 오프셋 자동 동기화 및 재시도 지원)
  */
-async function signedRequest(baseUrl, path, method = "GET", params = {}, isRetry = false) {
+export async function signedRequest(baseUrl, path, method = "GET", params = {}, isRetry = false) {
   const { apiKey, secretKey, hasCredentials } = getBinanceCredentials();
   if (!hasCredentials) {
     throw new Error("바이낸스 API 키(BINANCE_API_KEY, BINANCE_SECRET_KEY)가 설정되지 않았습니다.");
@@ -189,4 +189,137 @@ export async function getFuturesPositions() {
       };
     })
     .filter((p) => Math.abs(p.positionAmt) > 0);
+}
+
+/**
+ * 심볼별 수량/가격 정밀도 및 최소주문 제한 조회 (exchangeInfo, 1시간 캐시)
+ */
+let exchangeInfoCache = { data: null, fetchedAt: 0 };
+const EXCHANGE_INFO_TTL_MS = 60 * 60 * 1000;
+
+export async function getExchangeInfo() {
+  if (exchangeInfoCache.data && Date.now() - exchangeInfoCache.fetchedAt < EXCHANGE_INFO_TTL_MS) {
+    return exchangeInfoCache.data;
+  }
+  const data = await publicFuturesRequest("/fapi/v1/exchangeInfo");
+  exchangeInfoCache = { data, fetchedAt: Date.now() };
+  return data;
+}
+
+export async function getSymbolFilters(symbol) {
+  const info = await getExchangeInfo();
+  const sym = (info.symbols || []).find((s) => s.symbol === symbol);
+  if (!sym) throw new Error(`알 수 없는 심볼: ${symbol}`);
+
+  const lot = sym.filters.find((f) => f.filterType === "LOT_SIZE") || {};
+  const price = sym.filters.find((f) => f.filterType === "PRICE_FILTER") || {};
+  const notional =
+    sym.filters.find((f) => f.filterType === "MIN_NOTIONAL") ||
+    sym.filters.find((f) => f.filterType === "NOTIONAL") ||
+    {};
+
+  return {
+    stepSize: Number(lot.stepSize) || 0.001,
+    minQty: Number(lot.minQty) || 0,
+    tickSize: Number(price.tickSize) || 0.0001,
+    minNotional: Number(notional.notional ?? notional.minNotional) || 5,
+    quantityPrecision: Number(sym.quantityPrecision) || 0,
+    pricePrecision: Number(sym.pricePrecision) || 0,
+  };
+}
+
+/** 소수 step 단위로 내림(수량/가격 정밀도 규칙 준수) */
+export function roundToStep(value, step, precision) {
+  if (!step) return value;
+  const rounded = Math.floor(value / step) * step;
+  const p = precision != null ? precision : Math.max(0, String(step).split(".")[1]?.length || 0);
+  return Number(rounded.toFixed(p));
+}
+
+export function roundToTick(value, tick, precision) {
+  return roundToStep(value, tick, precision);
+}
+
+/**
+ * 심볼의 마진 타입(ISOLATED/CROSSED) 설정. 이미 같은 타입이면 -4046 에러가 나는데
+ * 이는 정상 상태이므로 무시한다.
+ */
+export async function setMarginType(symbol, marginType = "ISOLATED") {
+  try {
+    await signedRequest(FUTURES_BASE, "/fapi/v1/marginType", "POST", { symbol, marginType });
+  } catch (err) {
+    if (err.code === -4046) return; // 이미 해당 마진타입 — 정상
+    throw err;
+  }
+}
+
+/** 심볼의 레버리지 설정 */
+export async function setLeverage(symbol, leverage) {
+  return signedRequest(FUTURES_BASE, "/fapi/v1/leverage", "POST", {
+    symbol,
+    leverage: String(Math.max(1, Math.round(leverage))),
+  });
+}
+
+/** 시장가 진입/청산 주문 */
+export async function placeMarketOrder({ symbol, side, quantity, reduceOnly = false, clientOrderId }) {
+  const params = {
+    symbol,
+    side, // "BUY" | "SELL"
+    type: "MARKET",
+    quantity: String(quantity),
+  };
+  if (reduceOnly) params.reduceOnly = "true";
+  if (clientOrderId) params.newClientOrderId = clientOrderId;
+  return signedRequest(FUTURES_BASE, "/fapi/v1/order", "POST", params);
+}
+
+/** 전량 청산용 익절 주문 (closePosition=true 라 수량 지정 불필요) */
+export async function placeTakeProfitMarketOrder({ symbol, side, stopPrice, clientOrderId }) {
+  return signedRequest(FUTURES_BASE, "/fapi/v1/order", "POST", {
+    symbol,
+    side,
+    type: "TAKE_PROFIT_MARKET",
+    stopPrice: String(stopPrice),
+    closePosition: "true",
+    workingType: "MARK_PRICE",
+    newClientOrderId: clientOrderId,
+  });
+}
+
+/** 전량 청산용 손절 주문 (closePosition=true 라 수량 지정 불필요) */
+export async function placeStopMarketOrder({ symbol, side, stopPrice, clientOrderId }) {
+  return signedRequest(FUTURES_BASE, "/fapi/v1/order", "POST", {
+    symbol,
+    side,
+    type: "STOP_MARKET",
+    stopPrice: String(stopPrice),
+    closePosition: "true",
+    workingType: "MARK_PRICE",
+    newClientOrderId: clientOrderId,
+  });
+}
+
+/** 심볼의 미체결 주문 전체 취소 (재진입/재설정 전 잔여 주문 정리용) */
+export async function cancelAllOpenOrders(symbol) {
+  return signedRequest(FUTURES_BASE, "/fapi/v1/allOpenOrders", "DELETE", { symbol });
+}
+
+/** 심볼의 현재 미체결 주문 목록 (TP/SL 보호주문이 살아있는지 확인하는 용도) */
+export async function getOpenOrders(symbol) {
+  return signedRequest(FUTURES_BASE, "/fapi/v1/openOrders", "GET", symbol ? { symbol } : {});
+}
+
+/** 공개 API로 현재가만 조회 (모의 포지션의 시뮬레이션 PnL 계산용) */
+export async function getMarkPrice(symbol) {
+  const data = await publicFuturesRequest("/fapi/v1/ticker/price", { symbol });
+  return Number(data.price) || 0;
+}
+
+/** 실현손익(REALIZED_PNL) 등 income 이력 조회 */
+export async function getIncomeHistory({ startTime, endTime, incomeType = "REALIZED_PNL", limit = 1000 } = {}) {
+  const params = { incomeType, limit: String(limit) };
+  if (startTime) params.startTime = String(startTime);
+  if (endTime) params.endTime = String(endTime);
+  return signedRequest(FUTURES_BASE, "/fapi/v1/income", "GET", params);
 }

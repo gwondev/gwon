@@ -23,7 +23,7 @@ function normalizeHistory(history) {
   return out;
 }
 
-async function callModel(model, apiKey, system, contents) {
+async function callModel(model, apiKey, system, contents, generationConfigOverrides = {}) {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -38,6 +38,7 @@ async function callModel(model, apiKey, system, contents) {
         generationConfig: {
           temperature: 0.55,
           maxOutputTokens: 1024,
+          ...generationConfigOverrides,
         },
       }),
     }
@@ -63,6 +64,47 @@ async function callModel(model, apiKey, system, contents) {
 
 export function getGeminiModels() {
   return [...new Set(MODELS)];
+}
+
+/**
+ * Gemini에 구조화된 JSON 응답을 요청한다. schema는 Gemini의 OpenAPI 서브셋 스키마 객체.
+ * 모델이 스키마를 못 지키면 코드펜스 제거 후 1회 재시도 후 실패 처리한다.
+ */
+export async function askGeminiJson({ system, message, schema }) {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) throw new Error("GEMINI API 키가 설정되지 않았습니다.");
+
+  const contents = [{ role: "user", parts: [{ text: message.trim() }] }];
+  const generationConfigOverrides = {
+    // 후보가 많으면(예: 55개) 기본 1024 토큰으로는 응답이 중간에 잘려 JSON이 깨진다.
+    maxOutputTokens: 8192,
+    responseMimeType: "application/json",
+    ...(schema ? { responseSchema: schema } : {}),
+  };
+
+  let lastErr;
+  for (const model of getGeminiModels()) {
+    try {
+      const raw = await callModel(model, apiKey, system, contents, generationConfigOverrides);
+      try {
+        return JSON.parse(raw);
+      } catch {
+        // 코드펜스 제거 + 트레일링 콤마 제거 후 1회 더 시도
+        const cleaned = raw
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/```\s*$/, "")
+          .replace(/,(\s*[}\]])/g, "$1")
+          .trim();
+        return JSON.parse(cleaned);
+      }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[gemini:json] ${model} failed:`, err.message);
+      if (err.status === 404 || /not found|not supported/i.test(err.message)) continue;
+      throw err;
+    }
+  }
+  throw lastErr || new Error("Gemini JSON 응답 생성에 실패했습니다.");
 }
 
 export async function askGemini({ system, history, message }) {

@@ -3,6 +3,7 @@ import mysql from "mysql2/promise";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./lib/chat-prompt-defaults.js";
 import { DEFAULT_TECH_STACK } from "./lib/tech-stack-defaults.js";
 import { seedDemoContent } from "./lib/demo-seed.js";
+import { DEFAULT_RULES_PROMPT } from "./lib/binance-defaults.js";
 
 const DB_HOST = process.env.DB_HOST || "gwon-db";
 const DB_PORT = Number(process.env.DB_PORT || 3306);
@@ -314,6 +315,69 @@ const SCHEMA = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_b_logs_created (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // 봇이 보유했던(보유 중인) 포지션 이력. status='OPEN' 인 행이 항상 최대 1개만 존재하도록
+  // 애플리케이션 레벨에서 강제하며, "현재 봇 포지션"의 1차 신뢰 소스로 사용한다.
+  `CREATE TABLE IF NOT EXISTS binance_bot_positions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    symbol VARCHAR(32) NOT NULL,
+    side ENUM('LONG','SHORT') NOT NULL,
+    status ENUM('OPEN','CLOSED') NOT NULL DEFAULT 'OPEN',
+    entry_price DECIMAL(24, 10) NOT NULL,
+    quantity DECIMAL(24, 10) NOT NULL,
+    leverage INT NOT NULL,
+    margin_type VARCHAR(16) NOT NULL,
+    margin_usdt DECIMAL(18, 4) NOT NULL,
+    tp_percent DECIMAL(6, 2) NULL,
+    sl_percent DECIMAL(6, 2) NULL,
+    entry_order_id VARCHAR(64) NULL,
+    tp_order_id VARCHAR(64) NULL,
+    sl_order_id VARCHAR(64) NULL,
+    client_order_tag VARCHAR(40) NOT NULL,
+    reason_text TEXT NULL,
+    is_paper TINYINT(1) NOT NULL DEFAULT 1,
+    realized_pnl DECIMAL(18, 4) NULL,
+    close_reason VARCHAR(64) NULL,
+    opened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP NULL,
+    INDEX idx_bot_pos_status (status),
+    INDEX idx_bot_pos_symbol_time (symbol, opened_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // 바이낸스 REALIZED_PNL income 이력 미러 + 사용자/봇 귀속 태그
+  `CREATE TABLE IF NOT EXISTS binance_income_ledger (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    binance_tran_id BIGINT NOT NULL,
+    symbol VARCHAR(32) NOT NULL,
+    income_type VARCHAR(32) NOT NULL,
+    income DECIMAL(24, 10) NOT NULL,
+    attribution ENUM('BOT','MANUAL','UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
+    income_time BIGINT NOT NULL,
+    raw_json JSON NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_tran (binance_tran_id),
+    INDEX idx_income_time (income_time),
+    INDEX idx_attribution (attribution)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // 하루 1회 갱신되는 뉴스 요약 캐시 (싱글턴 row)
+  `CREATE TABLE IF NOT EXISTS binance_news_digest (
+    id INT PRIMARY KEY DEFAULT 1,
+    digest_date DATE NOT NULL,
+    summary_text TEXT NOT NULL,
+    source_count INT NOT NULL DEFAULT 0,
+    raw_headlines JSON NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // 통합 롱/숏 기회 점수 캐시 (싱글턴 row, TTL 기반 갱신)
+  `CREATE TABLE IF NOT EXISTS binance_opportunity_cache (
+    id INT PRIMARY KEY DEFAULT 1,
+    computed_at TIMESTAMP NOT NULL,
+    candidates_json JSON NOT NULL,
+    model_used VARCHAR(64) NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 const CONTENT_TABLES = ["projects", "activities", "certifications", "careers"];
@@ -360,29 +424,13 @@ async function seedDefaultSettings(conn) {
     }
   }
 
-  // 봇 기본 프롬프트 & 전략 설정 초기화
-  const defaultPrompt = `[1B 이상 급등 코인 거미줄 숏 매매 규칙]
-1. 모니터링 대상: 24시간 거래대금 1,000,000,000 USDT (1B) 이상이며 24시간 변동률이 +8% 이상 급등한 대형/준대형 코인
-2. 펀딩비 필터:
-   - 양수 펀딩비 (+0.01% 이상): 롱이 숏에게 펀딩비를 지급하므로 거미줄 숏 유지 시 펀딩비 수익 발생 (우선 진입 타겟)
-   - 극단적 음수 펀딩비 (-0.05% 이하): 숏 포지션이 펀딩비를 지불해야 하고 숏 스퀴즈 위험이 크므로 신규 진입 배제
-3. 거미줄(DCA) 진입 규칙:
-   - 1차 진입 (25%): 24시간 고점 인근 또는 저항선 터치 시
-   - 2차 진입 (25%): 1차 진입가 대비 +2.0%
-   - 3차 진입 (25%): 1차 진입가 대비 +4.5%
-   - 4차 진입 (25%): 1차 진입가 대비 +7.5%
-4. 수익 실현 (TP):
-   - 평단가 대비 -3.0% 도달 시 50% 부분 익절 및 본절 스탑로스 설정
-   - 평단가 대비 -6.0% 도달 시 잔여 물량 전량 익절
-5. 리스크 관리 (SL):
-   - 4차 거미줄까지 체결된 후 추가로 +4.0% 이상 대량 거래량 동반 돌파 시 손절 실행`;
-
+  // 봇 기본 매매 규칙 텍스트 초기화(범용, 특정 전략에 종속되지 않음)
   const [bRows] = await conn.query("SELECT id FROM binance_bot_settings WHERE id = 1");
   if (!bRows.length) {
     await conn.query(
-      `INSERT INTO binance_bot_settings (id, prompt, is_active, paper_mode, leverage, order_size_percent, min_volume_threshold, min_funding_rate, max_ladder_levels, tp_percent, sl_percent)
-       VALUES (1, ?, 1, 1, 5, 3.00, 1000000000, 0.0000, 4, 3.00, 10.00)`,
-      [defaultPrompt]
+      `INSERT INTO binance_bot_settings (id, prompt, is_active, paper_mode, leverage, order_size_percent, min_volume_threshold, min_funding_rate, max_ladder_levels, tp_percent, sl_percent, max_margin_usdt)
+       VALUES (1, ?, 1, 1, 5, 3.00, 1000000000, 0.0000, 4, 3.00, 10.00, 20.0000)`,
+      [DEFAULT_RULES_PROMPT]
     );
   }
 }
@@ -433,6 +481,13 @@ async function runMigrations(conn) {
     "ALTER TABLE calendar_events ADD COLUMN location_lat DECIMAL(10, 7) DEFAULT NULL AFTER location_name",
     "ALTER TABLE calendar_events ADD COLUMN location_lng DECIMAL(10, 7) DEFAULT NULL AFTER location_lat",
     "ALTER TABLE calendar_events ADD COLUMN is_major TINYINT(1) NOT NULL DEFAULT 0 AFTER appointment_type",
+    // 바이낸스 봇: 구조화 전략 select를 걷어내고 자유 텍스트 규칙/점수기준 + 안전 하드캡으로 전환
+    "ALTER TABLE binance_bot_settings ADD COLUMN scoring_prompt TEXT NULL AFTER prompt",
+    "ALTER TABLE binance_bot_settings ADD COLUMN max_margin_usdt DECIMAL(18, 4) NOT NULL DEFAULT 20.0000 AFTER order_size_percent",
+    "ALTER TABLE binance_bot_settings ADD COLUMN consecutive_error_count INT NOT NULL DEFAULT 0",
+    "ALTER TABLE binance_bot_settings ADD COLUMN last_error_message TEXT NULL",
+    "ALTER TABLE binance_bot_settings ADD COLUMN last_cycle_at TIMESTAMP NULL",
+    "ALTER TABLE binance_bot_settings ADD COLUMN auto_paused TINYINT(1) NOT NULL DEFAULT 0",
   ];
   for (const sql of migrations) {
     try {
