@@ -43,41 +43,55 @@ router.post("/google", async (req, res) => {
   if (!credential) return res.status(400).json({ error: "credential 이 없습니다." });
   if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: "서버에 GOOGLE_CLIENT_ID 가 설정되지 않았습니다." });
 
+  let payload;
   try {
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: GOOGLE_CLIENT_ID,
     });
-    const p = ticket.getPayload();
+    payload = ticket.getPayload();
+    if (!payload?.sub) throw new Error("구글 토큰에 사용자 정보가 없습니다.");
+  } catch (err) {
+    console.error(
+      "[auth/google] token verify failed:",
+      err.message,
+      "serverAudience=",
+      GOOGLE_CLIENT_ID.slice(0, 12) + "…"
+    );
+    return res.status(401).json({
+      error: "구글 토큰 검증에 실패했습니다. 프론트/백엔드 GOOGLE_CLIENT_ID 가 같은지, 프론트를 --no-cache 로 다시 빌드했는지 확인하세요.",
+    });
+  }
 
+  try {
     await pool.query(
       `INSERT INTO users (google_sub, email, name, picture)
        VALUES (?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE email = VALUES(email), name = VALUES(name), picture = VALUES(picture)`,
-      [p.sub, p.email, p.name, p.picture]
+      [payload.sub, payload.email, payload.name, payload.picture]
     );
 
     // SUPER_ADMIN_EMAILS / 이름 → SUPER_ADMIN, ADMIN_EMAILS → ADMIN (강등하지 않음)
-    const email = p.email?.toLowerCase();
-    const name = String(p.name || "").trim();
+    const email = payload.email?.toLowerCase();
+    const name = String(payload.name || "").trim();
     if (email && SUPER_ADMIN_EMAILS.includes(email)) {
-      await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [p.sub]);
+      await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [payload.sub]);
     } else if (SUPER_ADMIN_NAMES.some((n) => name.includes(n))) {
-      await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [p.sub]);
+      await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [payload.sub]);
     } else if (email && ADMIN_EMAILS.includes(email)) {
       await pool.query(
         "UPDATE users SET role = 'ADMIN' WHERE google_sub = ? AND role != 'SUPER_ADMIN'",
-        [p.sub]
+        [payload.sub]
       );
     }
 
-    const [rows] = await pool.query("SELECT * FROM users WHERE google_sub = ?", [p.sub]);
+    const [rows] = await pool.query("SELECT * FROM users WHERE google_sub = ?", [payload.sub]);
     const user = rows[0];
     const token = signToken(user);
     res.json({ token, user: publicUser(user) });
   } catch (err) {
-    console.error("[auth/google]", err.message);
-    res.status(401).json({ error: "구글 인증에 실패했습니다." });
+    console.error("[auth/google] db failed:", err.code || err.message);
+    return res.status(500).json({ error: "로그인 저장 중 오류가 발생했습니다." });
   }
 });
 
