@@ -48,7 +48,7 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: err.message || "서버 오류가 발생했습니다." });
 });
 
-app.listen(PORT, () => console.log(`[backend] listening on :${PORT}`));
+app.listen(PORT, "0.0.0.0", () => console.log(`[backend] listening on :${PORT}`));
 
 initDb().catch((err) => {
   console.error("[backend] DB 초기화 실패 (프로세스는 유지):", err.message);

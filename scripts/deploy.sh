@@ -60,7 +60,7 @@ echo "[deploy] docker compose down …"
 docker compose down
 
 echo "[deploy] docker compose up --build -d …"
-docker compose up --build -d
+COMPOSE_IGNORE_ORPHANS=true docker compose up --build -d
 
 echo ""
 docker compose ps
