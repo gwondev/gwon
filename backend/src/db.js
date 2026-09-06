@@ -337,6 +337,15 @@ async function seedDefaultSettings(conn) {
   }
 
   // 봇 기본 프롬프트 & 전략 설정 초기화
+  // (실패해도 로그인·포트폴리오 기동을 막지 않는다)
+  try {
+    await seedBinanceBotSettings(conn);
+  } catch (err) {
+    console.warn(`[db] binance settings seed skipped: ${err.code || err.message}`);
+  }
+}
+
+async function seedBinanceBotSettings(conn) {
   const defaultPrompt = `[1B 이상 급등 코인 거미줄 숏 매매 규칙]
 1. 모니터링 대상: 24시간 거래대금 1,000,000,000 USDT (1B) 이상이며 24시간 변동률이 +8% 이상 급등한 대형/준대형 코인
 2. 펀딩비 필터:

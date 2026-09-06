@@ -25,7 +25,8 @@ app.get("/api/health", async (_req, res) => {
     await pingDb();
     res.json({ ok: true, db: true });
   } catch {
-    res.status(503).json({ ok: false, db: false });
+    // 프로세스가 살아 있으면 200 — DB만 잠시 안 되어도 터널이 502를 내지 않게 한다
+    res.json({ ok: true, db: false });
   }
 });
 
@@ -47,11 +48,8 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: err.message || "서버 오류가 발생했습니다." });
 });
 
-initDb()
-  .then(() => {
-    app.listen(PORT, () => console.log(`[backend] listening on :${PORT}`));
-  })
-  .catch((err) => {
-    console.error("[backend] DB 초기화 실패, 종료합니다.", err.message);
-    process.exit(1);
-  });
+app.listen(PORT, () => console.log(`[backend] listening on :${PORT}`));
+
+initDb().catch((err) => {
+  console.error("[backend] DB 초기화 실패 (프로세스는 유지):", err.message);
+});
