@@ -7,6 +7,7 @@ import { crudRouter } from "./routes/crud.js";
 
 import chatRouter from "./routes/chat.js";
 import calendarRouter from "./routes/calendar.js";
+import todosRouter from "./routes/todos.js";
 import techStackRouter from "./routes/tech-stack.js";
 import portfolioRouter from "./routes/portfolio.js";
 import binanceRouter from "./routes/binance.js";
@@ -35,6 +36,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/calendar", calendarRouter);
+app.use("/api/todos", todosRouter);
 app.use("/api/tech-stack", techStackRouter);
 app.use("/api/portfolio", portfolioRouter);
 app.use("/api/binance", binanceRouter);

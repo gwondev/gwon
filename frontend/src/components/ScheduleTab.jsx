@@ -25,6 +25,7 @@ import {
   formatMajorEventDate,
   getThemeById,
 } from "../lib/calendarTheme";
+import ScheduleChecklist from "./ScheduleChecklist";
 import "./ScheduleTab.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -799,6 +800,8 @@ export default function ScheduleTab() {
         )}
       </AnimatePresence>
 
+      <div className="schedule__layout">
+      <div className="schedule__calendar-col">
       <div className="schedule__nav">
         <button type="button" className="schedule__nav-btn" onClick={() => shiftMonth(-1)} aria-label="이전 달">
           ‹
@@ -879,6 +882,10 @@ export default function ScheduleTab() {
           </motion.div>
         </AnimatePresence>
       )}
+      </div>
+
+      <ScheduleChecklist />
+      </div>
 
       <AnimatePresence>
         {addOpen && (

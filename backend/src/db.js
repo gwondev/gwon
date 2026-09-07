@@ -378,6 +378,19 @@ const SCHEMA = [
     model_used VARCHAR(64) NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // 일정 탭 체크리스트(개인 할 일). 완료 항목은 done_at 기준 30일 뒤 자동 정리된다.
+  `CREATE TABLE IF NOT EXISTS todo_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    owner_id INT NOT NULL,
+    text VARCHAR(500) NOT NULL,
+    due_date DATE DEFAULT NULL,
+    done TINYINT(1) NOT NULL DEFAULT 0,
+    done_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_todo_owner_done (owner_id, done),
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 const CONTENT_TABLES = ["projects", "activities", "certifications", "careers"];
