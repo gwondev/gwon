@@ -5,4 +5,5 @@ data/
 devsign/
 npm-debug.log*
 .DS_Store
+.env
 .env.production
