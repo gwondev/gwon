@@ -193,7 +193,8 @@ const SCHEMA = [
     series_repeat_freq VARCHAR(16) DEFAULT NULL,
     series_repeat_interval INT DEFAULT NULL,
     series_repeat_until DATE DEFAULT NULL,
-    appointment_type ENUM('MONEY','DRINK') DEFAULT NULL,
+    appointment_type ENUM('MONEY','DRINK','JOB') DEFAULT NULL,
+    theme_color VARCHAR(32) NOT NULL DEFAULT 'red',
     location_name VARCHAR(255) DEFAULT NULL,
     location_lat DECIMAL(10, 7) DEFAULT NULL,
     location_lng DECIMAL(10, 7) DEFAULT NULL,
@@ -501,6 +502,9 @@ async function runMigrations(conn) {
     "ALTER TABLE binance_bot_settings ADD COLUMN last_error_message TEXT NULL",
     "ALTER TABLE binance_bot_settings ADD COLUMN last_cycle_at TIMESTAMP NULL",
     "ALTER TABLE binance_bot_settings ADD COLUMN auto_paused TINYINT(1) NOT NULL DEFAULT 0",
+    // 일정 색을 소유자 테마가 아니라 등록 시점에 고를 수 있게 (기본 빨강, 취업 관련이면 초록)
+    "ALTER TABLE calendar_events MODIFY COLUMN appointment_type ENUM('MONEY','DRINK','JOB') DEFAULT NULL",
+    "ALTER TABLE calendar_events ADD COLUMN theme_color VARCHAR(32) NOT NULL DEFAULT 'red' AFTER is_major",
   ];
   for (const sql of migrations) {
     try {

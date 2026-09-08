@@ -122,6 +122,7 @@ function blankForm(dateKey = "", ownerId = null) {
     endTime: "18:00",
     endDate: start,
     appointmentType: "",
+    themeColor: "red",
     locationName: "",
     locationLat: null,
     locationLng: null,
@@ -148,6 +149,7 @@ function formFromEvent(ev) {
     endTime: ev.endTime || "18:00",
     endDate: repeat ? start : (ev.seriesEndDate || ev.eventDate || start),
     appointmentType: ev.appointmentType || (ev.incomeType ? "MONEY" : ""),
+    themeColor: ev.themeColor || "red",
     locationName: ev.locationName || "",
     locationLat: ev.locationLat ?? null,
     locationLng: ev.locationLng ?? null,
@@ -174,6 +176,7 @@ function enrichEvent(ev, owners) {
     sharedOwnerIds,
     sharedOwnerNames,
     ownerThemeColor: owner?.calendarThemeColor || ev.ownerThemeColor || "red",
+    themeColor: ev.themeColor || "red",
     ownerName: ev.ownerName || (owner ? ownerLabel(owner) : null),
   };
 }
@@ -190,7 +193,6 @@ export default function ScheduleTab() {
   const [themeColor, setThemeColor] = useState(user?.calendarThemeColor || null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
-  const [themeOpen, setThemeOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [dayOpen, setDayOpen] = useState(null);
@@ -337,7 +339,7 @@ export default function ScheduleTab() {
     const self = owners.find((o) => o.id === sid);
     if (self) {
       setThemeColor(self.calendarThemeColor || null);
-      if (!self.calendarThemeColor && isCalendarAdmin) setThemeOpen(true);
+      if (!self.calendarThemeColor && isCalendarAdmin) setFilterOpen(true);
     }
   }, [owners, selfId, user.id, isCalendarAdmin]);
 
@@ -483,6 +485,7 @@ export default function ScheduleTab() {
           endTime,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
+          themeColor: form.themeColor || "red",
           isMajor: form.isMajor,
           ownerIds: form.ownerIds,
           endDate,
@@ -515,6 +518,7 @@ export default function ScheduleTab() {
           endTime,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
+          themeColor: form.themeColor || "red",
           isMajor: form.isMajor,
           endDate,
           repeat,
@@ -534,6 +538,7 @@ export default function ScheduleTab() {
             sharedOwnerIds: ownerIds,
             sharedOwnerNames,
             ownerThemeColor: ownerIds.length > 1 ? "shared-gray" : (owner?.calendarThemeColor || "red"),
+            themeColor: form.themeColor || "red",
             ownerName: owner ? ownerLabel(owner) : null,
             seriesId,
             seriesStartDate,
@@ -662,96 +667,10 @@ export default function ScheduleTab() {
   const monthKey = `${viewYear}-${String(viewMonth).padStart(2, "0")}`;
   const todayKey = toDateKey(today);
   const canPickOwner = isCalendarAdmin && owners.length > 1;
+  const canOpenOwnerPanel = canPickOwner || themeOwners.length > 0;
 
   return (
     <div className="schedule" style={{ "--cal-accent": theme.accent }}>
-      <div className="schedule__toolbar">
-        <div className="schedule__toolbar-left">
-          <button
-            type="button"
-            className="schedule__title-btn"
-            onClick={() => canPickOwner && setFilterOpen((v) => !v)}
-            aria-expanded={filterOpen}
-          >
-            <span className="schedule__title-dots" aria-hidden>
-              {selectedOwners.map((o) => (
-                <span
-                  key={o.id}
-                  className="schedule__title-dot"
-                  style={{ background: getThemeById(o.calendarThemeColor || "red").accent }}
-                />
-              ))}
-            </span>
-            <span className="schedule__owner-name">{headerTitle}</span>
-            {canPickOwner && <span className="schedule__title-caret">{filterOpen ? "▴" : "▾"}</span>}
-          </button>
-          <button
-            type="button"
-            className={`schedule__major-toggle ${majorPanelOpen ? "is-active" : ""}`}
-            onClick={() => setMajorPanelOpen((v) => !v)}
-            aria-expanded={majorPanelOpen}
-          >
-            주요일정 보기
-          </button>
-        </div>
-
-        <div className="schedule__toolbar-right">
-          <button
-            type="button"
-            className="schedule__theme-btn"
-            onClick={() => setThemeOpen((v) => !v)}
-            aria-label="테마 변경"
-          >
-            <span className="schedule__theme-dot" style={{ background: theme.accent }} />
-            테마 변경
-          </button>
-          {isCalendarAdmin && (
-            <button
-              type="button"
-              className={`schedule__bulk-delete-btn ${deleteMode ? "is-active" : ""}`}
-              onClick={handleDeleteModeClick}
-              disabled={busy}
-            >
-              {deleteMode
-                ? selectedSeriesKeys.size > 0
-                  ? `${selectedSeriesKeys.size}개 삭제`
-                  : "선택 취소"
-                : "일정삭제"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {filterOpen && canPickOwner && (
-          <motion.div
-            className="schedule__filter-panel"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-          >
-            <p className="schedule__filter-label">보기 대상 (눌러서 선택/해제)</p>
-            <div className="schedule__filter-chips">
-              {owners.map((o) => {
-                const active = selectedOwnerIds.includes(o.id);
-                const chipTheme = getThemeById(o.calendarThemeColor || "red");
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    className={`schedule__filter-chip ${active ? "is-active" : ""}`}
-                    style={{ "--chip-accent": chipTheme.accent }}
-                    onClick={() => toggleOwnerFilter(o.id)}
-                  >
-                    {ownerLabel(o)}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <AnimatePresence>
         {majorPanelOpen && (
           <MajorEventsPanel
@@ -766,42 +685,18 @@ export default function ScheduleTab() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {themeOpen && themeOwners.length > 0 && (
-          <motion.div
-            className="schedule__theme-panel"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-          >
-            {themeOwners.map((owner) => (
-              <div key={owner.id} className="schedule__theme-owner">
-                <p className="schedule__theme-label">
-                  {isSuperAdmin && themeOwners.length > 1
-                    ? `${ownerLabel(owner)} 테마`
-                    : "테마 색상"}
-                </p>
-                <div className="schedule__theme-swatches">
-                  {CALENDAR_THEME_COLORS.map((c) => (
-                    <button
-                      key={`${owner.id}-${c.id}`}
-                      type="button"
-                      className={`schedule__swatch ${owner.calendarThemeColor === c.id ? "is-active" : ""}`}
-                      style={{ "--swatch": c.accent }}
-                      onClick={() => saveTheme(owner.id, c.id)}
-                      title={c.label}
-                      aria-label={`${ownerLabel(owner)} ${c.label}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="schedule__layout">
       <div className="schedule__calendar-col">
+      <div className="schedule__calendar-toolbar">
+        <button
+          type="button"
+          className={`schedule__major-toggle ${majorPanelOpen ? "is-active" : ""}`}
+          onClick={() => setMajorPanelOpen((v) => !v)}
+          aria-expanded={majorPanelOpen}
+        >
+          주요일정 ★
+        </button>
+      </div>
       <div className="schedule__nav">
         <button type="button" className="schedule__nav-btn" onClick={() => shiftMonth(-1)} aria-label="이전 달">
           ‹
@@ -1286,10 +1181,7 @@ function EventBubble({
   selected,
   selectable,
 }) {
-  const isShared = (event.sharedOwnerIds?.length || 1) > 1;
-  const bubbleTheme = isShared
-    ? { accent: "#9ca3af" }
-    : getThemeById(event.ownerThemeColor || "red");
+  const bubbleTheme = getThemeById(event.themeColor || event.ownerThemeColor || "red");
   const isAllDay = !event.startTime;
   const showCheck = deleteMode && selectable && showLabel;
   return (
@@ -1898,6 +1790,39 @@ function EventModal({
               >
                 술약속인가요?
               </button>
+              <button
+                type="button"
+                className={`schedule__detail-btn schedule__detail-btn--job ${form.appointmentType === "JOB" ? "is-active" : ""}`}
+                onClick={() =>
+                  setForm((f) => {
+                    const next = f.appointmentType === "JOB" ? "" : "JOB";
+                    return {
+                      ...f,
+                      appointmentType: next,
+                      themeColor: next === "JOB" ? "green" : f.themeColor,
+                    };
+                  })
+                }
+              >
+                자격증시험, 필기시험, 면접과 같이 취업과 직결된 무언가인가요?
+              </button>
+            </div>
+          </div>
+
+          <div className="field">
+            <label>일정 색</label>
+            <div className="schedule__theme-swatches">
+              {CALENDAR_THEME_COLORS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`schedule__swatch ${form.themeColor === c.id ? "is-active" : ""}`}
+                  style={{ "--swatch": c.accent }}
+                  onClick={() => setForm((f) => ({ ...f, themeColor: c.id }))}
+                  title={c.label}
+                  aria-label={c.label}
+                />
+              ))}
             </div>
           </div>
 
@@ -1910,7 +1835,6 @@ function EventModal({
               />
               <span>주요일정</span>
             </label>
-            <p className="schedule__hint">주요일정으로 표시하면 ★ 가 붙고, 주요일정 보기 목록에 나타납니다.</p>
           </div>
 
           <div className="schedule__modal-actions">
@@ -1937,7 +1861,7 @@ function eventIsShared(ev) {
 }
 
 function eventAccent(ev) {
-  return eventIsShared(ev) ? "#9ca3af" : getThemeById(ev.ownerThemeColor || "red").accent;
+  return getThemeById(ev.themeColor || ev.ownerThemeColor || "red").accent;
 }
 
 function sortDayEvents(list) {

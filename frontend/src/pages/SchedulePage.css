@@ -7,9 +7,19 @@
   padding-bottom: clamp(40px, 8vh, 72px);
 }
 
+@media (max-width: 720px) {
+  .schedule-page {
+    /* 모바일에서는 달력이 화면 양옆에 거의 붙어야 한다. */
+    padding-left: clamp(0px, 1vw, 4px);
+    padding-right: clamp(0px, 1vw, 4px);
+  }
+}
+
 .schedule-page__body {
   width: 100%;
-  max-width: var(--maxw);
+  /* 달력 옆에 할일 체크리스트가 붙어 있어 기본 --maxw 로는 달력이 좁게 눌린다.
+     체크리스트가 더 오른쪽으로 붙도록 폭을 넉넉하게 잡는다. */
+  max-width: min(1680px, 97vw);
   margin: 0 auto;
 }
 

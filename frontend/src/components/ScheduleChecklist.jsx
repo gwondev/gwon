@@ -18,8 +18,8 @@ function todayKey() {
 
 function formatDateDot(dateKey) {
   if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return "";
-  const [, m, d] = dateKey.split("-");
-  return `${m}.${d}`;
+  const [y, m, d] = dateKey.split("-");
+  return `${y.slice(2)}.${m}.${d}`;
 }
 
 function loadLocalItems() {
@@ -269,8 +269,8 @@ function ChecklistItem({ item, onToggle }) {
         )}
       </button>
       <div className="todo__item-body">
-        <span className="todo__item-text">{item.text}</span>
         {item.dueDate && <span className="todo__item-date">{formatDateDot(item.dueDate)}</span>}
+        <span className="todo__item-text">{item.text}</span>
       </div>
     </motion.li>
   );

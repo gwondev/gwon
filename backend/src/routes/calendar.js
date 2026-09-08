@@ -10,7 +10,7 @@ import {
 const router = Router();
 
 const INCOME_TYPES = ["ALBA", "WORK", "SCHOLARSHIP"];
-const APPOINTMENT_TYPES = ["MONEY", "DRINK"];
+const APPOINTMENT_TYPES = ["MONEY", "DRINK", "JOB"];
 const THEME_COLORS = [
   "red",
   "orange",
@@ -77,6 +77,7 @@ function publicEvent(row) {
       : null,
     appointmentType: row.appointment_type || null,
     isMajor: Boolean(row.is_major),
+    themeColor: row.theme_color || "red",
     sharedOwnerIds,
     sharedOwnerNames: row.sharedOwnerNames || [],
     createdBy: row.created_by,
@@ -417,8 +418,8 @@ async function insertEvent(conn, data) {
     `INSERT INTO calendar_events
      (owner_id, created_by, shared_owner_ids, series_id, series_start_date, series_end_date, series_span_days, series_repeat_weeks, series_weekdays,
       series_repeat_freq, series_repeat_interval, series_repeat_until,
-      appointment_type, is_major, location_name, location_lat, location_lng, title, description, event_date, start_time, end_time, income_type)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      appointment_type, is_major, theme_color, location_name, location_lat, location_lng, title, description, event_date, start_time, end_time, income_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.ownerId,
       data.actorId,
@@ -434,6 +435,7 @@ async function insertEvent(conn, data) {
       data.repeat?.until || null,
       data.appointmentType || null,
       data.isMajor ? 1 : 0,
+      data.themeColor || "red",
       data.locationName || null,
       data.locationLat ?? null,
       data.locationLng ?? null,
@@ -462,7 +464,7 @@ async function updateEventRow(conn, id, data) {
        owner_id = ?, shared_owner_ids = ?, series_id = ?,
        series_start_date = ?, series_end_date = ?, series_span_days = ?, series_repeat_weeks = ?, series_weekdays = ?,
        series_repeat_freq = ?, series_repeat_interval = ?, series_repeat_until = ?,
-       appointment_type = ?, is_major = ?, location_name = ?, location_lat = ?, location_lng = ?,
+       appointment_type = ?, is_major = ?, theme_color = ?, location_name = ?, location_lat = ?, location_lng = ?,
        title = ?, description = ?, event_date = ?, start_time = ?, end_time = ?, income_type = ?
      WHERE id = ?`,
     [
@@ -479,6 +481,7 @@ async function updateEventRow(conn, id, data) {
       data.repeat?.until || null,
       data.appointmentType || null,
       data.isMajor ? 1 : 0,
+      data.themeColor || "red",
       data.locationName || null,
       data.locationLat ?? null,
       data.locationLng ?? null,
@@ -968,6 +971,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const incomeType = body.incomeType ? String(body.incomeType).toUpperCase() : null;
     const appointmentType = body.appointmentType ? String(body.appointmentType).toUpperCase() : null;
     const isMajor = Boolean(body.isMajor);
+    const themeColor = body.themeColor ? String(body.themeColor).toLowerCase() : "red";
     const repeat = normalizeRepeat(body.repeat);
     const endDate = body.endDate ? toDateKey(body.endDate) : null;
     const location = parseLocationFields(body);
@@ -981,6 +985,9 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     }
     if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
       return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
+    }
+    if (!THEME_COLORS.includes(themeColor)) {
+      return res.status(400).json({ error: "themeColor 가 올바르지 않습니다." });
     }
     // 같은 날 시간 지정일 때만 순서 검증 (종료일이 다르면 종일/다일에 걸친 것으로 허용)
     if (!endDate && startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
@@ -1008,6 +1015,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
         incomeType,
         appointmentType,
         isMajor,
+        themeColor,
         endDate,
         repeat,
         ...location,
@@ -1068,6 +1076,9 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       ? (body.appointmentType ? String(body.appointmentType).toUpperCase() : null)
       : existing.appointment_type;
     const isMajor = body.isMajor !== undefined ? Boolean(body.isMajor) : Boolean(existing.is_major);
+    const themeColor = body.themeColor !== undefined
+      ? String(body.themeColor).toLowerCase()
+      : (existing.theme_color || "red");
     const repeat = body.repeat !== undefined
       ? normalizeRepeat(body.repeat)
       : (existing.series_repeat_freq
@@ -1097,6 +1108,9 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     }
     if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
       return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
+    }
+    if (!THEME_COLORS.includes(themeColor)) {
+      return res.status(400).json({ error: "themeColor 가 올바르지 않습니다." });
     }
     if (!endDate && !repeat && startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
       return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
@@ -1129,6 +1143,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       incomeType,
       appointmentType,
       isMajor,
+      themeColor,
       seriesId,
       seriesStartDate,
       seriesEndDate,
