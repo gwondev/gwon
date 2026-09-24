@@ -46,6 +46,7 @@ export default function ScheduleChecklist() {
   const { token, localMode } = useAuth();
   const [items, setItems] = useState([]);
   const [text, setText] = useState("");
+  const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState(todayKey());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -75,7 +76,14 @@ export default function ScheduleChecklist() {
     };
   }, [load]);
 
-  const activeItems = items.filter((it) => !it.done);
+  const activeItems = items
+    .filter((it) => !it.done)
+    .sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
   const doneItems = items
     .filter((it) => it.done)
     .sort((a, b) => new Date(b.doneAt || 0) - new Date(a.doneAt || 0));
@@ -90,6 +98,7 @@ export default function ScheduleChecklist() {
   const handleAdd = async (e) => {
     e.preventDefault();
     const trimmed = text.trim();
+    const trimmedDesc = description.trim();
     if (!trimmed) return;
     setBusy(true);
     setErr(null);
@@ -100,6 +109,7 @@ export default function ScheduleChecklist() {
           {
             id: `local-${Date.now()}`,
             text: trimmed,
+            description: trimmedDesc,
             dueDate: dueDate || null,
             done: false,
             doneAt: null,
@@ -111,16 +121,34 @@ export default function ScheduleChecklist() {
         const data = await api("/todos", {
           method: "POST",
           token,
-          body: { text: trimmed, dueDate: dueDate || null },
+          body: { text: trimmed, description: trimmedDesc, dueDate: dueDate || null },
         });
         setItems((prev) => [...prev, data.item]);
       }
       setText("");
+      setDescription("");
       scrollToBottom();
     } catch (e2) {
       setErr(e2.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const deleteItem = async (item) => {
+    if (localMode) {
+      const next = items.filter((it) => it.id !== item.id);
+      setItems(next);
+      saveLocalItems(next);
+      return;
+    }
+
+    setItems((prev) => prev.filter((it) => it.id !== item.id));
+    try {
+      await api(`/todos/${item.id}`, { method: "DELETE", token });
+    } catch (e) {
+      setErr(e.message);
+      await load();
     }
   };
 
@@ -180,6 +208,14 @@ export default function ScheduleChecklist() {
                   <li key={it.id} className="todo__done-item">
                     <span className="todo__done-item-text">{it.text}</span>
                     {it.dueDate && <span className="todo__done-item-date">{formatDateDot(it.dueDate)}</span>}
+                    <button
+                      type="button"
+                      className="todo__done-item-delete"
+                      onClick={() => deleteItem(it)}
+                      aria-label="완료 항목 삭제"
+                    >
+                      ✕
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -217,6 +253,14 @@ export default function ScheduleChecklist() {
           onChange={(e) => setText(e.target.value)}
           maxLength={500}
         />
+        <textarea
+          className="todo__add-desc"
+          placeholder="세부설명 (선택)"
+          rows={1}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={2000}
+        />
         <div className="todo__add-row">
           <input
             type="date"
@@ -241,6 +285,8 @@ function ChecklistItem({ item, onToggle }) {
     setChecking(true);
     setTimeout(() => onToggle(), 260);
   };
+
+  const hasDesc = Boolean(item.description && item.description.trim());
 
   return (
     <motion.li
@@ -272,6 +318,48 @@ function ChecklistItem({ item, onToggle }) {
         {item.dueDate && <span className="todo__item-date">{formatDateDot(item.dueDate)}</span>}
         <span className="todo__item-text">{item.text}</span>
       </div>
+      {hasDesc && <DetailButton description={item.description} />}
     </motion.li>
+  );
+}
+
+function DetailButton({ description }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open]);
+
+  return (
+    <div className="todo__detail" ref={wrapRef}>
+      <button
+        type="button"
+        className={`todo__detail-btn ${open ? "is-open" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-label="세부설명 보기"
+        aria-expanded={open}
+      >
+        i
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="todo__detail-pop"
+            initial={{ opacity: 0, scale: 0.94, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: -3, transition: { duration: 0.14 } }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {description}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

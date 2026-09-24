@@ -1,18 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import {
   dedupeEventsBySeries,
-  dedupeContinuousMajorEvents,
   effectiveEventTimes,
   eventSeriesKey,
   expandOccurrences,
-  filterTitle,
   isContinuousMultiDay,
-  ownerLabel,
-  eventTypePrefix,
-  formatEventDisplayTitle,
   normalizeWeekdays,
   WEEKDAY_LABELS,
   REPEAT_FREQS,
@@ -22,9 +25,9 @@ import {
 import {
   CALENDAR_THEME_COLORS,
   formatEventTime,
-  formatMajorEventDate,
   getThemeById,
 } from "../lib/calendarTheme";
+import { getDayInfo } from "../lib/holidays";
 import ScheduleChecklist from "./ScheduleChecklist";
 import "./ScheduleTab.css";
 
@@ -32,16 +35,12 @@ const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 const MOCK_OWNERS = [
   { id: 0, name: "이성권", nickname: "이성권", role: "SUPER_ADMIN", calendarThemeColor: "red" },
-  { id: 1, name: "이건영", nickname: "이건영", role: "ADMIN", calendarThemeColor: "orange" },
 ];
 
 const MOCK_EVENTS = [
   {
     id: 1,
     ownerId: 0,
-    sharedOwnerIds: [0],
-    sharedOwnerNames: ["이성권"],
-    ownerThemeColor: "red",
     title: "포트폴리오 점검",
     description: "",
     eventDate: new Date().toISOString().slice(0, 10),
@@ -52,22 +51,51 @@ const MOCK_EVENTS = [
   },
   {
     id: 2,
-    ownerId: 1,
-    sharedOwnerIds: [1],
-    sharedOwnerNames: ["이건영"],
-    ownerThemeColor: "orange",
+    ownerId: 0,
     title: "팀 미팅",
     description: "",
     eventDate: new Date().toISOString().slice(0, 10),
     startTime: "10:00",
     endTime: null,
-    incomeType: "WORK",
-    appointmentType: "MONEY",
-    isMajor: true,
+    incomeType: null,
+    appointmentType: "DATE",
   },
 ];
 
-const FILTER_STORAGE_KEY = "gwon.calendar.filter";
+const DEFAULT_KEYWORDS = [{ id: "DATE", emoji: "💕", label: "데이트", color: "pink" }];
+
+const KEYWORDS_STORAGE_KEY = "gwon.calendar.keywords";
+const EMOJI_HISTORY_STORAGE_KEY = "gwon.calendar.emojiHistory";
+
+const DEFAULT_EMOJI_HISTORY = [
+  "💰", "🍻", "🎓", "💕", "✈️", "🎉", "📚", "🏋️",
+  "🎮", "🎬", "🍽️", "☕", "🏠", "💼", "🩺", "🎂",
+  "🚗", "🛒", "📅", "⭐", "🎵", "🐶", "🌱", "🧘",
+];
+
+const KeywordsContext = createContext([]);
+
+function useKeywords() {
+  return useContext(KeywordsContext);
+}
+
+function resolveKeywordId(event) {
+  return event?.appointmentType || (event?.incomeType ? "MONEY" : "");
+}
+
+function keywordOf(keywords, id) {
+  return keywords.find((k) => k.id === id) || null;
+}
+
+function keywordBadge(keywords, id) {
+  const kw = keywordOf(keywords, id);
+  if (!kw) return "";
+  return kw.emoji ? `${kw.emoji} ${kw.label}` : kw.label;
+}
+
+function makeKeywordId() {
+  return `KW${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
+}
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -110,10 +138,9 @@ function buildMonthGrid(year, month) {
   return cells;
 }
 
-function blankForm(dateKey = "", ownerId = null) {
+function blankForm(dateKey = "") {
   const start = dateKey || "";
   return {
-    ownerIds: ownerId != null ? [ownerId] : [],
     title: "",
     description: "",
     eventDate: start,
@@ -122,7 +149,7 @@ function blankForm(dateKey = "", ownerId = null) {
     endTime: "18:00",
     endDate: start,
     appointmentType: "",
-    themeColor: "red",
+    themeColor: "gray",
     locationName: "",
     locationLat: null,
     locationLng: null,
@@ -131,7 +158,6 @@ function blankForm(dateKey = "", ownerId = null) {
     repeatInterval: 1,
     weekdays: [],
     repeatUntil: start,
-    isMajor: false,
   };
 }
 
@@ -140,7 +166,6 @@ function formFromEvent(ev) {
   const repeat = ev.repeat && ev.repeat.freq ? ev.repeat : null;
   const allDay = !ev.startTime;
   return {
-    ownerIds: ev.sharedOwnerIds?.length ? [...ev.sharedOwnerIds] : [ev.ownerId],
     title: ev.title || "",
     description: ev.description || "",
     eventDate: start,
@@ -149,7 +174,7 @@ function formFromEvent(ev) {
     endTime: ev.endTime || "18:00",
     endDate: repeat ? start : (ev.seriesEndDate || ev.eventDate || start),
     appointmentType: ev.appointmentType || (ev.incomeType ? "MONEY" : ""),
-    themeColor: ev.themeColor || "red",
+    themeColor: ev.themeColor || "gray",
     locationName: ev.locationName || "",
     locationLat: ev.locationLat ?? null,
     locationLng: ev.locationLng ?? null,
@@ -158,39 +183,26 @@ function formFromEvent(ev) {
     repeatInterval: repeat?.interval || 1,
     weekdays: normalizeWeekdays(repeat?.weekdays),
     repeatUntil: repeat?.until || ev.seriesEndDate || start,
-    isMajor: Boolean(ev.isMajor),
   };
 }
 
-function enrichEvent(ev, owners) {
-  const owner = owners.find((o) => o.id === ev.ownerId);
-  const sharedOwnerIds = ev.sharedOwnerIds?.length ? ev.sharedOwnerIds : [ev.ownerId];
-  const sharedOwnerNames = ev.sharedOwnerNames?.length
-    ? ev.sharedOwnerNames
-    : sharedOwnerIds
-      .map((id) => owners.find((o) => o.id === id))
-      .filter(Boolean)
-      .map((o) => ownerLabel(o));
+function enrichEvent(ev) {
   return {
     ...ev,
-    sharedOwnerIds,
-    sharedOwnerNames,
-    ownerThemeColor: owner?.calendarThemeColor || ev.ownerThemeColor || "red",
-    themeColor: ev.themeColor || "red",
-    ownerName: ev.ownerName || (owner ? ownerLabel(owner) : null),
+    themeColor: ev.themeColor || "gray",
   };
 }
 
 export default function ScheduleTab() {
-  const { user, token, localMode, isSuperAdmin, isCalendarAdmin } = useAuth();
+  const { user, token, localMode } = useAuth();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
   const [owners, setOwners] = useState([]);
-  const [selfId, setSelfId] = useState(user?.id);
-  const [selectedOwnerIds, setSelectedOwnerIds] = useState([]);
   const [events, setEvents] = useState([]);
-  const [themeColor, setThemeColor] = useState(user?.calendarThemeColor || null);
+  const [keywords, setKeywords] = useState(DEFAULT_KEYWORDS);
+  const [emojiHistory, setEmojiHistory] = useState(DEFAULT_EMOJI_HISTORY);
+  const [themeColor, setThemeColor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -198,8 +210,6 @@ export default function ScheduleTab() {
   const [dayOpen, setDayOpen] = useState(null);
   const [form, setForm] = useState(blankForm);
   const [busy, setBusy] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [majorPanelOpen, setMajorPanelOpen] = useState(false);
   const [monthDir, setMonthDir] = useState(0);
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedSeriesKeys, setSelectedSeriesKeys] = useState(() => new Set());
@@ -208,23 +218,13 @@ export default function ScheduleTab() {
   const theme = getThemeById(themeColor || "red");
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
 
-  const themeOwners = useMemo(() => {
-    const sid = selfId ?? user?.id;
-    if (isSuperAdmin) return owners;
-    return owners.filter((o) => o.id === sid);
-  }, [owners, selfId, user?.id, isSuperAdmin]);
+  // 이건 이성권 개인 캘린더다. 로그인한 관리자가 누구든 모든 일정은 항상 이 한 사람 것으로 저장한다.
+  const ownerId = useMemo(() => {
+    const superAdmin = owners.find((o) => o.role === "SUPER_ADMIN");
+    return superAdmin?.id ?? owners[0]?.id ?? user.id;
+  }, [owners, user.id]);
 
-  const displayEvents = useMemo(
-    () => events.map((e) => enrichEvent(e, owners)),
-    [events, owners]
-  );
-
-  const selectedOwners = useMemo(
-    () => owners.filter((o) => selectedOwnerIds.includes(o.id)),
-    [owners, selectedOwnerIds]
-  );
-
-  const headerTitle = useMemo(() => filterTitle(selectedOwners), [selectedOwners]);
+  const displayEvents = useMemo(() => events.map((e) => enrichEvent(e)), [events]);
 
   const eventsByDate = useMemo(() => {
     const map = {};
@@ -256,92 +256,94 @@ export default function ScheduleTab() {
   const loadOwners = useCallback(async () => {
     if (localMode) {
       setOwners(MOCK_OWNERS);
-      setSelfId(user.id);
       return MOCK_OWNERS;
     }
     const data = await api("/calendar/owners", { token });
     setOwners(data.items || []);
-    setSelfId(data.selfId);
     return data.items || [];
-  }, [token, localMode, user.id]);
+  }, [token, localMode]);
 
-  const loadFilter = useCallback(
-    async (ownerList, defaultSelfId) => {
+  const loadEvents = useCallback(async () => {
+    if (localMode) {
+      setEvents(MOCK_EVENTS.map((e) => enrichEvent(e)));
+      return;
+    }
+    const data = await api(
+      `/calendar/events?ownerIds=${ownerId}&year=${viewYear}&month=${viewMonth}`,
+      { token }
+    );
+    setEvents((data.items || []).map((e) => enrichEvent(e)));
+  }, [token, localMode, ownerId, viewYear, viewMonth]);
+
+  const loadKeywords = useCallback(async () => {
+    if (localMode) {
+      try {
+        const raw = localStorage.getItem(KEYWORDS_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        setKeywords(Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_KEYWORDS);
+      } catch {
+        setKeywords(DEFAULT_KEYWORDS);
+      }
+      return;
+    }
+    const data = await api("/calendar/keywords", { token });
+    setKeywords(data.items?.length ? data.items : DEFAULT_KEYWORDS);
+  }, [token, localMode]);
+
+  const saveKeywords = useCallback(
+    async (items) => {
+      setKeywords(items);
       if (localMode) {
-        try {
-          const raw = localStorage.getItem(FILTER_STORAGE_KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length) {
-              return parsed.filter((id) => ownerList.some((o) => o.id === id));
-            }
-          }
-        } catch {
-          /* ignore */
-        }
-        return ownerList.map((o) => o.id);
+        localStorage.setItem(KEYWORDS_STORAGE_KEY, JSON.stringify(items));
+        return;
       }
-
-      const data = await api("/calendar/filter", { token });
-      if (data.ownerIds?.length) {
-        return data.ownerIds.filter((id) => ownerList.some((o) => o.id === id));
-      }
-      return [defaultSelfId];
+      const data = await api("/calendar/keywords", {
+        method: "PUT",
+        token,
+        body: { items },
+      });
+      setKeywords(data.items || items);
     },
     [token, localMode]
   );
 
-  const saveFilter = useCallback(
-    async (ids) => {
-      if (localMode) {
-        localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(ids));
-        return;
+  const loadEmojiHistory = useCallback(async () => {
+    if (localMode) {
+      try {
+        const raw = localStorage.getItem(EMOJI_HISTORY_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        setEmojiHistory(Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_EMOJI_HISTORY);
+      } catch {
+        setEmojiHistory(DEFAULT_EMOJI_HISTORY);
       }
-      await api("/calendar/filter", {
-        method: "PUT",
-        token,
-        body: { ownerIds: ids },
+      return;
+    }
+    const data = await api("/calendar/emoji-history", { token });
+    setEmojiHistory(data.items?.length ? data.items : DEFAULT_EMOJI_HISTORY);
+  }, [token, localMode]);
+
+  const registerEmoji = useCallback(
+    (emoji) => {
+      const trimmed = (emoji || "").trim();
+      if (!trimmed) return;
+      setEmojiHistory((prev) => {
+        if (prev.includes(trimmed)) return prev;
+        const next = [...prev, trimmed];
+        if (localMode) {
+          localStorage.setItem(EMOJI_HISTORY_STORAGE_KEY, JSON.stringify(next));
+        } else {
+          api("/calendar/emoji-history", { method: "PUT", token, body: { items: next } }).catch(() => {});
+        }
+        return next;
       });
     },
     [token, localMode]
   );
 
-  const loadEvents = useCallback(async () => {
-    if (!selectedOwnerIds.length) {
-      setEvents([]);
-      return;
-    }
-    if (localMode) {
-      setEvents(
-        MOCK_EVENTS.filter((e) => selectedOwnerIds.includes(e.ownerId)).map((e) =>
-          enrichEvent(e, MOCK_OWNERS)
-        )
-      );
-      return;
-    }
-    const data = await api(
-      `/calendar/events?ownerIds=${selectedOwnerIds.join(",")}&year=${viewYear}&month=${viewMonth}`,
-      { token }
-    );
-    const items = data.items || [];
-    // 진단 로그: 캘린더가 비어 보일 때 원인 파악용 (브라우저 콘솔에서 확인)
-    console.log(
-      `[calendar] loadEvents ${viewYear}-${viewMonth} ` +
-        `selected=[${selectedOwnerIds.join(",")}] resolved=[${(data.ownerIds || []).join(",")}] ` +
-        `received=${items.length} dates=[${items.map((e) => e.eventDate).join(",")}]`
-    );
-    setEvents(items.map((e) => enrichEvent(e, owners)));
-  }, [token, localMode, selectedOwnerIds, viewYear, viewMonth, owners]);
-
   useEffect(() => {
-    if (!owners.length) return;
-    const sid = selfId ?? user.id;
-    const self = owners.find((o) => o.id === sid);
-    if (self) {
-      setThemeColor(self.calendarThemeColor || null);
-      if (!self.calendarThemeColor && isCalendarAdmin) setFilterOpen(true);
-    }
-  }, [owners, selfId, user.id, isCalendarAdmin]);
+    const owner = owners.find((o) => o.id === ownerId);
+    if (owner) setThemeColor(owner.calendarThemeColor || null);
+  }, [owners, ownerId]);
 
   useEffect(() => {
     let alive = true;
@@ -349,10 +351,7 @@ export default function ScheduleTab() {
       setLoading(true);
       setErr(null);
       try {
-        const ownerList = await loadOwners();
-        // 저장된 필터가 없으면 "달력을 보는 본인" 일정을 기본으로 보여준다.
-        const ids = await loadFilter(ownerList, user.id);
-        if (alive) setSelectedOwnerIds(ids.length ? ids : [user.id]);
+        await Promise.all([loadOwners(), loadKeywords(), loadEmojiHistory()]);
       } catch (e) {
         if (alive) setErr(e.message);
       } finally {
@@ -362,10 +361,10 @@ export default function ScheduleTab() {
     return () => {
       alive = false;
     };
-  }, [loadOwners, loadFilter, user.id]);
+  }, [loadOwners, loadKeywords, loadEmojiHistory]);
 
   useEffect(() => {
-    if (!selectedOwnerIds.length) return;
+    if (!ownerId) return;
     let alive = true;
     (async () => {
       setErr(null);
@@ -378,7 +377,7 @@ export default function ScheduleTab() {
     return () => {
       alive = false;
     };
-  }, [selectedOwnerIds, viewYear, viewMonth, loadEvents]);
+  }, [ownerId, viewYear, viewMonth, loadEvents]);
 
   const shiftMonth = (delta) => {
     setMonthDir(delta > 0 ? 1 : -1);
@@ -395,44 +394,9 @@ export default function ScheduleTab() {
     setViewYear(y);
   };
 
-  const toggleOwnerFilter = async (ownerId) => {
-    let next;
-    if (selectedOwnerIds.includes(ownerId)) {
-      if (selectedOwnerIds.length <= 1) return;
-      next = selectedOwnerIds.filter((id) => id !== ownerId);
-    } else {
-      next = [...selectedOwnerIds, ownerId].sort((a, b) => a - b);
-    }
-    setSelectedOwnerIds(next);
-    try {
-      await saveFilter(next);
-    } catch (e) {
-      setErr(e.message);
-    }
-  };
-
-  const saveTheme = async (ownerId, colorId) => {
-    const sid = selfId ?? user.id;
-    setOwners((prev) =>
-      prev.map((o) => (o.id === ownerId ? { ...o, calendarThemeColor: colorId } : o))
-    );
-    if (ownerId === sid) setThemeColor(colorId);
-    if (localMode) return;
-    try {
-      await api("/calendar/theme", {
-        method: "PUT",
-        token,
-        body: { themeColor: colorId, ownerId },
-      });
-    } catch (e) {
-      setErr(e.message);
-    }
-  };
-
   const openAdd = (dateKey) => {
-    const defaultOwner = selfId ?? user.id;
     setEditId(null);
-    setForm(blankForm(dateKey || toDateKey(today), defaultOwner));
+    setForm(blankForm(dateKey || toDateKey(today)));
     setAddOpen(true);
   };
 
@@ -485,9 +449,8 @@ export default function ScheduleTab() {
           endTime,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
-          themeColor: form.themeColor || "red",
-          isMajor: form.isMajor,
-          ownerIds: form.ownerIds,
+          themeColor: form.themeColor || "gray",
+          ownerIds: [ownerId],
           endDate,
           repeat,
         };
@@ -508,9 +471,8 @@ export default function ScheduleTab() {
           await loadEvents();
         }
       } else {
-        const ownerIds = form.ownerIds?.length ? form.ownerIds : [selfId];
         const payload = {
-          ownerIds,
+          ownerIds: [ownerId],
           title,
           description: form.description.trim(),
           eventDate: form.eventDate,
@@ -518,28 +480,20 @@ export default function ScheduleTab() {
           endTime,
           incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
           appointmentType: form.appointmentType || null,
-          themeColor: form.themeColor || "red",
-          isMajor: form.isMajor,
+          themeColor: form.themeColor || "gray",
           endDate,
           repeat,
         };
 
         if (localMode) {
           const dates = expandOccurrences({ startDate: form.eventDate, endDate, repeat });
-          const owner = owners.find((o) => o.id === ownerIds[0]) || owners[0];
-          const sharedOwners = owners.filter((o) => ownerIds.includes(o.id));
-          const sharedOwnerNames = sharedOwners.map((o) => ownerLabel(o));
           const seriesId = `local-${Date.now()}`;
           const seriesStartDate = dates[0];
           const seriesEndDate = dates[dates.length - 1];
           const items = dates.map((eventDate, i) => ({
             id: Date.now() + i,
-            ownerId: ownerIds[0],
-            sharedOwnerIds: ownerIds,
-            sharedOwnerNames,
-            ownerThemeColor: ownerIds.length > 1 ? "shared-gray" : (owner?.calendarThemeColor || "red"),
-            themeColor: form.themeColor || "red",
-            ownerName: owner ? ownerLabel(owner) : null,
+            ownerId,
+            themeColor: form.themeColor || "gray",
             seriesId,
             seriesStartDate,
             seriesEndDate,
@@ -553,7 +507,6 @@ export default function ScheduleTab() {
             endTime,
             incomeType: form.appointmentType === "MONEY" ? "WORK" : null,
             appointmentType: form.appointmentType || null,
-            isMajor: form.isMajor,
           }));
           setEvents((prev) => [...prev, ...items]);
         } else {
@@ -572,18 +525,6 @@ export default function ScheduleTab() {
       setBusy(false);
     }
   };
-
-  const canManageEvent = useCallback(
-    (ev) => {
-      if (!ev) return false;
-      const uid = selfId ?? user?.id;
-      if (ev.ownerId === uid) return true;
-      if (ev.sharedOwnerIds?.includes(uid)) return true;
-      if (isCalendarAdmin) return true;
-      return false;
-    },
-    [selfId, user?.id, isCalendarAdmin]
-  );
 
   const deleteEvent = async (id) => {
     if (!window.confirm("이 일정을 삭제할까요?")) return;
@@ -608,7 +549,6 @@ export default function ScheduleTab() {
   };
 
   const toggleSeriesSelection = (ev) => {
-    if (!canManageEvent(ev)) return;
     const key = eventSeriesKey(ev);
     setSelectedSeriesKeys((prev) => {
       const next = new Set(prev);
@@ -666,37 +606,12 @@ export default function ScheduleTab() {
   const monthLabel = `${viewYear}년 ${viewMonth}월`;
   const monthKey = `${viewYear}-${String(viewMonth).padStart(2, "0")}`;
   const todayKey = toDateKey(today);
-  const canPickOwner = isCalendarAdmin && owners.length > 1;
-  const canOpenOwnerPanel = canPickOwner || themeOwners.length > 0;
 
   return (
+    <KeywordsContext.Provider value={keywords}>
     <div className="schedule" style={{ "--cal-accent": theme.accent }}>
-      <AnimatePresence>
-        {majorPanelOpen && (
-          <MajorEventsPanel
-            todayKey={todayKey}
-            selectedOwnerIds={selectedOwnerIds}
-            owners={owners}
-            token={token}
-            localMode={localMode}
-            allEvents={displayEvents}
-            onEdit={openEdit}
-          />
-        )}
-      </AnimatePresence>
-
       <div className="schedule__layout">
       <div className="schedule__calendar-col">
-      <div className="schedule__calendar-toolbar">
-        <button
-          type="button"
-          className={`schedule__major-toggle ${majorPanelOpen ? "is-active" : ""}`}
-          onClick={() => setMajorPanelOpen((v) => !v)}
-          aria-expanded={majorPanelOpen}
-        >
-          주요일정 ★
-        </button>
-      </div>
       <div className="schedule__nav">
         <button type="button" className="schedule__nav-btn" onClick={() => shiftMonth(-1)} aria-label="이전 달">
           ‹
@@ -751,7 +666,9 @@ export default function ScheduleTab() {
                 const key = toDateKey(date);
                 const dayEvents = eventsByDate[key] || [];
                 const isToday = key === todayKey;
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const isSunday = date.getDay() === 0;
+                const isSaturday = date.getDay() === 6;
+                const isWeekend = isSunday || isSaturday;
 
                 return (
                   <DayCell
@@ -760,11 +677,12 @@ export default function ScheduleTab() {
                     events={dayEvents}
                     isToday={isToday}
                     isWeekend={isWeekend}
+                    isSunday={isSunday}
+                    isSaturday={isSaturday}
                     dateKey={key}
                     seriesDateSet={seriesDateSet}
                     deleteMode={deleteMode}
                     selectedSeriesKeys={selectedSeriesKeys}
-                    canManageEvent={canManageEvent}
                     onToggleSelect={toggleSeriesSelection}
                     onOpenDay={() => {
                       if (deleteMode) return;
@@ -790,11 +708,12 @@ export default function ScheduleTab() {
             setForm={setForm}
             busy={busy}
             isEdit={editId != null}
-            owners={owners}
-            canPickOwner={canPickOwner}
             onClose={closeModal}
             onSubmit={submitEvent}
             onDelete={editId != null ? () => deleteEvent(editId) : null}
+            onSaveKeywords={saveKeywords}
+            emojiHistory={emojiHistory}
+            onUseEmoji={registerEmoji}
           />
         )}
       </AnimatePresence>
@@ -804,8 +723,6 @@ export default function ScheduleTab() {
           <DayModal
             dateKey={dayOpen.dateKey}
             events={dayOpen.events}
-            owners={owners}
-            selectedOwners={selectedOwners}
             onClose={() => setDayOpen(null)}
             onEdit={openEdit}
             onDelete={deleteEvent}
@@ -817,354 +734,16 @@ export default function ScheduleTab() {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-const MAJOR_PAGE_SIZE = 25;
-
-function mergeUniqueEvents(existing, incoming) {
-  const seen = new Set(existing.map((e) => (isContinuousMultiDay(e) ? eventSeriesKey(e) : e.id)));
-  const next = [...existing];
-  for (const ev of incoming) {
-    const key = isContinuousMultiDay(ev) ? eventSeriesKey(ev) : ev.id;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    next.push(ev);
-  }
-  return next;
-}
-
-function prependUniqueEvents(existing, incoming) {
-  const seen = new Set(existing.map((e) => (isContinuousMultiDay(e) ? eventSeriesKey(e) : e.id)));
-  const added = [];
-  for (const ev of incoming) {
-    const key = isContinuousMultiDay(ev) ? eventSeriesKey(ev) : ev.id;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    added.push(ev);
-  }
-  return [...added, ...existing];
-}
-
-function majorSortDate(ev) {
-  if (isContinuousMultiDay(ev)) return ev.seriesStartDate || ev.eventDate;
-  return ev.eventDate;
-}
-
-function majorEndDate(ev) {
-  if (isContinuousMultiDay(ev)) return ev.seriesEndDate || ev.eventDate;
-  return ev.eventDate;
-}
-
-function loadMajorPageLocal(direction, cursor, limit, source, todayKey) {
-  // 연속 다일은 시리즈 시작 행만 대표로 둔다.
-  const major = dedupeContinuousMajorEvents(
-    source.filter((e) => e.isMajor).filter((e) => {
-      if (!isContinuousMultiDay(e)) return true;
-      return e.eventDate === (e.seriesStartDate || e.eventDate);
-    })
-  );
-  let batch = [];
-
-  if (direction === "past") {
-    const beforeDate = cursor?.date || todayKey;
-    const beforeId = cursor?.id ?? Number.MAX_SAFE_INTEGER;
-    batch = major
-      .filter((e) => {
-        const end = majorEndDate(e);
-        if (end < beforeDate) return true;
-        if (end === beforeDate && !isContinuousMultiDay(e) && e.id < beforeId) return true;
-        return false;
-      })
-      .sort((a, b) => {
-        const da = majorEndDate(a);
-        const db = majorEndDate(b);
-        if (da !== db) return db.localeCompare(da);
-        return b.id - a.id;
-      })
-      .slice(0, limit)
-      .reverse();
-  } else {
-    batch = major
-      .filter((e) => {
-        const start = majorSortDate(e);
-        const end = majorEndDate(e);
-        if (!cursor) return end >= todayKey;
-        if (isContinuousMultiDay(e)) {
-          return start > cursor.date || (start === cursor.date && e.id > cursor.id);
-        }
-        return e.eventDate > cursor.date || (e.eventDate === cursor.date && e.id > cursor.id);
-      })
-      .sort((a, b) => {
-        const da = majorSortDate(a);
-        const db = majorSortDate(b);
-        if (da !== db) return da.localeCompare(db);
-        return a.id - b.id;
-      })
-      .slice(0, limit);
-  }
-
-  const edge = batch.length
-    ? direction === "past"
-      ? batch[0]
-      : batch[batch.length - 1]
-    : null;
-
-  return {
-    items: batch,
-    hasMore: batch.length === limit,
-    nextCursor: edge ? { date: majorSortDate(edge), id: edge.id } : null,
-  };
-}
-
-function MajorEventsPanel({ todayKey, selectedOwnerIds, owners, token, localMode, allEvents, onEdit }) {
-  const [pastItems, setPastItems] = useState([]);
-  const [futureItems, setFutureItems] = useState([]);
-  const [pastHasMore, setPastHasMore] = useState(true);
-  const [futureHasMore, setFutureHasMore] = useState(true);
-  const [ready, setReady] = useState(false);
-  const listRef = useRef(null);
-  const dividerRef = useRef(null);
-  const pastCursorRef = useRef(null);
-  const futureCursorRef = useRef(null);
-  const loadingPastRef = useRef(false);
-  const loadingFutureRef = useRef(false);
-  const pastHasMoreRef = useRef(true);
-  const futureHasMoreRef = useRef(true);
-  const ownerKey = selectedOwnerIds.join(",");
-
-  useEffect(() => {
-    pastHasMoreRef.current = pastHasMore;
-  }, [pastHasMore]);
-
-  useEffect(() => {
-    futureHasMoreRef.current = futureHasMore;
-  }, [futureHasMore]);
-
-  const enrichList = useCallback(
-    (items) => items.map((e) => enrichEvent(e, owners)),
-    [owners]
-  );
-
-  const loadPast = useCallback(
-    async (initial = false) => {
-      if (!selectedOwnerIds.length || loadingPastRef.current) return;
-      if (!initial && !pastHasMoreRef.current) return;
-
-      loadingPastRef.current = true;
-      try {
-        let data;
-        if (localMode) {
-          data = loadMajorPageLocal(
-            "past",
-            initial ? null : pastCursorRef.current,
-            MAJOR_PAGE_SIZE,
-            allEvents,
-            todayKey
-          );
-        } else {
-          const params = new URLSearchParams({
-            ownerIds: ownerKey,
-            direction: "past",
-            limit: String(MAJOR_PAGE_SIZE),
-          });
-          if (initial) {
-            params.set("beforeDate", todayKey);
-          } else if (pastCursorRef.current) {
-            params.set("beforeDate", pastCursorRef.current.date);
-            params.set("beforeId", String(pastCursorRef.current.id));
-          } else {
-            params.set("beforeDate", todayKey);
-          }
-          data = await api(`/calendar/major-events?${params}`, { token });
-        }
-
-        const batch = enrichList(
-          dedupeContinuousMajorEvents((data.items || []).slice().reverse())
-        );
-        pastCursorRef.current = data.nextCursor || null;
-        setPastHasMore(Boolean(data.hasMore));
-
-        const listEl = listRef.current;
-        const prevHeight = listEl?.scrollHeight || 0;
-
-        setPastItems((prev) => (initial ? batch : prependUniqueEvents(prev, batch)));
-
-        if (!initial && listEl) {
-          requestAnimationFrame(() => {
-            listEl.scrollTop += listEl.scrollHeight - prevHeight;
-          });
-        }
-      } catch {
-        setPastHasMore(false);
-      } finally {
-        loadingPastRef.current = false;
-      }
-    },
-    [selectedOwnerIds.length, localMode, allEvents, todayKey, ownerKey, token, enrichList]
-  );
-
-  const loadFuture = useCallback(
-    async (initial = false) => {
-      if (!selectedOwnerIds.length || loadingFutureRef.current) return;
-      if (!initial && !futureHasMoreRef.current) return;
-
-      loadingFutureRef.current = true;
-      try {
-        let data;
-        if (localMode) {
-          data = loadMajorPageLocal(
-            "future",
-            initial ? null : futureCursorRef.current,
-            MAJOR_PAGE_SIZE,
-            allEvents,
-            todayKey
-          );
-        } else {
-          const params = new URLSearchParams({
-            ownerIds: ownerKey,
-            direction: "future",
-            limit: String(MAJOR_PAGE_SIZE),
-          });
-          if (initial) {
-            params.set("fromDate", todayKey);
-          } else if (futureCursorRef.current) {
-            params.set("afterDate", futureCursorRef.current.date);
-            params.set("afterId", String(futureCursorRef.current.id));
-          } else {
-            params.set("fromDate", todayKey);
-          }
-          data = await api(`/calendar/major-events?${params}`, { token });
-        }
-
-        const batch = enrichList(dedupeContinuousMajorEvents(data.items || []));
-        futureCursorRef.current = data.nextCursor || null;
-        setFutureHasMore(Boolean(data.hasMore));
-        setFutureItems((prev) => (initial ? batch : mergeUniqueEvents(prev, batch)));
-      } catch {
-        setFutureHasMore(false);
-      } finally {
-        loadingFutureRef.current = false;
-      }
-    },
-    [selectedOwnerIds.length, localMode, allEvents, todayKey, ownerKey, token, enrichList]
-  );
-
-  useEffect(() => {
-    pastCursorRef.current = null;
-    futureCursorRef.current = null;
-    pastHasMoreRef.current = true;
-    futureHasMoreRef.current = true;
-    setPastItems([]);
-    setFutureItems([]);
-    setPastHasMore(true);
-    setFutureHasMore(true);
-    setReady(false);
-
-    if (!selectedOwnerIds.length) {
-      setReady(true);
-      return;
-    }
-
-    let alive = true;
-    (async () => {
-      await Promise.all([loadPast(true), loadFuture(true)]);
-      if (alive) setReady(true);
-    })();
-
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 패널 열릴 때만 초기 로드
-  }, [todayKey, ownerKey, localMode]);
-
-  useLayoutEffect(() => {
-    if (!ready || !listRef.current || !dividerRef.current) return;
-    const list = listRef.current;
-    const divider = dividerRef.current;
-    list.scrollTop = Math.max(0, divider.offsetTop - list.clientHeight * 0.38);
-  }, [ready]);
-
-  const handleScroll = () => {
-    const el = listRef.current;
-    if (!el) return;
-    if (el.scrollTop < 72 && pastHasMore) loadPast(false);
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 72 && futureHasMore) loadFuture(false);
-  };
-
-  const hasAny = pastItems.length > 0 || futureItems.length > 0;
-
-  return (
-    <motion.div
-      className="schedule__major-panel"
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: "auto", opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
-    >
-      <p className="schedule__major-label">오늘 기준 주요일정 · 위로 지난 일정 · 아래로 다가오는 일정</p>
-      {!selectedOwnerIds.length ? (
-        <p className="schedule__major-empty">보기 대상을 선택해주세요.</p>
-      ) : !ready ? (
-        <p className="schedule__major-empty">불러오는 중…</p>
-      ) : !hasAny ? (
-        <p className="schedule__major-empty">등록된 주요일정이 없습니다.</p>
-      ) : (
-        <div className="schedule__major-list" ref={listRef} onScroll={handleScroll}>
-          {pastHasMore && (
-            <p className="schedule__major-scroll-hint schedule__major-scroll-hint--top">↑ 더 불러오기</p>
-          )}
-          {pastItems.map((ev) => (
-            <button
-              key={`major-past-${eventSeriesKey(ev)}`}
-              type="button"
-              className="schedule__major-item is-past"
-              onClick={() => onEdit(ev)}
-            >
-              <span className="schedule__major-item-date">{formatMajorEventDate(ev)}</span>
-              <span className="schedule__major-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
-              <span className="schedule__major-item-title">
-                <EventTitleDisplay event={ev} />
-              </span>
-              <span className="schedule__major-item-time">{formatEventTime(ev, { continuousSpan: true })}</span>
-            </button>
-          ))}
-          <div className="schedule__major-divider" ref={dividerRef}>
-            <span>오늘 {formatDateDot(todayKey)}</span>
-          </div>
-          {futureItems.length === 0 ? (
-            <p className="schedule__major-empty schedule__major-empty--inline">남은 주요일정이 없습니다.</p>
-          ) : (
-            futureItems.map((ev) => (
-              <button
-                key={`major-future-${eventSeriesKey(ev)}`}
-                type="button"
-                className="schedule__major-item"
-                onClick={() => onEdit(ev)}
-              >
-                <span className="schedule__major-item-date">{formatMajorEventDate(ev)}</span>
-                <span className="schedule__major-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
-                <span className="schedule__major-item-title">
-                  <EventTitleDisplay event={ev} />
-                </span>
-                <span className="schedule__major-item-time">{formatEventTime(ev, { continuousSpan: true })}</span>
-              </button>
-            ))
-          )}
-          {futureHasMore && (
-            <p className="schedule__major-scroll-hint schedule__major-scroll-hint--bottom">↓ 더 불러오기</p>
-          )}
-        </div>
-      )}
-    </motion.div>
+    </KeywordsContext.Provider>
   );
 }
 
 function EventTitleDisplay({ event, className = "" }) {
-  const typePrefix = eventTypePrefix(event);
+  const keywords = useKeywords();
+  const kw = keywordOf(keywords, resolveKeywordId(event));
   return (
     <span className={className}>
-      {event.isMajor && <span className="schedule__event-star">★ </span>}
-      {typePrefix}
+      {kw?.emoji && <span className="schedule__title-emoji">{kw.emoji}</span>}
       {event.title}
     </span>
   );
@@ -1181,7 +760,8 @@ function EventBubble({
   selected,
   selectable,
 }) {
-  const bubbleTheme = getThemeById(event.themeColor || event.ownerThemeColor || "red");
+  const keywords = useKeywords();
+  const bubbleTheme = getThemeById(eventThemeColorId(event, keywords));
   const isAllDay = !event.startTime;
   const showCheck = deleteMode && selectable && showLabel;
   return (
@@ -1214,33 +794,53 @@ function DayCell({
   events,
   isToday,
   isWeekend,
+  isSunday,
+  isSaturday,
   onOpenDay,
   seriesDateSet,
   deleteMode,
   selectedSeriesKeys,
-  canManageEvent,
   onToggleSelect,
 }) {
   const maxVisible = 4;
   const uniqueEvents = dedupeEventsBySeries(events);
   const visible = uniqueEvents.slice(0, maxVisible);
   const hiddenCount = Math.max(0, uniqueEvents.length - maxVisible);
+  const { holidayNames, minorNames } = getDayInfo(dateKey);
+  const isHolidayDay = holidayNames.length > 0;
+  const holidayLabel = holidayNames.join(", ");
+  const minorLabel = minorNames.join(", ");
 
   return (
     <button
       type="button"
       className={`schedule__cell ${isToday ? "is-today" : ""} ${isWeekend ? "is-weekend" : ""} ${deleteMode ? "is-delete-mode" : ""}`}
       onClick={onOpenDay}
-      aria-label={`${date.getDate()}일`}
+      aria-label={`${date.getDate()}일${holidayLabel ? `, ${holidayLabel}` : ""}`}
     >
-      <span className="schedule__day-num">{date.getDate()}</span>
+      <div className="schedule__day-row">
+        <span
+          className={`schedule__day-num ${isSunday ? "is-sunday" : ""} ${isSaturday ? "is-saturday" : ""} ${isHolidayDay ? "is-holiday" : ""}`}
+        >
+          {date.getDate()}
+        </span>
+        {holidayLabel && (
+          <span className="schedule__day-label schedule__day-label--holiday" title={holidayLabel}>
+            {holidayLabel}
+          </span>
+        )}
+        {!holidayLabel && minorLabel && (
+          <span className="schedule__day-label schedule__day-label--minor" title={minorLabel}>
+            {minorLabel}
+          </span>
+        )}
+      </div>
       <div className="schedule__bubbles">
         {visible.map((ev) => {
           const seriesKey = eventSeriesKey(ev);
           const isDiscrete = !!ev.repeat?.freq;
           const prev = !isDiscrete && seriesDateSet.has(`${seriesKey}::${shiftDateKey(dateKey, -1)}`);
           const next = !isDiscrete && seriesDateSet.has(`${seriesKey}::${shiftDateKey(dateKey, 1)}`);
-          const selectable = canManageEvent(ev);
           const selected = selectedSeriesKeys.has(seriesKey);
           // 띠가 이어지는 중간 칸에서는 라벨을 숨기고, 주(週)의 첫 칸(일요일)에서만 다시 보여준다.
           const showLabel = isDiscrete ? true : (!prev || date.getDay() === 0);
@@ -1254,11 +854,11 @@ function DayCell({
               connectedNext={next}
               deleteMode={deleteMode}
               selected={selected}
-              selectable={selectable}
+              selectable
               onClick={(e) => {
                 e.stopPropagation();
                 if (deleteMode) {
-                  if (selectable) onToggleSelect(ev);
+                  onToggleSelect(ev);
                   return;
                 }
                 onOpenDay();
@@ -1453,19 +1053,267 @@ function TimeSelect({ value, onChange }) {
   );
 }
 
+function KeywordColorPopup({ color, onPick }) {
+  const isHex = /^#/.test(color || "");
+  return (
+    <motion.div
+      className="schedule__kw-colorpop"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+    >
+      <div className="schedule__kw-colorpop-swatches">
+        <button
+          type="button"
+          className={`schedule__kw-manager-nocolor ${!color ? "is-active" : ""}`}
+          onClick={() => onPick(null)}
+          title="색 지정 안 함"
+          aria-label="색 지정 안 함"
+        />
+        {CALENDAR_THEME_COLORS.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={`schedule__swatch schedule__swatch--sm ${color === c.id ? "is-active" : ""}`}
+            style={{ "--swatch": c.accent }}
+            onClick={() => onPick(c.id)}
+            title={c.label}
+            aria-label={c.label}
+          />
+        ))}
+      </div>
+      <label className="schedule__kw-colorpop-custom">
+        <input
+          type="color"
+          value={isHex ? color : "#888888"}
+          onChange={(e) => onPick(e.target.value)}
+        />
+        <span>직접 고르기</span>
+      </label>
+    </motion.div>
+  );
+}
+
+function EmojiPickerPopup({ emoji, emojiHistory, onPick }) {
+  const [customEmoji, setCustomEmoji] = useState("");
+
+  const applyCustom = () => {
+    const v = customEmoji.trim();
+    if (!v) return;
+    onPick(v);
+    setCustomEmoji("");
+  };
+
+  return (
+    <motion.div
+      className="schedule__kw-emojipop"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+    >
+      <div className="schedule__kw-emojipop-custom">
+        <input
+          type="text"
+          value={customEmoji}
+          onChange={(e) => setCustomEmoji(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              applyCustom();
+            }
+          }}
+          placeholder="이모지를 직접 입력"
+          maxLength={8}
+        />
+        <button type="button" onClick={applyCustom} disabled={!customEmoji.trim()}>
+          적용
+        </button>
+      </div>
+      <p className="schedule__kw-emojipop-label">이모지 목록</p>
+      <div className="schedule__kw-emojipop-grid">
+        {emojiHistory.map((e, i) => (
+          <button
+            key={`${e}-${i}`}
+            type="button"
+            className={`schedule__kw-emoji-opt ${emoji === e ? "is-active" : ""}`}
+            onClick={() => onPick(e)}
+          >
+            {e}
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function KeywordEditRow({ keyword, emojiHistory, onUseEmoji, onDone, onCancel, onDelete }) {
+  const [draft, setDraft] = useState(keyword);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+  const colorTheme = draft.color ? getThemeById(draft.color) : null;
+
+  const handleConfirm = async () => {
+    const label = draft.label.trim();
+    if (!label) {
+      setErr("키워드 이름을 입력해주세요.");
+      return;
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      await onDone({ ...draft, label, emoji: draft.emoji.trim() });
+    } catch (e) {
+      setErr(e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="schedule__kw-edit-row"
+      onKeyDown={(e) => {
+        // 이 편집 UI는 상위 일정 등록 <form> 안에 있으므로, Enter 로 그 폼이
+        // 실수로 제출/닫히지 않게 막는다.
+        if (e.key === "Enter") e.preventDefault();
+      }}
+    >
+      <div className="schedule__kw-edit-main">
+        <button
+          type="button"
+          className="schedule__kw-edit-emoji-btn"
+          onClick={() => {
+            setEmojiOpen((v) => !v);
+            setColorOpen(false);
+          }}
+        >
+          {draft.emoji || "🙂"}
+        </button>
+        <input
+          className="schedule__kw-edit-label"
+          value={draft.label}
+          onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
+          placeholder="키워드 이름을 입력하세요"
+          maxLength={60}
+          autoFocus
+        />
+        <button
+          type="button"
+          className="schedule__kw-edit-color-btn"
+          onClick={() => {
+            setColorOpen((v) => !v);
+            setEmojiOpen(false);
+          }}
+        >
+          <span
+            className="schedule__kw-edit-color-dot"
+            style={{ background: colorTheme ? colorTheme.accent : "transparent" }}
+            aria-hidden
+          />
+          색
+        </button>
+        <button
+          type="button"
+          className="schedule__kw-edit-remove"
+          onClick={onDelete}
+          aria-label="키워드 삭제"
+        >
+          ✕
+        </button>
+      </div>
+      <AnimatePresence initial={false}>
+        {emojiOpen && (
+          <EmojiPickerPopup
+            emoji={draft.emoji}
+            emojiHistory={emojiHistory}
+            onPick={(e) => {
+              setDraft((d) => ({ ...d, emoji: e }));
+              setEmojiOpen(false);
+              onUseEmoji?.(e);
+            }}
+          />
+        )}
+        {colorOpen && (
+          <KeywordColorPopup
+            color={draft.color}
+            onPick={(c) => {
+              setDraft((d) => ({ ...d, color: c }));
+              setColorOpen(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+      {err && <p className="schedule__err-inline">{err}</p>}
+      <div className="schedule__kw-edit-actions">
+        <button type="button" className="schedule__kw-edit-cancel" onClick={onCancel}>
+          취소
+        </button>
+        <button
+          type="button"
+          className="btn btn-accent schedule__kw-edit-confirm"
+          onClick={handleConfirm}
+          disabled={saving}
+        >
+          {saving ? "저장 중…" : "완료"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EventModal({
   title,
   form,
   setForm,
   busy,
   isEdit,
-  owners,
-  canPickOwner,
   onClose,
   onSubmit,
   onDelete,
+  onSaveKeywords,
+  emojiHistory,
+  onUseEmoji,
 }) {
+  const keywords = useKeywords();
+  const [kwManageOpen, setKwManageOpen] = useState(false);
+  const [editingKwId, setEditingKwId] = useState(null);
+  const [pendingNewKw, setPendingNewKw] = useState(null);
   const isWeekly = form.repeatFreq === "weekly";
+
+  const startEditKeyword = (id) => {
+    setPendingNewKw(null);
+    setEditingKwId(id);
+  };
+
+  const cancelEditKeyword = () => {
+    setEditingKwId(null);
+    setPendingNewKw(null);
+  };
+
+  const startAddKeyword = () => {
+    const draft = { id: makeKeywordId(), emoji: "", label: "", color: null };
+    setPendingNewKw(draft);
+    setEditingKwId(draft.id);
+  };
+
+  const confirmEditKeyword = async (updated) => {
+    const exists = keywords.some((k) => k.id === updated.id);
+    const next = exists
+      ? keywords.map((k) => (k.id === updated.id ? updated : k))
+      : [...keywords, updated];
+    await onSaveKeywords(next);
+    setEditingKwId(null);
+    setPendingNewKw(null);
+  };
+
+  const deleteKeyword = async (id) => {
+    const next = keywords.filter((k) => k.id !== id);
+    await onSaveKeywords(next);
+    setEditingKwId(null);
+    setPendingNewKw(null);
+    setForm((f) => (f.appointmentType === id ? { ...f, appointmentType: "" } : f));
+  };
 
   const toggleAllDay = useCallback(() => {
     setForm((f) => ({ ...f, allDay: !f.allDay }));
@@ -1540,48 +1388,6 @@ function EventModal({
           </button>
         </div>
         <form className="schedule__form" onSubmit={onSubmit}>
-          {canPickOwner && (
-            <div className="field">
-              <label>명의 (공동명의 가능)</label>
-              <div className="schedule__coowners-selected">
-                {form.ownerIds.map((id) => {
-                  const owner = owners.find((o) => o.id === id);
-                  if (!owner) return null;
-                  return (
-                    <span key={id} className="schedule__coowner-pill">
-                      {ownerLabel(owner)}
-                    </span>
-                  );
-                })}
-              </div>
-              <div className="schedule__coowners-buttons">
-                {owners.map((o) => {
-                  const active = form.ownerIds.includes(o.id);
-                  return (
-                    <button
-                      key={o.id}
-                      type="button"
-                      className={`schedule__coowner-btn ${active ? "is-active" : ""}`}
-                      onClick={() =>
-                        setForm((f) => {
-                          const has = f.ownerIds.includes(o.id);
-                          if (has && f.ownerIds.length === 1) return f;
-                          const next = has
-                            ? f.ownerIds.filter((id) => id !== o.id)
-                            : [...f.ownerIds, o.id];
-                          return { ...f, ownerIds: next };
-                        })
-                      }
-                    >
-                      {active ? "✓ " : "+ "}
-                      {ownerLabel(o)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           <div className="field">
             <label htmlFor="ev-title">일정명</label>
             <input
@@ -1764,77 +1570,80 @@ function EventModal({
           </AnimatePresence>
 
           <div className="field">
-            <label>세부사항 선택</label>
+            <div className="schedule__field-head">
+              <label>키워드 선택</label>
+              <button
+                type="button"
+                className={`schedule__kw-manage-toggle ${kwManageOpen ? "is-active" : ""}`}
+                onClick={() => {
+                  setKwManageOpen((v) => !v);
+                  cancelEditKeyword();
+                }}
+              >
+                {kwManageOpen ? "완료" : "키워드 관리"}
+              </button>
+            </div>
             <div className="schedule__detail-choice">
-              <button
-                type="button"
-                className={`schedule__detail-btn ${form.appointmentType === "MONEY" ? "is-active" : ""}`}
-                onClick={() =>
-                  setForm((f) => ({
-                    ...f,
-                    appointmentType: f.appointmentType === "MONEY" ? "" : "MONEY",
-                  }))
-                }
-              >
-                돈을 벌러가나요?
-              </button>
-              <button
-                type="button"
-                className={`schedule__detail-btn ${form.appointmentType === "DRINK" ? "is-active" : ""}`}
-                onClick={() =>
-                  setForm((f) => ({
-                    ...f,
-                    appointmentType: f.appointmentType === "DRINK" ? "" : "DRINK",
-                  }))
-                }
-              >
-                술약속인가요?
-              </button>
-              <button
-                type="button"
-                className={`schedule__detail-btn schedule__detail-btn--job ${form.appointmentType === "JOB" ? "is-active" : ""}`}
-                onClick={() =>
-                  setForm((f) => {
-                    const next = f.appointmentType === "JOB" ? "" : "JOB";
-                    return {
-                      ...f,
-                      appointmentType: next,
-                      themeColor: next === "JOB" ? "green" : f.themeColor,
-                    };
-                  })
-                }
-              >
-                자격증시험, 필기시험, 면접과 같이 취업과 직결된 무언가인가요?
-              </button>
-            </div>
-          </div>
-
-          <div className="field">
-            <label>일정 색</label>
-            <div className="schedule__theme-swatches">
-              {CALENDAR_THEME_COLORS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`schedule__swatch ${form.themeColor === c.id ? "is-active" : ""}`}
-                  style={{ "--swatch": c.accent }}
-                  onClick={() => setForm((f) => ({ ...f, themeColor: c.id }))}
-                  title={c.label}
-                  aria-label={c.label}
+              {keywords.length === 0 && !pendingNewKw && (
+                <p className="schedule__hint">등록된 키워드가 없습니다. "키워드 관리"에서 추가해보세요.</p>
+              )}
+              {keywords.map((k) =>
+                kwManageOpen && editingKwId === k.id ? (
+                  <KeywordEditRow
+                    key={k.id}
+                    keyword={k}
+                    emojiHistory={emojiHistory}
+                    onUseEmoji={onUseEmoji}
+                    onDone={confirmEditKeyword}
+                    onCancel={cancelEditKeyword}
+                    onDelete={() => deleteKeyword(k.id)}
+                  />
+                ) : (
+                  <button
+                    key={k.id}
+                    type="button"
+                    className={`schedule__detail-btn ${form.appointmentType === k.id ? "is-active" : ""}`}
+                    style={
+                      form.appointmentType === k.id && k.color
+                        ? { "--detail-accent": getThemeById(k.color).accent }
+                        : undefined
+                    }
+                    onClick={() => {
+                      if (kwManageOpen) {
+                        startEditKeyword(k.id);
+                        return;
+                      }
+                      setForm((f) => {
+                        const turningOn = f.appointmentType !== k.id;
+                        return {
+                          ...f,
+                          appointmentType: turningOn ? k.id : "",
+                          themeColor: turningOn && k.color ? k.color : f.themeColor,
+                        };
+                      });
+                    }}
+                  >
+                    {k.emoji ? `${k.emoji} ` : ""}
+                    {k.label}
+                  </button>
+                )
+              )}
+              {pendingNewKw && (
+                <KeywordEditRow
+                  keyword={pendingNewKw}
+                  emojiHistory={emojiHistory}
+                  onUseEmoji={onUseEmoji}
+                  onDone={confirmEditKeyword}
+                  onCancel={cancelEditKeyword}
+                  onDelete={cancelEditKeyword}
                 />
-              ))}
+              )}
+              {kwManageOpen && !pendingNewKw && (
+                <button type="button" className="schedule__kw-add-btn" onClick={startAddKeyword}>
+                  + 새 키워드
+                </button>
+              )}
             </div>
-          </div>
-
-          <div className="field schedule__major-field">
-            <label className="schedule__major-check">
-              <input
-                type="checkbox"
-                checked={form.isMajor}
-                onChange={(e) => setForm((f) => ({ ...f, isMajor: e.target.checked }))}
-              />
-              <span>주요일정</span>
-            </label>
           </div>
 
           <div className="schedule__modal-actions">
@@ -1856,12 +1665,15 @@ function EventModal({
   );
 }
 
-function eventIsShared(ev) {
-  return (ev.sharedOwnerIds?.length || 1) > 1;
+// 키워드에 색이 지정돼 있으면 그 색이 우선한다(키워드 색 변경 시 연결된 모든 일정에 즉시 반영).
+// 키워드가 없거나 색이 지정 안 된 키워드면, 그 일정에 저장된 색(themeColor)으로 대체한다.
+function eventThemeColorId(ev, keywords) {
+  const kw = keywordOf(keywords, resolveKeywordId(ev));
+  return kw?.color || ev.themeColor || "gray";
 }
 
-function eventAccent(ev) {
-  return getThemeById(ev.themeColor || ev.ownerThemeColor || "red").accent;
+function eventAccent(ev, keywords) {
+  return getThemeById(eventThemeColorId(ev, keywords)).accent;
 }
 
 function sortDayEvents(list) {
@@ -1873,46 +1685,12 @@ function sortDayEvents(list) {
   });
 }
 
-// 하루 일정을 공통(공동명의) / 개인별로 나눈다.
-function buildDayColumns(events, selectedOwners) {
-  const shared = [];
-  const soloByOwner = new Map();
-  for (const ev of events) {
-    if (eventIsShared(ev)) {
-      shared.push(ev);
-      continue;
-    }
-    const oid = ev.ownerId;
-    if (!soloByOwner.has(oid)) soloByOwner.set(oid, []);
-    soloByOwner.get(oid).push(ev);
-  }
-
-  const columns = [];
-  if (shared.length) {
-    const names = [...new Set(shared.flatMap((e) => e.sharedOwnerNames || []))];
-    columns.push({
-      key: "shared",
-      label: names.length ? names.join("+") : "공통일정",
-      accent: "#9ca3af",
-      events: sortDayEvents(shared),
-    });
-  }
-  for (const o of selectedOwners) {
-    const list = soloByOwner.get(o.id) || [];
-    columns.push({
-      key: `owner-${o.id}`,
-      label: ownerLabel(o),
-      accent: getThemeById(o.calendarThemeColor || "red").accent,
-      events: sortDayEvents(list),
-    });
-  }
-  return columns;
-}
-
-function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
+function DayEventCard({ ev, onEdit, onDelete }) {
+  const keywords = useKeywords();
+  const keyword = keywordBadge(keywords, resolveKeywordId(ev));
   return (
     <div className="schedule__day-item">
-      <span className="schedule__day-item-dot" style={{ background: eventAccent(ev) }} aria-hidden />
+      <span className="schedule__day-item-dot" style={{ background: eventAccent(ev, keywords) }} aria-hidden />
       <div className="schedule__day-item-main">
         <strong>
           <span className="schedule__day-item-title-text">
@@ -1926,12 +1704,7 @@ function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
           {formatDateDot(ev.seriesStartDate || ev.eventDate)} ~{" "}
           {formatDateDot(ev.seriesEndDate || ev.eventDate)}
         </span>
-        {ev.sharedOwnerNames?.length > 1 && (
-          <span className="schedule__day-item-shared">함께: {ev.sharedOwnerNames.join(", ")}</span>
-        )}
-        {showOwner && ev.ownerName && (
-          <span className="schedule__day-item-owner">{ev.ownerName}</span>
-        )}
+        {keyword && <span className="schedule__day-item-keyword">{keyword}</span>}
         {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
           <a
             className="schedule__day-item-location"
@@ -1964,6 +1737,8 @@ function DayEventCard({ ev, onEdit, onDelete, showOwner }) {
 const TIMELINE_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 function TimelineBlock({ ev, slotH }) {
+  const keywords = useKeywords();
+  const kw = keywordOf(keywords, resolveKeywordId(ev));
   const { startTime, endTime } = effectiveEventTimes(ev);
   const startMin = timeToMinute(startTime);
   const endMinRaw = endTime ? timeToMinute(endTime) : null;
@@ -1987,8 +1762,8 @@ function TimelineBlock({ ev, slotH }) {
   return (
     <div
       className={`schedule__tl-block ${compact ? "is-compact" : ""} ${tiny ? "is-tiny" : ""}`}
-      style={{ top: `${top}px`, height: `${height}px`, "--tl-accent": eventAccent(ev) }}
-      title={`${formatEventDisplayTitle(ev)} ${timeLabel}`}
+      style={{ top: `${top}px`, height: `${height}px`, "--tl-accent": eventAccent(ev, keywords) }}
+      title={`${kw?.emoji ? `${kw.emoji} ` : ""}${ev.title} ${timeLabel}`}
     >
       <span className="schedule__tl-block-title">
         <EventTitleDisplay event={ev} />
@@ -1998,7 +1773,8 @@ function TimelineBlock({ ev, slotH }) {
   );
 }
 
-function DayTimeline({ columns, expanded, onToggleExpand }) {
+function DayTimeline({ events, expanded, onToggleExpand }) {
+  const keywords = useKeywords();
   const [vw, setVw] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
 
   useEffect(() => {
@@ -2010,49 +1786,32 @@ function DayTimeline({ columns, expanded, onToggleExpand }) {
   const mobile = vw < 640;
   const slotH = mobile ? 20 : 30;
 
-  if (!columns.length) {
-    return <p className="schedule__empty">표시할 대상이 없습니다.</p>;
+  if (!events.length) {
+    return <p className="schedule__empty">표시할 일정이 없습니다.</p>;
   }
 
-  const anyAllDay = columns.some((c) =>
-    c.events.some((e) => !effectiveEventTimes(e).startTime)
-  );
+  const anyAllDay = events.some((e) => !effectiveEventTimes(e).startTime);
 
   return (
     <div className="schedule__timeline">
       <div className="schedule__tl-frame">
-        <div className="schedule__tl-head">
-          <div className="schedule__tl-hour-gutter" />
-          {columns.map((col) => (
-            <div
-              key={col.key}
-              className="schedule__tl-colhead"
-              style={{ "--tl-accent": col.accent }}
-            >
-              {col.label}
-            </div>
-          ))}
-        </div>
-
         {anyAllDay && (
           <div className="schedule__tl-allday">
             <div className="schedule__tl-hour-gutter schedule__tl-allday-label">종일</div>
-            {columns.map((col) => (
-              <div key={col.key} className="schedule__tl-allday-cell">
-                {col.events
-                  .filter((e) => !effectiveEventTimes(e).startTime)
-                  .map((ev) => (
-                    <span
-                      key={eventSeriesKey(ev)}
-                      className="schedule__tl-allday-chip"
-                      style={{ "--tl-accent": eventAccent(ev) }}
-                      title={ev.title}
-                    >
-                      {ev.title}
-                    </span>
-                  ))}
-              </div>
-            ))}
+            <div className="schedule__tl-allday-cell">
+              {events
+                .filter((e) => !effectiveEventTimes(e).startTime)
+                .map((ev) => (
+                  <span
+                    key={eventSeriesKey(ev)}
+                    className="schedule__tl-allday-chip"
+                    style={{ "--tl-accent": eventAccent(ev, keywords) }}
+                    title={ev.title}
+                  >
+                    {ev.title}
+                  </span>
+                ))}
+            </div>
           </div>
         )}
 
@@ -2064,22 +1823,16 @@ function DayTimeline({ columns, expanded, onToggleExpand }) {
               </div>
             ))}
           </div>
-          {columns.map((col) => (
-            <div key={col.key} className="schedule__tl-col">
-              {TIMELINE_HOURS.map((h) => (
-                <div
-                  key={h}
-                  className="schedule__tl-slot"
-                  style={{ height: `${slotH}px` }}
-                />
+          <div className="schedule__tl-col">
+            {TIMELINE_HOURS.map((h) => (
+              <div key={h} className="schedule__tl-slot" style={{ height: `${slotH}px` }} />
+            ))}
+            {events
+              .filter((e) => effectiveEventTimes(e).startTime)
+              .map((ev) => (
+                <TimelineBlock key={eventSeriesKey(ev)} ev={ev} slotH={slotH} />
               ))}
-              {col.events
-                .filter((e) => effectiveEventTimes(e).startTime)
-                .map((ev) => (
-                  <TimelineBlock key={eventSeriesKey(ev)} ev={ev} slotH={slotH} />
-                ))}
-            </div>
-          ))}
+          </div>
         </div>
 
         <button
@@ -2094,18 +1847,15 @@ function DayTimeline({ columns, expanded, onToggleExpand }) {
   );
 }
 
-function DayModal({ dateKey, events, owners, selectedOwners, onClose, onEdit, onDelete, onAdd }) {
+function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
   const [y, m, d] = dateKey.split("-");
   const [viewMode, setViewMode] = useState("grouped");
   const [tlExpanded, setTlExpanded] = useState(false);
 
-  const uniqueEvents = useMemo(() => dedupeEventsBySeries(events), [events]);
-  const fallbackOwners = selectedOwners?.length ? selectedOwners : owners || [];
-  const columns = useMemo(
-    () => buildDayColumns(uniqueEvents, fallbackOwners),
-    [uniqueEvents, fallbackOwners]
+  const uniqueEvents = useMemo(
+    () => sortDayEvents(dedupeEventsBySeries(events)),
+    [events]
   );
-  const showOwnerName = fallbackOwners.length > 1;
 
   return (
     <motion.div
@@ -2159,39 +1909,14 @@ function DayModal({ dateKey, events, owners, selectedOwners, onClose, onEdit, on
           </div>
         ) : viewMode === "timeline" ? (
           <DayTimeline
-            columns={columns}
+            events={uniqueEvents}
             expanded={tlExpanded}
             onToggleExpand={() => setTlExpanded((v) => !v)}
           />
         ) : (
-          <div className="schedule__day-groups">
-            {columns.map((col) => (
-              <section key={col.key} className="schedule__day-group">
-                <header className="schedule__day-group-head">
-                  <span
-                    className="schedule__day-group-dot"
-                    style={{ background: col.accent }}
-                    aria-hidden
-                  />
-                  <span className="schedule__day-group-name">{col.label}</span>
-                  <span className="schedule__day-group-count">{col.events.length}</span>
-                </header>
-                {col.events.length === 0 ? (
-                  <p className="schedule__day-group-empty">일정 없음</p>
-                ) : (
-                  <div className="schedule__day-list">
-                    {col.events.map((ev) => (
-                      <DayEventCard
-                        key={eventSeriesKey(ev)}
-                        ev={ev}
-                        onEdit={onEdit}
-                        onDelete={onDelete}
-                        showOwner={showOwnerName && col.key === "shared"}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
+          <div className="schedule__day-list">
+            {uniqueEvents.map((ev) => (
+              <DayEventCard key={eventSeriesKey(ev)} ev={ev} onEdit={onEdit} onDelete={onDelete} />
             ))}
           </div>
         )}

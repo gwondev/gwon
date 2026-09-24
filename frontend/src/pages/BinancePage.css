@@ -58,6 +58,11 @@
   text-shadow: 0 0 20px rgba(240, 185, 11, 0.35);
 }
 
+.b-title__short {
+  color: #f6465d;
+  text-shadow: 0 0 20px rgba(246, 70, 93, 0.45);
+}
+
 .b-subtitle {
   font-size: 0.84rem;
   color: #848e9c;
@@ -1230,6 +1235,268 @@
 @media (max-width: 1100px) {
   .b-position-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   숏 스포트라이트 — 지금 숏 치기 가장 좋은 코인
+   ========================================================================== */
+.b-spotlight-section {
+  margin-top: -0.35rem;
+}
+
+.b-spotlight {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 16px;
+  border: 1px solid rgba(246, 70, 93, 0.32);
+  background:
+    radial-gradient(120% 160% at 100% 0%, rgba(246, 70, 93, 0.14), transparent 60%),
+    linear-gradient(180deg, #1c1417, #14090c 65%);
+  box-shadow: 0 20px 60px -20px rgba(246, 70, 93, 0.35);
+  padding: 1.4rem 1.5rem 1.6rem;
+}
+
+.b-spotlight.is-loading,
+.b-spotlight.is-empty {
+  background: #181a20;
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+  padding: 0;
+}
+
+.b-spotlight.is-long {
+  border-color: rgba(14, 203, 129, 0.32);
+  background:
+    radial-gradient(120% 160% at 100% 0%, rgba(14, 203, 129, 0.14), transparent 60%),
+    linear-gradient(180deg, #101c17, #081310 65%);
+  box-shadow: 0 20px 60px -20px rgba(14, 203, 129, 0.3);
+}
+.b-spotlight.is-long .b-spotlight__glow {
+  background: radial-gradient(circle, rgba(14, 203, 129, 0.22), transparent 65%);
+}
+.b-spotlight.is-long .b-spotlight__symbol {
+  text-shadow: 0 0 24px rgba(14, 203, 129, 0.3);
+}
+.b-spotlight.is-long .b-spotlight__score-ring {
+  background: conic-gradient(#0ecb81 var(--pct), rgba(255, 255, 255, 0.08) 0);
+}
+.b-spotlight.is-long .b-spotlight__score-ring::before {
+  background: #081310;
+}
+.b-spotlight.is-long .b-spotlight__score-unit {
+  color: #0ecb81;
+}
+.b-spotlight.is-long .b-spotlight__runner b {
+  color: #0ecb81;
+}
+
+.b-spotlight__glow {
+  position: absolute;
+  top: -60%;
+  right: -10%;
+  width: 60%;
+  height: 220%;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(246, 70, 93, 0.22), transparent 65%);
+  animation: b-spot-pulse 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes b-spot-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.b-spotlight__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.b-spotlight__id {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.b-spotlight__badge {
+  font-size: 0.72rem;
+  padding: 0.28rem 0.6rem;
+  box-shadow: 0 0 14px rgba(246, 70, 93, 0.4);
+}
+
+.b-spotlight__symbol {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.4vw, 2.35rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: 0 0 24px rgba(246, 70, 93, 0.3);
+}
+
+.b-spotlight__score {
+  flex: none;
+}
+
+.b-spotlight__score-ring {
+  --pct: 0%;
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(#f6465d var(--pct), rgba(255, 255, 255, 0.08) 0);
+}
+
+.b-spotlight__score-ring::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: #14090c;
+}
+
+.b-spotlight__score-num {
+  position: relative;
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.b-spotlight__score-unit {
+  position: relative;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #f6465d;
+  margin-top: 2px;
+}
+
+.b-spotlight__reason {
+  margin: 1.1rem 0 1.2rem;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: #eaecef;
+  font-style: italic;
+}
+
+.b-spotlight__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.b-spot-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.b-spot-stat__label {
+  font-size: 0.7rem;
+  color: #a89298;
+}
+
+.b-spot-stat__value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.b-spot-stat.is-profit .b-spot-stat__value {
+  color: #0ecb81;
+}
+
+.b-spot-stat.is-loss .b-spot-stat__value {
+  color: #f6465d;
+}
+
+.b-spotlight__runners {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.b-spotlight__runners-label {
+  display: block;
+  font-size: 0.7rem;
+  color: #a89298;
+  margin-bottom: 0.5rem;
+}
+
+.b-spotlight__runners-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.b-spotlight__runner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.32rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.78rem;
+  color: #eaecef;
+}
+
+.b-spotlight__runner b {
+  color: #f6465d;
+  font-weight: 800;
+}
+
+.b-spotlight__runner em {
+  font-style: normal;
+  color: #848e9c;
+}
+
+/* 랭킹 테이블 보강 */
+.b-td-rank {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #5e6673;
+  text-align: center;
+}
+
+.b-row.is-rank1 {
+  background: rgba(246, 70, 93, 0.05);
+}
+
+.b-row.is-rank1 .b-td-rank {
+  color: #f6465d;
+}
+
+.b-score-bar-wrap.is-short .b-score-bar {
+  background: linear-gradient(90deg, #f0b90b, #f6465d);
+}
+
+.b-score-bar-wrap.is-long .b-score-bar {
+  background: linear-gradient(90deg, #0ecb81, #14c481);
+}
+
+@media (max-width: 640px) {
+  .b-spotlight {
+    padding: 1.1rem 1.1rem 1.3rem;
+  }
+
+  .b-spotlight__score-ring {
+    width: 68px;
+    height: 68px;
+  }
+
+  .b-spotlight__score-num {
+    font-size: 1.2rem;
   }
 }
 

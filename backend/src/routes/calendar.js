@@ -10,19 +10,32 @@ import {
 const router = Router();
 
 const INCOME_TYPES = ["ALBA", "WORK", "SCHOLARSHIP"];
-const APPOINTMENT_TYPES = ["MONEY", "DRINK", "JOB"];
+const APPOINTMENT_TYPE_MAX_LEN = 32;
 const THEME_COLORS = [
+  "gray",
+  "slate",
   "red",
+  "rose",
   "orange",
   "amber",
   "yellow",
+  "lime",
   "green",
+  "emerald",
   "teal",
+  "cyan",
+  "sky",
   "blue",
   "indigo",
+  "violet",
   "purple",
   "pink",
 ];
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
+
+function isValidThemeColor(value) {
+  return THEME_COLORS.includes(value) || HEX_COLOR_RE.test(value);
+}
 
 function makeSeriesId() {
   return `series_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -77,7 +90,7 @@ function publicEvent(row) {
       : null,
     appointmentType: row.appointment_type || null,
     isMajor: Boolean(row.is_major),
-    themeColor: row.theme_color || "red",
+    themeColor: row.theme_color || "gray",
     sharedOwnerIds,
     sharedOwnerNames: row.sharedOwnerNames || [],
     createdBy: row.created_by,
@@ -676,6 +689,120 @@ router.put("/filter", requireCalendarAdmin, async (req, res, next) => {
   }
 });
 
+const DEFAULT_KEYWORDS = [
+  { id: "MONEY", emoji: "💰", label: "돈을 벌러가나요?", color: null },
+  { id: "DRINK", emoji: "🍻", label: "술약속", color: "green" },
+  { id: "JOB", emoji: "🎓", label: "취업·시험", color: "blue" },
+  { id: "DATE", emoji: "💕", label: "데이트", color: "pink" },
+  { id: "TRIP", emoji: "✈️", label: "여행", color: "yellow" },
+];
+
+function normalizeKeywordItem(item) {
+  const id = String(item?.id || "").trim().slice(0, 32);
+  const label = String(item?.label || "").trim().slice(0, 60);
+  if (!id || !label) return null;
+  const emoji = String(item?.emoji || "").trim().slice(0, 8);
+  const color = item?.color ? String(item.color).trim().toLowerCase() : null;
+  if (color && !isValidThemeColor(color)) return null;
+  return { id, emoji, label, color };
+}
+
+// GET /api/calendar/keywords — 일정 키워드(이모지/이름/색) 목록
+router.get("/keywords", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT value FROM settings WHERE `key` = 'calendar_keywords' LIMIT 1"
+    );
+    let items = null;
+    if (rows[0]?.value) {
+      try {
+        const parsed = JSON.parse(rows[0].value);
+        if (Array.isArray(parsed)) items = parsed;
+      } catch {
+        items = null;
+      }
+    }
+    res.json({ items: items || DEFAULT_KEYWORDS });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/calendar/keywords { items: [{ id, emoji, label, color }] }
+router.put("/keywords", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const raw = Array.isArray(req.body?.items) ? req.body.items : [];
+    const seen = new Set();
+    const items = [];
+    for (const it of raw) {
+      const normalized = normalizeKeywordItem(it);
+      if (!normalized || seen.has(normalized.id)) continue;
+      seen.add(normalized.id);
+      items.push(normalized);
+      if (items.length >= 30) break;
+    }
+    const value = JSON.stringify(items);
+    await pool.query(
+      "INSERT INTO settings (`key`, value) VALUES ('calendar_keywords', ?) ON DUPLICATE KEY UPDATE value = ?",
+      [value, value]
+    );
+    res.json({ items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const DEFAULT_EMOJI_HISTORY = [
+  "💰", "🍻", "🎓", "💕", "✈️", "🎉", "📚", "🏋️",
+  "🎮", "🎬", "🍽️", "☕", "🏠", "💼", "🩺", "🎂",
+  "🚗", "🛒", "📅", "⭐", "🎵", "🐶", "🌱", "🧘",
+];
+
+// GET /api/calendar/emoji-history — 한번이라도 쓴 적 있는 이모지 목록
+router.get("/emoji-history", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT value FROM settings WHERE `key` = 'calendar_emoji_history' LIMIT 1"
+    );
+    let items = null;
+    if (rows[0]?.value) {
+      try {
+        const parsed = JSON.parse(rows[0].value);
+        if (Array.isArray(parsed)) items = parsed;
+      } catch {
+        items = null;
+      }
+    }
+    res.json({ items: items || DEFAULT_EMOJI_HISTORY });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/calendar/emoji-history { items: string[] }
+router.put("/emoji-history", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const raw = Array.isArray(req.body?.items) ? req.body.items : [];
+    const seen = new Set();
+    const items = [];
+    for (const it of raw) {
+      const emoji = String(it || "").trim().slice(0, 8);
+      if (!emoji || seen.has(emoji)) continue;
+      seen.add(emoji);
+      items.push(emoji);
+      if (items.length >= 80) break;
+    }
+    const value = JSON.stringify(items);
+    await pool.query(
+      "INSERT INTO settings (`key`, value) VALUES ('calendar_emoji_history', ?) ON DUPLICATE KEY UPDATE value = ?",
+      [value, value]
+    );
+    res.json({ items });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/calendar/events?ownerIds=1,2&year=&month=
 router.get("/events", requireCalendarAdmin, async (req, res, next) => {
   try {
@@ -971,7 +1098,7 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     const incomeType = body.incomeType ? String(body.incomeType).toUpperCase() : null;
     const appointmentType = body.appointmentType ? String(body.appointmentType).toUpperCase() : null;
     const isMajor = Boolean(body.isMajor);
-    const themeColor = body.themeColor ? String(body.themeColor).toLowerCase() : "red";
+    const themeColor = body.themeColor ? String(body.themeColor).toLowerCase() : "gray";
     const repeat = normalizeRepeat(body.repeat);
     const endDate = body.endDate ? toDateKey(body.endDate) : null;
     const location = parseLocationFields(body);
@@ -983,10 +1110,10 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     if (incomeType && !INCOME_TYPES.includes(incomeType)) {
       return res.status(400).json({ error: "incomeType 이 올바르지 않습니다." });
     }
-    if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
-      return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
+    if (appointmentType && appointmentType.length > APPOINTMENT_TYPE_MAX_LEN) {
+      return res.status(400).json({ error: "appointmentType 이 너무 깁니다." });
     }
-    if (!THEME_COLORS.includes(themeColor)) {
+    if (!isValidThemeColor(themeColor)) {
       return res.status(400).json({ error: "themeColor 가 올바르지 않습니다." });
     }
     // 같은 날 시간 지정일 때만 순서 검증 (종료일이 다르면 종일/다일에 걸친 것으로 허용)
@@ -1078,7 +1205,7 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     const isMajor = body.isMajor !== undefined ? Boolean(body.isMajor) : Boolean(existing.is_major);
     const themeColor = body.themeColor !== undefined
       ? String(body.themeColor).toLowerCase()
-      : (existing.theme_color || "red");
+      : (existing.theme_color || "gray");
     const repeat = body.repeat !== undefined
       ? normalizeRepeat(body.repeat)
       : (existing.series_repeat_freq
@@ -1106,10 +1233,10 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     if (incomeType && !INCOME_TYPES.includes(incomeType)) {
       return res.status(400).json({ error: "incomeType 이 올바르지 않습니다." });
     }
-    if (appointmentType && !APPOINTMENT_TYPES.includes(appointmentType)) {
-      return res.status(400).json({ error: "appointmentType 이 올바르지 않습니다." });
+    if (appointmentType && appointmentType.length > APPOINTMENT_TYPE_MAX_LEN) {
+      return res.status(400).json({ error: "appointmentType 이 너무 깁니다." });
     }
-    if (!THEME_COLORS.includes(themeColor)) {
+    if (!isValidThemeColor(themeColor)) {
       return res.status(400).json({ error: "themeColor 가 올바르지 않습니다." });
     }
     if (!endDate && !repeat && startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
@@ -1325,7 +1452,7 @@ router.get("/theme", requireCalendarAdmin, async (req, res, next) => {
 router.put("/theme", requireCalendarAdmin, async (req, res, next) => {
   try {
     const themeColor = String(req.body?.themeColor || "").trim().toLowerCase();
-    if (!THEME_COLORS.includes(themeColor)) {
+    if (!isValidThemeColor(themeColor)) {
       return res.status(400).json({ error: "지원하지 않는 테마 색상입니다." });
     }
 

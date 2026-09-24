@@ -1,0 +1,94 @@
+/* ==========================================================================
+   COSMIC THEME — 메인/포트폴리오 페이지 전용 (/schedule 는 미적용)
+   토큰(--bg, --accent 등)만 새로 정의해서 기존 컴포넌트 CSS가 그대로
+   새 팔레트를 물려받게 한다. 구조를 바꾸지 않고도 사이트 전역이 재도색된다.
+   ========================================================================== */
+
+.cosmic {
+  --bg: #05050f;
+  --bg-soft: #090913;
+  --bg-elev: #0e0e1e;
+  --bg-elev-2: #131327;
+
+  --line: rgba(150, 170, 255, 0.14);
+  --line-strong: rgba(170, 190, 255, 0.28);
+  --text: #eef0ff;
+  --text-dim: rgba(238, 240, 255, 0.66);
+  --text-faint: rgba(238, 240, 255, 0.4);
+
+  --accent: #7dd3fc;
+  --accent-2: #b79bff;
+  --accent-soft: rgba(125, 211, 252, 0.14);
+  --accent-line: rgba(125, 211, 252, 0.4);
+
+  --shadow: 0 30px 90px -24px rgba(70, 60, 180, 0.55);
+}
+
+.cosmic.app-shell {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 620px at 82% -8%, rgba(125, 211, 252, 0.1), transparent 60%),
+    radial-gradient(900px 700px at -6% 18%, rgba(183, 155, 255, 0.1), transparent 58%),
+    radial-gradient(1400px 900px at 50% 120%, rgba(125, 211, 252, 0.05), transparent 60%),
+    var(--bg);
+}
+
+/* 콘텐츠는 스타필드 캔버스 위로 확실히 떠 있도록 */
+.cosmic .page,
+.cosmic .site-footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- 스타필드 배경 ---------- */
+.starfield {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.starfield__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- 스크롤 진행률 바 ---------- */
+.cosmic-scrollbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 150;
+  transform-origin: 0% 50%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 12px 1px var(--accent-line);
+  pointer-events: none;
+}
+
+/* ---------- 버튼/필드 미세 보강 (톤은 토큰이 자동 처리, 글로우만 추가) ---------- */
+.cosmic .btn-accent {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #060512;
+  box-shadow: 0 0 26px -4px rgba(125, 211, 252, 0.55);
+}
+
+.cosmic .btn-accent:hover {
+  background: linear-gradient(135deg, #a6e4ff, #cdbaff);
+  box-shadow: 0 0 34px -2px rgba(183, 155, 255, 0.6);
+}
+
+.cosmic ::selection {
+  background: rgba(125, 211, 252, 0.28);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cosmic-scrollbar {
+    display: none;
+  }
+}

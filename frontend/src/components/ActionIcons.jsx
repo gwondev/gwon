@@ -83,6 +83,26 @@ export function IconChat(props) {
   );
 }
 
+export function IconChart(props) {
+  const p = {
+    width: 20,
+    height: 20,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.45,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+    ...props,
+  };
+  return (
+    <svg {...p}>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </svg>
+  );
+}
+
 export function IconGrid(props) {
   const p = {
     width: 26,

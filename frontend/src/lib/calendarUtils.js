@@ -265,41 +265,6 @@ export function weekdaysLabel(weekdays) {
   return wd.map((n) => WEEKDAY_LABELS[n]).join("·");
 }
 
-export function ownerLabel(o) {
-  return o.nickname || o.name || o.email || `#${o.id}`;
-}
-
-export function filterTitle(owners) {
-  if (!owners?.length) return "일정";
-  if (owners.length === 1) return `${ownerLabel(owners[0])}의 일정`;
-  return `${owners.map(ownerLabel).join(", ")}의 일정`;
-}
-
-export function eventTypePrefix(event) {
-  const isMoney =
-    event?.appointmentType === "MONEY" || (!event?.appointmentType && Boolean(event?.incomeType));
-  if (isMoney) return "(돈)";
-  if (event?.appointmentType === "DRINK") return "(술)";
-  return "";
-}
-
-export function formatEventDisplayTitle(event) {
-  let out = "";
-  if (event?.isMajor) out += "★ ";
-  out += eventTypePrefix(event);
-  out += event?.title || "";
-  return out;
-}
-
-export function compareMajorEvents(a, b) {
-  const dateCmp = String(a.eventDate).localeCompare(String(b.eventDate));
-  if (dateCmp !== 0) return dateCmp;
-  if (a.startTime && !b.startTime) return -1;
-  if (!a.startTime && b.startTime) return 1;
-  if (a.startTime && b.startTime) return a.startTime.localeCompare(b.startTime);
-  return a.id - b.id;
-}
-
 export function eventSeriesKey(ev) {
   return ev.seriesId || `single-${ev.id}`;
 }
@@ -337,29 +302,6 @@ export function effectiveEventTimes(ev) {
     return { startTime: "00:00", endTime };
   }
   return { startTime: null, endTime: null };
-}
-
-/** 주요일정 패널용: 연속 다일은 시리즈당 1건만 (시작일 행 우선) */
-export function dedupeContinuousMajorEvents(events) {
-  const bestBySeries = new Map();
-  const order = [];
-
-  for (const ev of events || []) {
-    if (!isContinuousMultiDay(ev)) {
-      order.push({ kind: "one", ev });
-      continue;
-    }
-    const key = eventSeriesKey(ev);
-    const start = ev.seriesStartDate || ev.eventDate;
-    if (!bestBySeries.has(key)) {
-      bestBySeries.set(key, ev);
-      order.push({ kind: "series", key });
-    } else if (ev.eventDate === start) {
-      bestBySeries.set(key, ev);
-    }
-  }
-
-  return order.map((slot) => (slot.kind === "one" ? slot.ev : bestBySeries.get(slot.key)));
 }
 
 // 정렬 우선순위: 1) 1일 이상(멀티데이)  2) 종일  3) 시간 있는 일정

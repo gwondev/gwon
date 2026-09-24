@@ -505,6 +505,12 @@ async function runMigrations(conn) {
     // 일정 색을 소유자 테마가 아니라 등록 시점에 고를 수 있게 (기본 빨강, 취업 관련이면 초록)
     "ALTER TABLE calendar_events MODIFY COLUMN appointment_type ENUM('MONEY','DRINK','JOB') DEFAULT NULL",
     "ALTER TABLE calendar_events ADD COLUMN theme_color VARCHAR(32) NOT NULL DEFAULT 'red' AFTER is_major",
+    // 키워드 선택에 데이트/여행 추가
+    "ALTER TABLE calendar_events MODIFY COLUMN appointment_type ENUM('MONEY','DRINK','JOB','DATE','TRIP') DEFAULT NULL",
+    // 키워드를 사용자가 자유롭게 추가/삭제할 수 있도록 고정 ENUM에서 자유 문자열로 전환
+    "ALTER TABLE calendar_events MODIFY COLUMN appointment_type VARCHAR(32) DEFAULT NULL",
+    // 할 일 세부설명(선택) — 리스트에는 안 보이고 팝업으로만 확인
+    "ALTER TABLE todo_items ADD COLUMN description TEXT DEFAULT NULL AFTER text",
   ];
   for (const sql of migrations) {
     try {

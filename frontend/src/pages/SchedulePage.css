@@ -1,4 +1,4 @@
-.schedule-page {
+.page.schedule-page {
   max-width: none;
   width: 100%;
   padding-top: 0.25rem;
@@ -8,7 +8,7 @@
 }
 
 @media (max-width: 720px) {
-  .schedule-page {
+  .page.schedule-page {
     /* 모바일에서는 달력이 화면 양옆에 거의 붙어야 한다. */
     padding-left: clamp(0px, 1vw, 4px);
     padding-right: clamp(0px, 1vw, 4px);
@@ -21,6 +21,13 @@
      체크리스트가 더 오른쪽으로 붙도록 폭을 넉넉하게 잡는다. */
   max-width: min(1680px, 97vw);
   margin: 0 auto;
+}
+
+@media (min-width: 721px) {
+  .schedule-page__body {
+    /* 데스크톱에서는 화면 양옆까지 꽉 채우지 않고 80% 정도로 제한한다. */
+    max-width: min(1680px, 70vw);
+  }
 }
 
 .schedule-page--denied {

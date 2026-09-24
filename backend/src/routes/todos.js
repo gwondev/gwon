@@ -6,11 +6,13 @@ const router = Router();
 
 const RETENTION_DAYS = 30;
 const TEXT_MAX_LEN = 500;
+const DESC_MAX_LEN = 2000;
 
 function publicTodo(row) {
   return {
     id: row.id,
     text: row.text,
+    description: row.description || "",
     dueDate: row.due_date ? String(row.due_date).slice(0, 10) : null,
     done: Boolean(row.done),
     doneAt: row.done_at || null,
@@ -50,14 +52,19 @@ router.post("/", requireCalendarAdmin, async (req, res, next) => {
       return res.status(400).json({ error: `할 일은 ${TEXT_MAX_LEN}자 이내로 입력해주세요.` });
     }
 
+    const description = String(req.body?.description || "").trim();
+    if (description.length > DESC_MAX_LEN) {
+      return res.status(400).json({ error: `세부설명은 ${DESC_MAX_LEN}자 이내로 입력해주세요.` });
+    }
+
     const dueDateRaw = req.body?.dueDate;
     const dueDate =
       dueDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(String(dueDateRaw)) ? String(dueDateRaw) : null;
 
     const ownerId = req.auth.uid;
     const [result] = await pool.query(
-      `INSERT INTO todo_items (owner_id, text, due_date) VALUES (?, ?, ?)`,
-      [ownerId, text, dueDate]
+      `INSERT INTO todo_items (owner_id, text, description, due_date) VALUES (?, ?, ?, ?)`,
+      [ownerId, text, description || null, dueDate]
     );
     const [rows] = await pool.query(`SELECT * FROM todo_items WHERE id = ?`, [result.insertId]);
     res.status(201).json({ item: publicTodo(rows[0]) });

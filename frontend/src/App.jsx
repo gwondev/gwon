@@ -1,6 +1,9 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import TopBar from "./components/TopBar";
 import SiteFooter from "./components/SiteFooter";
+import Starfield from "./components/Starfield";
+import ScrollProgress from "./components/ScrollProgress";
+import ChatWidget from "./components/ChatWidget";
 import RootPage from "./pages/RootPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import CompetitionsPage from "./pages/CompetitionsPage";
@@ -16,11 +19,18 @@ import AdminPage from "./pages/AdminPage";
 import DataPage from "./pages/DataPage";
 import BinancePage from "./pages/BinancePage";
 import ScrollToTop from "./components/ScrollToTop";
+import "./styles/cosmic.css";
 
 export default function App() {
+  const location = useLocation();
+  // /schedule 은 기존 캘린더 UI를 그대로 유지 — 코스믹 테마 미적용
+  const isCosmic = location.pathname !== "/schedule";
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isCosmic ? "cosmic" : ""}`}>
       <ScrollToTop />
+      {isCosmic && <Starfield />}
+      {isCosmic && <ScrollProgress />}
       <TopBar />
       <Routes>
         <Route path="/" element={<RootPage />} />
@@ -42,6 +52,7 @@ export default function App() {
         <Route path="*" element={<RootPage />} />
       </Routes>
       <SiteFooter />
+      {isCosmic && <ChatWidget />}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { IconCalendar, IconUser } from "./ActionIcons";
+import { IconCalendar, IconUser, IconGrid } from "./ActionIcons";
 import { SECTIONS } from "../lib/sections";
 import "./SideDrawer.css";
 
@@ -79,6 +79,12 @@ export default function SideDrawer({ open, onClose }) {
                   <IconCalendar width={16} height={16} />
                 </span>
                 <span className="drawer__quick-label">일정</span>
+              </button>
+              <button type="button" className="drawer__quick-btn" onClick={() => go("/overview")}>
+                <span className="drawer__quick-icon">
+                  <IconGrid width={16} height={16} />
+                </span>
+                <span className="drawer__quick-label">전체보기</span>
               </button>
             </motion.div>
 

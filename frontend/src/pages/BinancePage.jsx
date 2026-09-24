@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import WalletBar from "../components/binance/WalletBar";
 import PositionPanel from "../components/binance/PositionPanel";
+import TopPick from "../components/binance/TopPick";
 import OpportunityList from "../components/binance/OpportunityList";
 import RulesPanel from "../components/binance/RulesPanel";
 import "./BinancePage.css";
@@ -116,6 +117,9 @@ export default function BinancePage() {
     return null;
   }
 
+  const bestPick = opportunities[0] || null;
+  const runnersUp = opportunities.slice(1, 4);
+
   return (
     <PageTransition className="page binance-page">
       <motion.header
@@ -130,9 +134,9 @@ export default function BinancePage() {
             <span className="b-badge__label">SUPER ADMIN ONLY</span>
           </div>
           <h1 className="b-title">
-            <span className="b-title__gold">BINANCE</span> TRADING TERMINAL
+            <span className="b-title__gold">POSITION</span> SCANNER
           </h1>
-          <span className="b-subtitle">롱/숏 통합 기회 스캐너 & 자동매매 봇</span>
+          <span className="b-subtitle">롱/숏 통합 진입 후보 스캐너 · AI 스코어링 & 자동매매 봇</span>
         </div>
       </motion.header>
 
@@ -142,10 +146,7 @@ export default function BinancePage() {
         onToggle={() => setWalletExpanded((v) => !v)}
       />
 
-      <div className="b-position-grid">
-        <PositionPanel mode="manual" data={positions.manual} />
-        <PositionPanel mode="bot" data={positions.bot} />
-      </div>
+      <TopPick best={bestPick} runnersUp={runnersUp} loading={opportunitiesLoading} />
 
       <OpportunityList
         items={opportunities}
@@ -154,6 +155,11 @@ export default function BinancePage() {
       />
 
       <RulesPanel settings={botSettings} onSave={handleSaveBot} saving={botSaving} saveMsg={botSaveMsg} />
+
+      <div className="b-position-grid">
+        <PositionPanel mode="manual" data={positions.manual} />
+        <PositionPanel mode="bot" data={positions.bot} />
+      </div>
     </PageTransition>
   );
 }

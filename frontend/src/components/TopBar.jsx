@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useViewMode } from "../context/ViewModeContext";
-import { IconHome } from "./ActionIcons";
 import SideDrawer from "./SideDrawer";
+import { IconChart, IconCalendar } from "./ActionIcons";
 import "./TopBar.css";
 
 const VIEWMODE_PATHS = ["/certifications", "/activities", "/competitions", "/projects", "/career"];
@@ -13,13 +13,33 @@ export default function TopBar() {
   const { user, isAuthed, isAdmin } = useAuth();
   const { viewAsUser, setViewAsUser } = useViewMode();
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const showViewMode = isAdmin && VIEWMODE_PATHS.includes(location.pathname);
+  const isSchedule = location.pathname === "/schedule";
+
+  useEffect(() => {
+    if (isSchedule) return;
+    let raf = null;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 10);
+        raf = null;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [isSchedule]);
 
   const greeting = isAuthed
-    ? `${user.nickname || user.name || "회원"}님 반갑습니다.`
-    : "로그인해주세요";
+    ? `${user.nickname || user.name || "회원"}님`
+    : "로그인";
 
   const handleGreetClick = () => {
     if (isAuthed) navigate("/mypage");
@@ -28,24 +48,43 @@ export default function TopBar() {
 
   return (
     <>
-      <header className="topbar">
-        <button
-          type="button"
-          className="topbar__greet"
-          onClick={handleGreetClick}
-          aria-label={isAuthed ? "마이페이지" : "로그인"}
-        >
-          <motion.span
-            key={greeting}
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="topbar__greet-text"
+      <header className={`topbar ${scrolled ? "is-scrolled" : ""}`}>
+        <div className="topbar__left">
+          <button
+            type="button"
+            className="topbar__logo"
+            onClick={() => navigate("/")}
+            aria-label="메인으로"
           >
-            <span className="topbar__dot" aria-hidden />
-            {greeting}
-          </motion.span>
-        </button>
+            <span className="topbar__logo-mark">LSG</span>
+            <span className="topbar__logo-dot" aria-hidden />
+          </button>
+
+          {isAdmin && (
+            <div className="topbar__adminlinks">
+              <button
+                type="button"
+                className={`topbar__adminlink ${location.pathname.toLowerCase() === "/binance" ? "is-active" : ""}`}
+                onClick={() => navigate("/binance")}
+                aria-label="바이낸스"
+                title="바이낸스"
+              >
+                <IconChart width={16} height={16} />
+                <span>바이낸스</span>
+              </button>
+              <button
+                type="button"
+                className={`topbar__adminlink ${location.pathname === "/schedule" ? "is-active" : ""}`}
+                onClick={() => navigate("/schedule")}
+                aria-label="일정"
+                title="일정"
+              >
+                <IconCalendar width={16} height={16} />
+                <span>일정</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         {showViewMode && (
           <div className="topbar__viewmode viewmode" role="radiogroup" aria-label="보기 모드">
@@ -73,13 +112,20 @@ export default function TopBar() {
         <div className="topbar__right">
           <button
             type="button"
-            className="topbar__orb topbar__orb--home"
-            onClick={() => navigate("/")}
-            aria-label="메인 화면"
-            title="메인"
+            className="topbar__greet"
+            onClick={handleGreetClick}
+            aria-label={isAuthed ? "마이페이지" : "로그인"}
           >
-            <span className="topbar__orb-sheen" aria-hidden />
-            <IconHome />
+            <motion.span
+              key={greeting}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="topbar__greet-text"
+            >
+              <span className="topbar__dot" aria-hidden />
+              {greeting}
+            </motion.span>
           </button>
           <button
             className={`hamburger ${open ? "is-open" : ""}`}

@@ -1,11 +1,11 @@
 .todo {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  /* min-height 를 너무 크게 두면 짧은 달(5주)에서 달력보다 아래로 튀어나온다.
-     align-self:stretch(ScheduleTab.css)가 실제 높이를 달력과 맞춰주므로
-     여기서는 최소한의 바닥값만 둔다. */
-  min-height: 320px;
+  /* height 를 명시하지 않는다(auto). 부모(schedule__layout)의
+     align-items:stretch 가 실제 높이를 달력과 항상 맞춰주므로, 할 일이
+     비어 있어도(내용이 짧아도) 달력 높이 그대로 따라간다.
+     height:100% 를 명시하면 부모 높이가 auto(내용 기준)일 때 퍼센트가
+     모호해져 브라우저에 따라 stretch 가 무시될 수 있어 아예 생략한다. */
   border: 1px solid var(--line);
   border-radius: 20px;
   /* 페이지 배경(--bg)과 가깝게 맞춰서 혼자 회색으로 튀지 않게 한다. */
@@ -81,8 +81,7 @@
 
 .todo__done-item {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   gap: 0.5rem;
   padding: 0.32rem 0.4rem;
   font-size: 0.78rem;
@@ -90,6 +89,8 @@
 }
 
 .todo__done-item-text {
+  flex: 1 1 auto;
+  min-width: 0;
   text-decoration: line-through;
   overflow-wrap: anywhere;
 }
@@ -98,6 +99,27 @@
   flex: none;
   font-size: 0.68rem;
   color: var(--text-faint);
+}
+
+.todo__done-item-delete {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.62rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.todo__done-item-delete:hover {
+  background: rgba(248, 113, 113, 0.16);
+  color: #f87171;
 }
 
 .todo__list {
@@ -121,6 +143,7 @@
 }
 
 .todo__item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -182,6 +205,57 @@
   color: var(--text);
 }
 
+/* 세부설명 팝업 버튼: 할일 블록 맨 오른쪽 */
+.todo__detail {
+  position: relative;
+  flex: none;
+}
+
+.todo__detail-btn {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.62rem;
+  font-weight: 800;
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.todo__detail-btn:hover,
+.todo__detail-btn.is-open {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.todo__detail-pop {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  max-width: min(240px, 70vw);
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-elev);
+  box-shadow: var(--shadow);
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  transform-origin: top right;
+}
+
 .todo__add {
   flex: none;
   display: flex;
@@ -207,7 +281,27 @@
   color: var(--text-faint);
 }
 
+.todo__add-desc {
+  width: 100%;
+  min-height: 2rem;
+  max-height: 5.5rem;
+  padding: 0.42rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.todo__add-desc::placeholder {
+  color: var(--text-faint);
+}
+
 .todo__add-input:focus,
+.todo__add-desc:focus,
 .todo__add-date:focus {
   outline: none;
   border-color: var(--line-strong);
