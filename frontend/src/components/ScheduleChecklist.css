@@ -153,10 +153,11 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-/* 달력의 TODO 일정과 연동된 항목: 왼쪽에 강조선 + 은은한 배경 */
+/* 달력의 TODO 일정과 연동된 항목: 일정 색(--todo-accent)으로 강조선 + 은은한 배경 */
 .todo__item--cal {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.06);
+  --todo-accent: #ef4444;
+  border-color: color-mix(in srgb, var(--todo-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--todo-accent) 8%, transparent);
 }
 .todo__item--cal::before {
   content: "";
@@ -166,7 +167,7 @@
   bottom: 0;
   width: 3px;
   border-radius: 12px 0 0 12px;
-  background: #ef4444;
+  background: var(--todo-accent);
 }
 .todo__item-cal-badge {
   margin-right: 0.28rem;
@@ -174,11 +175,11 @@
   vertical-align: baseline;
 }
 .todo__item--cal .todo__check {
-  border-color: rgba(239, 68, 68, 0.55);
+  border-color: color-mix(in srgb, var(--todo-accent) 55%, transparent);
 }
 .todo__item--cal .todo__check:hover {
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.16);
+  border-color: var(--todo-accent);
+  background: color-mix(in srgb, var(--todo-accent) 16%, transparent);
 }
 
 .todo__check {

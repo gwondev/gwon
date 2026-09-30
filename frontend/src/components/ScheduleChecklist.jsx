@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { getThemeById } from "../lib/calendarTheme";
 import "./ScheduleChecklist.css";
 
 const STORAGE_KEY = "gwon.todos.v1";
@@ -338,11 +339,14 @@ function ChecklistItem({ item, onAction }) {
   };
 
   const hasDesc = Boolean(item.description && item.description.trim());
+  // 달력 TODO는 일정에 지정된 키워드/테마 색을 그대로 사용
+  const accent = isCal ? getThemeById(item.themeColor).accent : null;
 
   return (
     <motion.li
       layout
       className={`todo__item ${isCal ? "todo__item--cal" : ""}`}
+      style={isCal ? { "--todo-accent": accent } : undefined}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 28, transition: { duration: 0.22, ease: "easeIn" } }}

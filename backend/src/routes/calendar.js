@@ -894,7 +894,7 @@ router.get("/todo-events", requireCalendarAdmin, async (req, res, next) => {
 
     const placeholders = ownerIds.map(() => "?").join(", ");
     const [rows] = await pool.query(
-      `SELECT id, owner_id, series_id, title, description, event_date, start_time, end_time
+      `SELECT id, owner_id, series_id, title, description, event_date, start_time, end_time, theme_color
        FROM calendar_events
        WHERE owner_id IN (${placeholders}) AND appointment_type = 'TODO'
        ORDER BY event_date ASC, id ASC`,
@@ -930,6 +930,7 @@ router.get("/todo-events", requireCalendarAdmin, async (req, res, next) => {
         dueDate: rep.dateKey,
         startTime: rep.start_time ? String(rep.start_time).slice(0, 5) : null,
         endTime: rep.end_time ? String(rep.end_time).slice(0, 5) : null,
+        themeColor: rep.theme_color || "gray",
         source: "calendar",
       });
     }
