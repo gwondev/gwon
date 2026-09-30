@@ -44,6 +44,14 @@ html {
   html {
     font-size: 110%;
   }
+  /* 가로 폭은 그대로 두고 세로만 살짝: 줄간격 + 페이지 상하 여백을 조금 키운다. */
+  body {
+    line-height: 1.72;
+  }
+  .page {
+    padding-top: clamp(8px, 1.6vh, 20px);
+    padding-bottom: clamp(8px, 1.6vh, 20px);
+  }
 }
 
 html,
