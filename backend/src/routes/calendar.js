@@ -689,13 +689,24 @@ router.put("/filter", requireCalendarAdmin, async (req, res, next) => {
   }
 });
 
+// 'TODO' 는 오른쪽 할 일 목록과 연동되는 예약(내장) 키워드다. 항상 선택 가능해야 한다.
+const TODO_KEYWORD = { id: "TODO", emoji: "✅", label: "할 일", color: "red" };
+
 const DEFAULT_KEYWORDS = [
+  { ...TODO_KEYWORD },
   { id: "MONEY", emoji: "💰", label: "돈을 벌러가나요?", color: null },
   { id: "DRINK", emoji: "🍻", label: "술약속", color: "green" },
   { id: "JOB", emoji: "🎓", label: "취업·시험", color: "blue" },
   { id: "DATE", emoji: "💕", label: "데이트", color: "pink" },
   { id: "TRIP", emoji: "✈️", label: "여행", color: "yellow" },
 ];
+
+// 저장된 키워드 목록에 'TODO' 가 없으면 항상 맨 앞에 넣어 보장한다.
+function ensureTodoKeyword(list) {
+  const arr = Array.isArray(list) ? list.slice() : [];
+  if (!arr.some((k) => k && k.id === "TODO")) arr.unshift({ ...TODO_KEYWORD });
+  return arr;
+}
 
 function normalizeKeywordItem(item) {
   const id = String(item?.id || "").trim().slice(0, 32);
@@ -722,7 +733,7 @@ router.get("/keywords", requireCalendarAdmin, async (req, res, next) => {
         items = null;
       }
     }
-    res.json({ items: items || DEFAULT_KEYWORDS });
+    res.json({ items: ensureTodoKeyword(items || DEFAULT_KEYWORDS) });
   } catch (err) {
     next(err);
   }
@@ -741,12 +752,13 @@ router.put("/keywords", requireCalendarAdmin, async (req, res, next) => {
       items.push(normalized);
       if (items.length >= 30) break;
     }
-    const value = JSON.stringify(items);
+    const finalItems = ensureTodoKeyword(items);
+    const value = JSON.stringify(finalItems);
     await pool.query(
       "INSERT INTO settings (`key`, value) VALUES ('calendar_keywords', ?) ON DUPLICATE KEY UPDATE value = ?",
       [value, value]
     );
-    res.json({ items });
+    res.json({ items: finalItems });
   } catch (err) {
     next(err);
   }
@@ -865,6 +877,64 @@ router.get("/events", requireCalendarAdmin, async (req, res, next) => {
     );
 
     res.json({ items, ownerIds });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// GET /api/calendar/todo-events?ownerIds= — 오른쪽 할 일 목록에 함께 쌓일 'TODO' 키워드 일정
+// (달력의 TODO 일정을 시리즈 단위로 1개씩, 지난 것은 제외하고 마감일 순으로)
+router.get("/todo-events", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const queryIds = parseOwnerIdsQuery(req.query.ownerIds);
+    const legacyId = req.query.ownerId ? [Number(req.query.ownerId)] : [];
+    const requested = queryIds.length ? queryIds : legacyId;
+    const ownerIds = await resolveViewOwnerIds(req, requested);
+
+    const placeholders = ownerIds.map(() => "?").join(", ");
+    const [rows] = await pool.query(
+      `SELECT id, owner_id, series_id, title, description, event_date, start_time, end_time
+       FROM calendar_events
+       WHERE owner_id IN (${placeholders}) AND appointment_type = 'TODO'
+       ORDER BY event_date ASC, id ASC`,
+      ownerIds
+    );
+
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate()
+    ).padStart(2, "0")}`;
+
+    const groups = new Map();
+    for (const row of rows) {
+      const dateKey =
+        row.event_date instanceof Date
+          ? row.event_date.toISOString().slice(0, 10)
+          : String(row.event_date).slice(0, 10);
+      const key = row.series_id || `single-${row.id}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ ...row, dateKey });
+    }
+
+    const items = [];
+    for (const occ of groups.values()) {
+      occ.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+      const rep = occ.find((o) => o.dateKey >= todayKey) || occ[occ.length - 1];
+      if (rep.dateKey < todayKey) continue; // 지난 TODO는 목록에서 제외
+      items.push({
+        id: rep.id,
+        seriesId: rep.series_id || null,
+        text: rep.title,
+        description: rep.description || "",
+        dueDate: rep.dateKey,
+        startTime: rep.start_time ? String(rep.start_time).slice(0, 5) : null,
+        endTime: rep.end_time ? String(rep.end_time).slice(0, 5) : null,
+        source: "calendar",
+      });
+    }
+    items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    res.json({ items });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);

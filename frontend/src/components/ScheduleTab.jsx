@@ -62,7 +62,19 @@ const MOCK_EVENTS = [
   },
 ];
 
-const DEFAULT_KEYWORDS = [{ id: "DATE", emoji: "💕", label: "데이트", color: "pink" }];
+// 'TODO' 는 오른쪽 할 일 목록과 연동되는 내장 키워드. 항상 선택 가능하게 유지한다.
+const TODO_KEYWORD = { id: "TODO", emoji: "✅", label: "할 일", color: "red" };
+
+const DEFAULT_KEYWORDS = [
+  { ...TODO_KEYWORD },
+  { id: "DATE", emoji: "💕", label: "데이트", color: "pink" },
+];
+
+function withTodoKeyword(list) {
+  const arr = Array.isArray(list) ? list : [];
+  if (arr.some((k) => k && k.id === "TODO")) return arr;
+  return [{ ...TODO_KEYWORD }, ...arr];
+}
 
 const KEYWORDS_STORAGE_KEY = "gwon.calendar.keywords";
 const EMOJI_HISTORY_STORAGE_KEY = "gwon.calendar.emojiHistory";
@@ -213,6 +225,8 @@ export default function ScheduleTab() {
   const [monthDir, setMonthDir] = useState(0);
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedSeriesKeys, setSelectedSeriesKeys] = useState(() => new Set());
+  // 이벤트가 갱신될 때마다 오른쪽 할 일 목록(달력 TODO)도 다시 불러오게 하는 신호
+  const [calVersion, setCalVersion] = useState(0);
   const touchStartRef = useRef(null);
 
   const theme = getThemeById(themeColor || "red");
@@ -266,6 +280,7 @@ export default function ScheduleTab() {
   const loadEvents = useCallback(async () => {
     if (localMode) {
       setEvents(MOCK_EVENTS.map((e) => enrichEvent(e)));
+      setCalVersion((v) => v + 1);
       return;
     }
     const data = await api(
@@ -273,6 +288,7 @@ export default function ScheduleTab() {
       { token }
     );
     setEvents((data.items || []).map((e) => enrichEvent(e)));
+    setCalVersion((v) => v + 1);
   }, [token, localMode, ownerId, viewYear, viewMonth]);
 
   const loadKeywords = useCallback(async () => {
@@ -280,29 +296,30 @@ export default function ScheduleTab() {
       try {
         const raw = localStorage.getItem(KEYWORDS_STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : null;
-        setKeywords(Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_KEYWORDS);
+        setKeywords(withTodoKeyword(Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_KEYWORDS));
       } catch {
-        setKeywords(DEFAULT_KEYWORDS);
+        setKeywords(withTodoKeyword(DEFAULT_KEYWORDS));
       }
       return;
     }
     const data = await api("/calendar/keywords", { token });
-    setKeywords(data.items?.length ? data.items : DEFAULT_KEYWORDS);
+    setKeywords(withTodoKeyword(data.items?.length ? data.items : DEFAULT_KEYWORDS));
   }, [token, localMode]);
 
   const saveKeywords = useCallback(
     async (items) => {
-      setKeywords(items);
+      const withTodo = withTodoKeyword(items);
+      setKeywords(withTodo);
       if (localMode) {
-        localStorage.setItem(KEYWORDS_STORAGE_KEY, JSON.stringify(items));
+        localStorage.setItem(KEYWORDS_STORAGE_KEY, JSON.stringify(withTodo));
         return;
       }
       const data = await api("/calendar/keywords", {
         method: "PUT",
         token,
-        body: { items },
+        body: { items: withTodo },
       });
-      setKeywords(data.items || items);
+      setKeywords(withTodoKeyword(data.items || withTodo));
     },
     [token, localMode]
   );
@@ -697,7 +714,11 @@ export default function ScheduleTab() {
       )}
       </div>
 
-      <ScheduleChecklist />
+      <ScheduleChecklist
+        ownerId={ownerId}
+        calendarVersion={calVersion}
+        onCalendarChanged={loadEvents}
+      />
       </div>
 
       <AnimatePresence>

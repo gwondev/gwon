@@ -153,6 +153,34 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+/* 달력의 TODO 일정과 연동된 항목: 왼쪽에 강조선 + 은은한 배경 */
+.todo__item--cal {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.06);
+}
+.todo__item--cal::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 12px 0 0 12px;
+  background: #ef4444;
+}
+.todo__item-cal-badge {
+  margin-right: 0.28rem;
+  font-size: 0.72rem;
+  vertical-align: baseline;
+}
+.todo__item--cal .todo__check {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+.todo__item--cal .todo__check:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.16);
+}
+
 .todo__check {
   flex: none;
   width: 1.1rem;

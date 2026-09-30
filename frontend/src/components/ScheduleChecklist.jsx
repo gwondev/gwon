@@ -42,9 +42,11 @@ function saveLocalItems(items) {
   }
 }
 
-export default function ScheduleChecklist() {
+export default function ScheduleChecklist({ ownerId, calendarVersion = 0, onCalendarChanged }) {
   const { token, localMode } = useAuth();
   const [items, setItems] = useState([]);
+  // 왼쪽 달력의 'TODO' 키워드 일정들 (마감기한이 엄격한 항목)
+  const [calItems, setCalItems] = useState([]);
   const [text, setText] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState(todayKey());
@@ -62,6 +64,15 @@ export default function ScheduleChecklist() {
     setItems(data.items || []);
   }, [token, localMode]);
 
+  const loadCalItems = useCallback(async () => {
+    if (localMode || !ownerId) {
+      setCalItems([]);
+      return;
+    }
+    const data = await api(`/calendar/todo-events?ownerIds=${ownerId}`, { token });
+    setCalItems(data.items || []);
+  }, [token, localMode, ownerId]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -76,14 +87,31 @@ export default function ScheduleChecklist() {
     };
   }, [load]);
 
-  const activeItems = items
-    .filter((it) => !it.done)
-    .sort((a, b) => {
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return a.dueDate.localeCompare(b.dueDate);
-    });
+  // 달력 이벤트가 바뀔 때마다(calendarVersion) 달력 TODO도 다시 불러온다
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        await loadCalItems();
+      } catch (e) {
+        if (alive) setErr(e.message);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [loadCalItems, calendarVersion]);
+
+  // 직접 입력한 할 일(미완료) + 달력의 TODO 일정을 한 목록으로 합쳐 마감일 순 정렬
+  const activeItems = [
+    ...items.filter((it) => !it.done).map((it) => ({ ...it, source: "todo" })),
+    ...calItems.map((it) => ({ ...it, source: "calendar" })),
+  ].sort((a, b) => {
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return a.dueDate.localeCompare(b.dueDate);
+  });
   const doneItems = items
     .filter((it) => it.done)
     .sort((a, b) => new Date(b.doneAt || 0) - new Date(a.doneAt || 0));
@@ -149,6 +177,19 @@ export default function ScheduleChecklist() {
     } catch (e) {
       setErr(e.message);
       await load();
+    }
+  };
+
+  // 달력 TODO 항목 삭제 → 왼쪽 본 캘린더의 해당 일정도 함께 삭제
+  const deleteCalendarItem = async (item) => {
+    setCalItems((prev) => prev.filter((it) => it.id !== item.id));
+    if (localMode) return;
+    try {
+      await api(`/calendar/events/${item.id}`, { method: "DELETE", token });
+      onCalendarChanged?.();
+    } catch (e) {
+      setErr(e.message);
+      await loadCalItems();
     }
   };
 
@@ -238,7 +279,13 @@ export default function ScheduleChecklist() {
             </motion.li>
           ) : (
             activeItems.map((item) => (
-              <ChecklistItem key={item.id} item={item} onToggle={() => toggleDone(item)} />
+              <ChecklistItem
+                key={`${item.source}-${item.id}`}
+                item={item}
+                onAction={() =>
+                  item.source === "calendar" ? deleteCalendarItem(item) : toggleDone(item)
+                }
+              />
             ))
           )}
         </AnimatePresence>
@@ -277,13 +324,17 @@ export default function ScheduleChecklist() {
   );
 }
 
-function ChecklistItem({ item, onToggle }) {
+function ChecklistItem({ item, onAction }) {
   const [checking, setChecking] = useState(false);
+  const isCal = item.source === "calendar";
 
   const handleClick = () => {
     if (checking) return;
+    if (isCal && !window.confirm("이 TODO를 삭제할까요? 왼쪽 달력의 일정도 함께 삭제됩니다.")) {
+      return;
+    }
     setChecking(true);
-    setTimeout(() => onToggle(), 260);
+    setTimeout(() => onAction(), 260);
   };
 
   const hasDesc = Boolean(item.description && item.description.trim());
@@ -291,7 +342,7 @@ function ChecklistItem({ item, onToggle }) {
   return (
     <motion.li
       layout
-      className="todo__item"
+      className={`todo__item ${isCal ? "todo__item--cal" : ""}`}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 28, transition: { duration: 0.22, ease: "easeIn" } }}
@@ -301,7 +352,7 @@ function ChecklistItem({ item, onToggle }) {
         type="button"
         className={`todo__check ${checking ? "is-checked" : ""}`}
         onClick={handleClick}
-        aria-label="완료 처리"
+        aria-label={isCal ? "달력 일정 삭제" : "완료 처리"}
       >
         {checking && (
           <motion.span
@@ -316,7 +367,14 @@ function ChecklistItem({ item, onToggle }) {
       </button>
       <div className="todo__item-body">
         {item.dueDate && <span className="todo__item-date">{formatDateDot(item.dueDate)}</span>}
-        <span className="todo__item-text">{item.text}</span>
+        <span className="todo__item-text">
+          {isCal && (
+            <span className="todo__item-cal-badge" title="달력 일정">
+              📅
+            </span>
+          )}
+          {item.text}
+        </span>
       </div>
       {hasDesc && <DetailButton description={item.description} />}
     </motion.li>
