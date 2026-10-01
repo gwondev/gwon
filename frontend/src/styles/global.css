@@ -46,11 +46,11 @@ html {
   }
   /* 가로 폭은 그대로 두고 세로만 살짝: 줄간격 + 페이지 상하 여백을 조금 키운다. */
   body {
-    line-height: 1.8;
+    line-height: 1.9;
   }
   .page {
-    padding-top: clamp(12px, 2.1vh, 28px);
-    padding-bottom: clamp(12px, 2.1vh, 28px);
+    padding-top: clamp(16px, 2.6vh, 36px);
+    padding-bottom: clamp(16px, 2.6vh, 36px);
   }
 }
 
