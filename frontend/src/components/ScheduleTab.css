@@ -2097,13 +2097,13 @@
   }
 
   .schedule__bubble {
-    font-size: 0.68rem;
-    height: 1.16rem;
+    font-size: 0.75rem;
+    height: 1.26rem;
     padding: 0 0.4rem;
   }
 
   .schedule__bubble-time {
-    font-size: 0.64rem;
+    font-size: 0.7rem;
   }
 }
 

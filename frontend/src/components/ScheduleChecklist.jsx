@@ -331,9 +331,6 @@ function ChecklistItem({ item, onAction }) {
 
   const handleClick = () => {
     if (checking) return;
-    if (isCal && !window.confirm("이 TODO를 삭제할까요? 왼쪽 달력의 일정도 함께 삭제됩니다.")) {
-      return;
-    }
     setChecking(true);
     setTimeout(() => onAction(), 260);
   };
