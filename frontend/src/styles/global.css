@@ -114,6 +114,15 @@ body::after {
   flex-direction: column;
 }
 
+.app-shell--fit {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-shell--fit .topbar {
+  flex: none;
+}
+
 .page {
   width: 100%;
   max-width: var(--maxw);

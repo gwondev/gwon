@@ -25,11 +25,12 @@ export default function App() {
   const location = useLocation();
   const path = location.pathname;
   // 홈·일정·바이낸스는 블랙 골드 톤. 세부 포트폴리오 페이지만 코스믹.
+  const isHome = path === "/";
   const isCosmic =
     path !== "/" && path !== "/schedule" && path !== "/BINANCE" && path !== "/binance";
 
   return (
-    <div className={`app-shell ${isCosmic ? "cosmic" : ""}`}>
+    <div className={`app-shell ${isCosmic ? "cosmic" : ""} ${isHome ? "app-shell--fit" : ""}`}>
       <ScrollToTop />
       {isCosmic && <Starfield />}
       {isCosmic && <ScrollProgress />}
@@ -54,7 +55,9 @@ export default function App() {
         <Route path="*" element={<RootPage />} />
       </Routes>
       <SiteFooter />
-      {path !== "/schedule" && path !== "/BINANCE" && path !== "/binance" && <ChatWidget />}
+      {path !== "/" && path !== "/schedule" && path !== "/BINANCE" && path !== "/binance" && (
+        <ChatWidget />
+      )}
     </div>
   );
 }

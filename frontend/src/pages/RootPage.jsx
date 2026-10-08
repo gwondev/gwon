@@ -1,51 +1,32 @@
-import { useMemo, useState, useRef } from "react";
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import DetailModal from "../components/DetailModal";
 import GitHubIcon from "../components/GitHubIcon";
 import RecordUrl from "../components/RecordUrl";
-import { useAuth } from "../context/AuthContext";
-import { ABOUT, isCompetition, isProjectRecord } from "../lib/sections";
+
+const HeroScene = lazy(() => import("../components/home/HeroScene"));
+import { isCompetition, isProjectRecord } from "../lib/sections";
 import { useTechStack } from "../lib/useTechStack";
 import { usePortfolioPreview } from "../lib/usePortfolioPreview";
 import { parseTechItem } from "../lib/techStackDisplay";
 import { splitTags } from "../lib/media";
-import { normalizeUrl } from "../lib/url";
 import { formatProjectHeadline, formatCareerPeriodPreview } from "../lib/format";
 import "./RootPage.css";
 
-gsap.registerPlugin(ScrollTrigger);
-
-const TILE_META = [
-  { match: ["gwon"], icon: "01", grad: ["#d8c19a", "#8a7350"] },
-  { match: ["meter"], icon: "02", grad: ["#d8c19a", "#8a7350"] },
-  { match: ["greeneye"], icon: "03", grad: ["#d8c19a", "#8a7350"] },
-  { match: ["devsign oj", "devsign(oj)"], icon: "04", grad: ["#d8c19a", "#8a7350"] },
-  { match: ["devsign"], icon: "05", grad: ["#d8c19a", "#8a7350"] },
-  { match: ["tress"], icon: "06", grad: ["#d8c19a", "#8a7350"] },
-  { match: ["move"], icon: "07", grad: ["#d8c19a", "#8a7350"] },
-];
-
-function tileMeta(item, index) {
-  const key = String(item?.team_name || item?.title || "").trim().toLowerCase();
-  const found = TILE_META.find((t) => t.match.some((m) => key.includes(m)));
-  return found || { icon: String(index + 1).padStart(2, "0"), grad: ["#d8c19a", "#8a7350"] };
-}
+const EMAIL = "gwondev0323@gmail.com";
 
 export default function RootPage() {
   const { preview } = usePortfolioPreview();
   const { groups: techGroups } = useTechStack();
-  const { isSuperAdmin } = useAuth();
   const [active, setActive] = useState(null);
-  const root = useRef(null);
-  const pinRef = useRef(null);
-  const trackRef = useRef(null);
+  const [copied, setCopied] = useState(false);
+  const [workIndex, setWorkIndex] = useState(0);
 
   const projects = (preview.projects || []).filter(isProjectRecord);
   const awards = (preview.projects || []).filter(isCompetition);
   const certs = preview.certifications || [];
   const career = preview.career || [];
+  const featured = projects[workIndex] || null;
 
   const flatTech = useMemo(() => {
     const seen = new Set();
@@ -59,202 +40,126 @@ export default function RootPage() {
         }
       }
     }
-    return out;
+    return out.slice(0, 8);
   }, [techGroups]);
 
-  useGSAP(
-    () => {
-      gsap.from(".home-hero__name", { y: 48, opacity: 0, duration: 0.9, ease: "power3.out" });
-      gsap.from(".home-hero__lead", { y: 24, opacity: 0, duration: 0.8, delay: 0.12, ease: "power3.out" });
-      gsap.from(".home-hero__stat", {
-        y: 18,
-        opacity: 0,
-        duration: 0.55,
-        delay: 0.2,
-        stagger: 0.06,
-        ease: "power2.out",
-      });
+  const copyMail = async () => {
+    try {
+      await navigator.clipboard.writeText(EMAIL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      window.location.href = `mailto:${EMAIL}`;
+    }
+  };
 
-      const pin = pinRef.current;
-      const track = trackRef.current;
-      if (!pin || !track) return;
-      const cards = gsap.utils.toArray(".home-work__card", track);
-      if (cards.length < 2) return;
-      if (window.matchMedia("(max-width: 720px)").matches) return;
-
-      const distance = () => Math.max(0, track.scrollWidth - pin.clientWidth);
-      const tween = gsap.to(track, {
-        x: () => -distance(),
-        ease: "none",
-        scrollTrigger: {
-          trigger: pin,
-          start: "top 72px",
-          end: () => `+=${distance() + window.innerHeight * 0.35}`,
-          pin: true,
-          scrub: 0.85,
-          anticipatePin: 1,
-          invalidateOnRefresh: true,
-        },
-      });
-
-      cards.forEach((card) => {
-        gsap.fromTo(
-          card,
-          { rotateY: 16, z: -90, opacity: 0.5, scale: 0.94 },
-          {
-            rotateY: 0,
-            z: 0,
-            opacity: 1,
-            scale: 1,
-            ease: "none",
-            scrollTrigger: {
-              trigger: card,
-              containerAnimation: tween,
-              start: "left 92%",
-              end: "left 42%",
-              scrub: true,
-            },
-          }
-        );
-      });
-    },
-    { scope: root, dependencies: [projects.length] }
-  );
+  const shiftWork = (dir) => {
+    if (!projects.length) return;
+    setWorkIndex((i) => (i + dir + projects.length) % projects.length);
+  };
 
   return (
-    <main className="page home-page" ref={root}>
-      <section className="home-hero">
-        <p className="home-hero__eyebrow">AIoT ENGINEER · SOLO END-TO-END</p>
-        <h1 className={`home-hero__name ${isSuperAdmin ? "is-admin" : ""}`}>이성권</h1>
-        <p className="home-hero__lead">
-          {ABOUT.intro} 하드웨어 센서 제어부터 Docker 인프라·배포까지,{" "}
-          <span>서비스의 하드웨어·서버 연결 구간을 혼자 리딩합니다.</span>
-        </p>
-        <div className="home-hero__stats">
-          <div className="home-hero__stat">
-            <b>{projects.length}</b>
-            <span>PROJECTS</span>
-          </div>
-          <div className="home-hero__stat">
-            <b>{awards.length}</b>
-            <span>AWARDS</span>
-          </div>
-          <div className="home-hero__stat">
-            <b>{certs.length}</b>
-            <span>CERTS</span>
-          </div>
-          <div className="home-hero__stat">
-            <b>{career.length}</b>
-            <span>CAREER</span>
-          </div>
-        </div>
-      </section>
+    <main className="page home-page">
+      <Suspense fallback={null}>
+        <HeroScene />
+      </Suspense>
 
-      <section className="home-work" ref={pinRef}>
-        <div className="home-work__head">
-          <p className="home-kicker">Selected Works</p>
-          <h2>스크롤하면 프로젝트가 옆으로 넘어갑니다.</h2>
-        </div>
-        {projects.length ? (
-          <div className="home-work__viewport">
-            <div className="home-work__track" ref={trackRef}>
-              {projects.map((p, i) => {
-                const meta = tileMeta(p, i);
-                const tags = splitTags(p.category);
-                return (
-                  <article
-                    key={p.id ?? `${p.title}-${i}`}
-                    className="home-work__card"
-                    onClick={() => setActive(p)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setActive(p)}
-                  >
-                    <span className="home-work__no">{meta.icon}</span>
-                    <h3>{formatProjectHeadline(p)}</h3>
-                    {tags.length > 0 && (
-                      <div className="home-work__tags">
-                        {tags.slice(0, 3).map((t) => (
-                          <span key={t}>{t}</span>
-                        ))}
-                      </div>
-                    )}
-                    {p.description && <p>{p.description}</p>}
-                    <span className="home-work__more">자세히 보기</span>
-                  </article>
-                );
-              })}
+      <div className="home-overlay">
+        <section className="home-hero">
+          <p className="home-hello">
+            Hi, I am 이성권 <span className="waving-hand">👋</span>
+          </p>
+          <h1 className="home-tag">Building AIoT from sensor to deploy</h1>
+        </section>
+
+        <div className="home-spacer" />
+
+        <section className="home-bento">
+          <article className="home-cell home-cell--work">
+            <div className="home-cell__head">
+              <p>Work</p>
+              {projects.length > 1 && (
+                <div className="home-arrows">
+                  <button type="button" onClick={() => shiftWork(-1)} aria-label="이전">
+                    ‹
+                  </button>
+                  <button type="button" onClick={() => shiftWork(1)} aria-label="다음">
+                    ›
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        ) : (
-          <p className="home-empty">아직 등록된 프로젝트가 없습니다.</p>
-        )}
-      </section>
+            {featured ? (
+              <button type="button" className="home-work" onClick={() => setActive(featured)}>
+                <span className="home-work__no">{String(workIndex + 1).padStart(2, "0")}</span>
+                <strong>{formatProjectHeadline(featured)}</strong>
+                <em>{splitTags(featured.category).slice(0, 2).join(" · ") || "Project"}</em>
+              </button>
+            ) : (
+              <p className="home-muted">등록된 프로젝트가 없습니다.</p>
+            )}
+            <Link className="home-more" to="/projects">
+              전체 보기
+            </Link>
+          </article>
 
-      <section className="home-resume">
-        <p className="home-kicker">Resume</p>
-        <div className="home-resume__grid">
-          <div>
-            <h3>경력</h3>
-            {career.length ? (
-              career.map((it) => (
-                <p key={it.id}>
+          <article className="home-cell">
+            <p>Resume</p>
+            <ul>
+              {(career[0] ? [career[0]] : []).map((it) => (
+                <li key={it.id}>
                   <b>{it.title}</b>
-                  <span>{formatCareerPeriodPreview(it.period) || it.period || ""}</span>
-                </p>
-              ))
-            ) : (
-              <p className="home-empty">—</p>
-            )}
-          </div>
-          <div>
-            <h3>자격증</h3>
-            {certs.length ? (
-              certs.map((it) => (
-                <p key={it.id}>
+                  <span>{formatCareerPeriodPreview(it.period) || ""}</span>
+                </li>
+              ))}
+              {(certs[0] ? [certs[0]] : []).map((it) => (
+                <li key={it.id}>
                   <b>{it.title}</b>
-                  <span>{it.score || ""}</span>
-                </p>
-              ))
-            ) : (
-              <p className="home-empty">—</p>
-            )}
-          </div>
-          <div>
-            <h3>수상</h3>
-            {awards.length ? (
-              awards.map((it) => (
-                <p key={it.id}>
+                  <span>{it.score || "자격"}</span>
+                </li>
+              ))}
+              {(awards[0] ? [awards[0]] : []).map((it) => (
+                <li key={it.id}>
                   <b>{formatProjectHeadline(it)}</b>
-                  <span>{it.award || ""}</span>
-                </p>
-              ))
-            ) : (
-              <p className="home-empty">—</p>
-            )}
-          </div>
-        </div>
-      </section>
+                  <span>{it.award || "수상"}</span>
+                </li>
+              ))}
+              {!career.length && !certs.length && !awards.length && <li className="home-muted">이력이 없습니다.</li>}
+            </ul>
+            <Link className="home-more" to="/overview">
+              한번에 보기
+            </Link>
+          </article>
 
-      <section className="home-closer">
-        {flatTech.length > 0 && (
-          <div className="home-marquee" aria-hidden>
-            <div className="home-marquee__track">
-              {[...flatTech, ...flatTech].map((t, i) => (
-                <span key={`${t}-${i}`}>{t}</span>
+          <article className="home-cell">
+            <p>Stack & Contact</p>
+            <div className="home-chips">
+              {flatTech.map((t) => (
+                <span key={t}>{t}</span>
               ))}
             </div>
-          </div>
-        )}
-        <div className="home-closer__cta">
-          <a className="btn btn-accent" href="mailto:gwondev0323@gmail.com">
-            이메일
-          </a>
-          <a className="btn btn-ghost" href="https://github.com/gwondev" target="_blank" rel="noopener noreferrer">
-            <GitHubIcon size={15} /> GitHub
-          </a>
-        </div>
-      </section>
+            <div className="home-cta">
+              <button type="button" className="home-beam" onClick={copyMail}>
+                <span className="home-beam__ping" />
+                <span className="home-beam__dot" />
+                {copied ? "Copied" : "Let’s work together"}
+              </button>
+              <a href={`mailto:${EMAIL}`} className="home-iconlink" aria-label="email">
+                ✉
+              </a>
+              <a
+                href="https://github.com/gwondev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="home-iconlink"
+                aria-label="GitHub"
+              >
+                <GitHubIcon size={14} />
+              </a>
+            </div>
+          </article>
+        </section>
+      </div>
 
       <DetailModal open={Boolean(active)} onClose={() => setActive(null)} title={active ? formatProjectHeadline(active) : ""}>
         {active && (
