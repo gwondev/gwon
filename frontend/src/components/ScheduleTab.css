@@ -876,12 +876,6 @@
   display: none;
 }
 
-.schedule__allday-start {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
 /* ── 날짜/시간 휠 영역 ── */
 .schedule__when {
   display: flex;

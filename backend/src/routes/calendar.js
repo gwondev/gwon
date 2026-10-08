@@ -179,6 +179,18 @@ function toTimeMinute(v) {
   return h * 60 + m;
 }
 
+// 시작일·종료일·반복종료일·시간 순서 검증. 문제가 없으면 null.
+function validateEventRange({ eventDate, endDate, repeat, startTime, endTime }) {
+  if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return "종료 날짜 형식이 올바르지 않습니다.";
+  if (!repeat && endDate && endDate < eventDate) return "종료 날짜는 시작 날짜와 같거나 이후여야 합니다.";
+  if (repeat?.until && repeat.until < eventDate) return "반복 종료일은 시작 날짜와 같거나 이후여야 합니다.";
+  const sameDay = !endDate || endDate === eventDate;
+  if (!repeat && sameDay && startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
+    return "종료 시간은 시작 시간보다 뒤로 설정해주세요.";
+  }
+  return null;
+}
+
 async function resolveOwnerIds(req, requestedOwnerIds) {
   const actorId = req.auth.uid;
   const actorRole = req.userRole || (await getUserRole(actorId));
@@ -1187,10 +1199,8 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
     if (!isValidThemeColor(themeColor)) {
       return res.status(400).json({ error: "themeColor 가 올바르지 않습니다." });
     }
-    // 같은 날 시간 지정일 때만 순서 검증 (종료일이 다르면 종일/다일에 걸친 것으로 허용)
-    if (!endDate && startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
-      return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
-    }
+    const rangeError = validateEventRange({ eventDate, endDate, repeat, startTime, endTime });
+    if (rangeError) return res.status(400).json({ error: rangeError });
 
     const requestedOwnerIds = normalizeOwnerIds(body.ownerIds);
     const ownerIds = requestedOwnerIds.length
@@ -1310,9 +1320,8 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     if (!isValidThemeColor(themeColor)) {
       return res.status(400).json({ error: "themeColor 가 올바르지 않습니다." });
     }
-    if (!endDate && !repeat && startTime && endTime && toTimeMinute(endTime) <= toTimeMinute(startTime)) {
-      return res.status(400).json({ error: "종료 시간은 시작 시간보다 뒤로 설정해주세요." });
-    }
+    const rangeError = validateEventRange({ eventDate, endDate, repeat, startTime, endTime });
+    if (rangeError) return res.status(400).json({ error: rangeError });
 
     // 시리즈 식별자는 그대로 유지(없으면 새로 부여)
     const seriesId = existing.series_id || makeSeriesId();

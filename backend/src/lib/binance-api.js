@@ -157,6 +157,42 @@ export async function getFuturesBalances() {
   };
 }
 
+const USD_PEGGED = new Set(["USDT", "USDC", "FDUSD", "BUSD", "TUSD", "USDP", "DAI"]);
+
+/** 현물 잔고를 공개 시세로 USDT 환산 (지갑별 잔고 API 실패 시 폴백용) */
+async function valueSpotInUsdt(balances) {
+  const res = await fetch(`${SPOT_BASE}/api/v3/ticker/price`);
+  if (!res.ok) throw new Error(`바이낸스 공개 API 오류: ${res.status}`);
+  const prices = new Map((await res.json()).map((t) => [t.symbol, Number(t.price) || 0]));
+  let total = 0;
+  for (const b of balances) {
+    const asset = b.asset.startsWith("LD") ? b.asset.slice(2) : b.asset;
+    if (USD_PEGGED.has(asset)) total += b.total;
+    else total += b.total * (prices.get(`${asset}USDT`) || 0);
+  }
+  return total;
+}
+
+/**
+ * 계정 전체(현물·선물·펀딩·Earn 등 모든 지갑) 총자산을 USDT 기준으로 조회.
+ * 지갑별 잔고 API가 막혀 있으면 현물+선물 잔고를 직접 환산한다.
+ */
+export async function getTotalAssetUsdt() {
+  try {
+    const rows = await signedRequest(SPOT_BASE, "/sapi/v1/asset/wallet/balance", "GET", { quoteAsset: "USDT" });
+    if (Array.isArray(rows)) {
+      const totalUsdt = rows.reduce((s, w) => s + (Number(w.balance) || 0), 0);
+      return { totalUsdt, source: "wallet-balance" };
+    }
+  } catch (err) {
+    console.warn("[binance] wallet balance API 실패, 현물+선물 환산으로 폴백:", err.message);
+  }
+
+  const [spot, futures] = await Promise.all([getSpotBalances(), getFuturesBalances()]);
+  const spotUsdt = await valueSpotInUsdt(spot.balances);
+  return { totalUsdt: spotUsdt + futures.totalMarginBalance, source: "spot+futures" };
+}
+
 /**
  * 현재 선물 실시간 포지션 목록 조회
  */

@@ -7,8 +7,10 @@ import {
   getFuturesBalances,
   getFuturesPositions,
   getMarkPrice,
+  getTotalAssetUsdt,
   publicFuturesRequest,
 } from "../lib/binance-api.js";
+import { getUsdKrwRate } from "../lib/fx-rate.js";
 import { askGemini } from "../lib/gemini.js";
 import { refreshOpportunityCacheIfStale } from "../lib/binance-scoring.js";
 import { loadBotSettings, updateBotSettings, getOpenBotPosition } from "../lib/binance-settings.js";
@@ -74,6 +76,41 @@ router.get("/wallet", async (_req, res, next) => {
         usdt: { walletBalance: 0, unrealizedProfit: 0, availableBalance: 0 },
       },
       spot: spot || { usdtFree: 0, usdtTotal: 0, balances: [] },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * 1-1. 계정 총자산(USDT) + 원화 환산 (USD/KRW 환율은 하루 1회 갱신)
+ */
+router.get("/total-asset", async (_req, res, next) => {
+  try {
+    const creds = getBinanceCredentials();
+    if (!creds.hasCredentials) {
+      return res.json({
+        ok: false,
+        hasCredentials: false,
+        error: "서버 .env에 BINANCE_API_KEY 및 BINANCE_SECRET_KEY가 설정되지 않았습니다.",
+      });
+    }
+
+    const [assetResult, fxResult] = await Promise.allSettled([getTotalAssetUsdt(), getUsdKrwRate()]);
+    if (assetResult.status === "rejected") {
+      return res.json({ ok: false, hasCredentials: true, error: assetResult.reason?.message || "총자산 조회 실패" });
+    }
+
+    const { totalUsdt } = assetResult.value;
+    const fx = fxResult.status === "fulfilled" ? fxResult.value : null;
+    res.json({
+      ok: true,
+      hasCredentials: true,
+      totalUsdt,
+      krwRate: fx?.rate ?? null,
+      krwRateDate: fx?.dateKey ?? null,
+      totalKrw: fx?.rate ? totalUsdt * fx.rate : null,
+      fxError: fx ? null : fxResult.reason?.message || "환율 조회 실패",
     });
   } catch (err) {
     next(err);

@@ -130,6 +130,39 @@ function timeToMinute(v) {
   return h * 60 + m;
 }
 
+function minuteToTime(min) {
+  return `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
+}
+
+function dayDiff(fromKey, toKey) {
+  const [y1, m1, d1] = fromKey.split("-").map(Number);
+  const [y2, m2, d2] = toKey.split("-").map(Number);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+}
+
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// 저장 전에 날짜·시간 순서를 검사한다. 문제가 없으면 null.
+function formRangeError(form) {
+  if (!DATE_KEY_RE.test(form.eventDate || "")) return "시작 날짜를 선택해주세요.";
+  if (form.repeatOn) {
+    if (form.repeatUntil && form.repeatUntil < form.eventDate) {
+      return "반복 종료일은 시작 날짜와 같거나 이후여야 합니다.";
+    }
+    return null;
+  }
+  if (form.endDate && form.endDate < form.eventDate) {
+    return "종료 날짜는 시작 날짜와 같거나 이후여야 합니다.";
+  }
+  const sameDay = !form.endDate || form.endDate === form.eventDate;
+  if (!form.allDay && sameDay) {
+    const s = timeToMinute(form.startTime);
+    const e = timeToMinute(form.endTime);
+    if (s != null && e != null && e <= s) return "종료 시간은 시작 시간보다 뒤로 설정해주세요.";
+  }
+  return null;
+}
+
 function formatDateDot(dateKey) {
   if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return "";
   const [, m, d] = dateKey.split("-");
@@ -434,6 +467,8 @@ export default function ScheduleTab() {
     e.preventDefault();
     const title = form.title.trim();
     if (!title) return setErr("일정명을 입력해주세요.");
+    const rangeError = formRangeError(form);
+    if (rangeError) return setErr(rangeError);
     setBusy(true);
     setErr(null);
 
@@ -449,14 +484,8 @@ export default function ScheduleTab() {
         }
       : null;
     const endDate = repeat ? null : (form.endDate || null);
-    const sameDay = !form.endDate || form.endDate === form.eventDate;
 
     try {
-      if (!allDay && !repeat && sameDay && startTime && endTime && timeToMinute(endTime) <= timeToMinute(startTime)) {
-        setErr("종료 시간은 시작 시간보다 뒤로 설정해주세요.");
-        setBusy(false);
-        return;
-      }
       if (editId != null) {
         const payload = {
           title,
@@ -1340,6 +1369,49 @@ function EventModal({
     setForm((f) => ({ ...f, allDay: !f.allDay }));
   }, [setForm]);
 
+  // 시작 날짜를 옮기면 기존 기간(일수)을 유지한 채 종료 날짜도 같이 옮기고,
+  // 반복 종료일이 시작 날짜보다 앞서게 되면 시작 날짜로 당긴다.
+  const changeStartDate = useCallback(
+    (v) => {
+      setForm((f) => {
+        const span = f.eventDate && f.endDate ? Math.max(0, dayDiff(f.eventDate, f.endDate)) : 0;
+        return {
+          ...f,
+          eventDate: v,
+          endDate: shiftDateKey(v, span),
+          repeatUntil: !f.repeatUntil || f.repeatUntil < v ? v : f.repeatUntil,
+        };
+      });
+    },
+    [setForm]
+  );
+
+  const changeEndDate = useCallback(
+    (v) => setForm((f) => ({ ...f, endDate: v < f.eventDate ? f.eventDate : v })),
+    [setForm]
+  );
+
+  // 같은 날 일정에서 시작 시간을 종료 시간 이후로 옮기면, 기존 길이를 유지하도록 종료 시간을 민다.
+  const changeStartTime = useCallback(
+    (v) => {
+      setForm((f) => {
+        const sameDay = !f.endDate || f.endDate === f.eventDate;
+        const newStart = timeToMinute(v);
+        const oldStart = timeToMinute(f.startTime);
+        const oldEnd = timeToMinute(f.endTime);
+        if (!sameDay || newStart == null || oldEnd == null || oldEnd > newStart) {
+          return { ...f, startTime: v };
+        }
+        const duration = oldStart != null && oldEnd > oldStart ? oldEnd - oldStart : 60;
+        const newEnd = Math.min(newStart + duration, 23 * 60 + 55);
+        return { ...f, startTime: v, endTime: newEnd > newStart ? minuteToTime(newEnd) : f.endTime };
+      });
+    },
+    [setForm]
+  );
+
+  const rangeError = formRangeError(form);
+
   const toggleWeekday = useCallback(
     (n) => {
       setForm((f) => {
@@ -1440,7 +1512,11 @@ function EventModal({
               <span className="schedule__allday-check" aria-hidden>{form.allDay ? "✓" : ""}</span>
               종일
             </button>
-            <span className="schedule__allday-start">{formatDateDot(form.eventDate)} 시작</span>
+          </div>
+
+          <div className="schedule__when-block schedule__when-block--wide">
+            <span className="schedule__when-label">시작 날짜</span>
+            <DateField value={form.eventDate} onChange={changeStartDate} />
           </div>
 
           <AnimatePresence mode="wait" initial={false}>
@@ -1458,7 +1534,7 @@ function EventModal({
                   <DateField
                     value={form.endDate}
                     min={form.eventDate}
-                    onChange={(v) => setForm((f) => ({ ...f, endDate: v }))}
+                    onChange={changeEndDate}
                   />
                 </div>
               </motion.div>
@@ -1476,13 +1552,13 @@ function EventModal({
                   <DateField
                     value={form.endDate}
                     min={form.eventDate}
-                    onChange={(v) => setForm((f) => ({ ...f, endDate: v }))}
+                    onChange={changeEndDate}
                   />
                 </div>
                 <div className="schedule__when-times">
                   <div className="schedule__when-block">
                     <span className="schedule__when-label">시작 시간</span>
-                    <TimeSelect value={form.startTime} onChange={(v) => setForm((f) => ({ ...f, startTime: v }))} />
+                    <TimeSelect value={form.startTime} onChange={changeStartTime} />
                   </div>
                   <div className="schedule__when-block">
                     <span className="schedule__when-label">종료 시간</span>
@@ -1667,6 +1743,8 @@ function EventModal({
             </div>
           </div>
 
+          {rangeError && <p className="schedule__err-inline">{rangeError}</p>}
+
           <div className="schedule__modal-actions">
             {onDelete && (
               <button type="button" className="btn btn-ghost schedule__del-btn" onClick={onDelete}>
@@ -1676,7 +1754,7 @@ function EventModal({
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               취소
             </button>
-            <button type="submit" className="btn btn-accent" disabled={busy}>
+            <button type="submit" className="btn btn-accent" disabled={busy || !!rangeError}>
               {busy ? "저장 중…" : "저장"}
             </button>
           </div>
