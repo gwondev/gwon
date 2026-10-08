@@ -1,7 +1,11 @@
 import pool from "../db.js";
 import { getIncomeHistory } from "./binance-api.js";
 
-/** 어떤 income 항목이 봇/수동 중 어디 귀속인지 판단: 봇 포지션의 보유 구간에 겹치면 BOT, 아니면 MANUAL */
+const INCOME_TYPES = ["REALIZED_PNL", "COMMISSION", "FUNDING_FEE"];
+const CHUNK_MS = 6 * 24 * 60 * 60 * 1000;
+const PERIOD_DAYS = { "1d": 1, "1w": 7, "1m": 30, "3m": 90, all: 180 };
+let lastSync = { at: 0, lookbackMs: 0 };
+
 async function attributeIncomeTime(symbol, incomeTimeMs) {
   const [rows] = await pool.query(
     `SELECT id FROM binance_bot_positions
@@ -14,46 +18,89 @@ async function attributeIncomeTime(symbol, incomeTimeMs) {
   return rows.length ? "BOT" : "MANUAL";
 }
 
-/** 최근 REALIZED_PNL income 이력을 가져와 원장에 dedupe 저장하고 봇/수동 귀속을 매긴다. */
-export async function syncIncomeLedger() {
-  const [lastRows] = await pool.query("SELECT MAX(income_time) AS last_time FROM binance_income_ledger");
-  const startTime = lastRows[0]?.last_time
-    ? Number(lastRows[0].last_time) + 1
-    : Date.now() - 90 * 24 * 60 * 60 * 1000;
-
-  let entries = [];
-  try {
-    entries = await getIncomeHistory({ startTime, incomeType: "REALIZED_PNL", limit: 1000 });
-  } catch (err) {
-    console.error("[binance-income] income 조회 실패:", err.message);
-    return;
+async function fetchIncomeChunks(incomeType, fromMs, toMs) {
+  const all = [];
+  for (let start = fromMs; start < toMs; start += CHUNK_MS) {
+    const end = Math.min(start + CHUNK_MS - 1, toMs);
+    let cursor = start;
+    for (let page = 0; page < 8; page++) {
+      let batch;
+      try {
+        batch = await getIncomeHistory({
+          startTime: cursor,
+          endTime: end,
+          incomeType,
+          limit: 1000,
+        });
+      } catch (err) {
+        console.warn(`[binance-income] ${incomeType} ${cursor}-${end}:`, err.message);
+        break;
+      }
+      if (!Array.isArray(batch) || !batch.length) break;
+      all.push(...batch);
+      if (batch.length < 1000) break;
+      const lastTime = Number(batch[batch.length - 1].time) || 0;
+      if (lastTime >= end) break;
+      cursor = lastTime + 1;
+    }
   }
-  if (!Array.isArray(entries) || !entries.length) return;
+  return all;
+}
 
+async function upsertEntries(entries) {
+  let n = 0;
   for (const e of entries) {
     const incomeTime = Number(e.time);
     const attribution = await attributeIncomeTime(e.symbol, incomeTime);
     await pool.query(
       `INSERT INTO binance_income_ledger (binance_tran_id, symbol, income_type, income, attribution, income_time, raw_json)
        VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE attribution = VALUES(attribution)`,
-      [e.tranId, e.symbol, e.incomeType, e.income, attribution, incomeTime, JSON.stringify(e)]
+       ON DUPLICATE KEY UPDATE
+         income = VALUES(income),
+         income_type = VALUES(income_type),
+         attribution = VALUES(attribution)`,
+      [
+        e.tranId,
+        e.symbol || "",
+        e.incomeType,
+        e.income,
+        attribution,
+        incomeTime,
+        JSON.stringify(e),
+      ]
     );
+    n += 1;
   }
-  console.log(`[binance-income] ${entries.length}건 동기화 완료`);
+  return n;
+}
+
+/** 바이낸스는 income 조회 구간이 약 7일로 막혀 있어 구간을 나눠 가져온다. */
+export async function syncIncomeLedger(lookbackMs = 90 * 24 * 60 * 60 * 1000) {
+  const now = Date.now();
+  if (now - lastSync.at < 8 * 60 * 1000 && lookbackMs <= lastSync.lookbackMs) return;
+  const toMs = now;
+  const fromMs = toMs - lookbackMs;
+  let total = 0;
+  for (const type of INCOME_TYPES) {
+    const entries = await fetchIncomeChunks(type, fromMs, toMs);
+    total += await upsertEntries(entries);
+  }
+  lastSync = { at: Date.now(), lookbackMs };
+  if (total) console.log(`[binance-income] ${total}건 동기화`);
 }
 
 export async function getPnlSummary() {
   const [rows] = await pool.query(
     `SELECT attribution, COALESCE(SUM(income), 0) AS total
-     FROM binance_income_ledger GROUP BY attribution`
+     FROM binance_income_ledger
+     WHERE income_type = 'REALIZED_PNL'
+     GROUP BY attribution`
   );
   const realized = { BOT: 0, MANUAL: 0, UNKNOWN: 0 };
   for (const r of rows) realized[r.attribution] = Number(r.total);
   return realized;
 }
 
-/** 모의(paper) 거래 누적 손익 — 실제 자금과는 무관한 시뮬레이션 결과로, 페이퍼 검증 기간에만 참고용으로 노출한다. */
 export async function getPaperPnlSummary() {
   const [rows] = await pool.query(
     "SELECT COALESCE(SUM(realized_pnl), 0) AS total FROM binance_bot_positions WHERE is_paper = 1 AND status = 'CLOSED'"
@@ -61,27 +108,33 @@ export async function getPaperPnlSummary() {
   return Number(rows[0]?.total || 0);
 }
 
-const PERIOD_DAYS = { "1d": 1, "1w": 7, "1m": 30, "3m": 90, all: 365 };
+function ymdKst(ms) {
+  return new Date(ms + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
 
-/** 기간별 일간 실현손익 + 누적 곡선 */
 export async function getPnlSeries(period = "1w") {
   const days = PERIOD_DAYS[period] || 7;
   const startMs = Date.now() - days * 24 * 60 * 60 * 1000;
-  const [rows] = await pool.query(
-    `SELECT
-       DATE(FROM_UNIXTIME(income_time / 1000)) AS d,
-       COALESCE(SUM(income), 0) AS pnl
+  await syncIncomeLedger(Math.max(days, 30) * 24 * 60 * 60 * 1000);
+
+  const [dailyRows] = await pool.query(
+    `SELECT income_time, income_type, income
      FROM binance_income_ledger
-     WHERE income_time >= ?
-     GROUP BY d
-     ORDER BY d`,
+     WHERE income_time >= ?`,
     [startMs]
   );
 
   const byDay = new Map();
-  for (const r of rows) {
-    const key = typeof r.d === "string" ? r.d.slice(0, 10) : new Date(r.d).toISOString().slice(0, 10);
-    byDay.set(key, Number(r.pnl) || 0);
+  const breakdown = { REALIZED_PNL: 0, COMMISSION: 0, FUNDING_FEE: 0, OTHER: 0 };
+  let trades = 0;
+  for (const r of dailyRows) {
+    const type = r.income_type || "OTHER";
+    const amt = Number(r.income) || 0;
+    if (breakdown[type] == null) breakdown.OTHER += amt;
+    else breakdown[type] += amt;
+    if (type === "REALIZED_PNL") trades += 1;
+    const key = ymdKst(Number(r.income_time));
+    byDay.set(key, (byDay.get(key) || 0) + amt);
   }
 
   const points = [];
@@ -92,15 +145,39 @@ export async function getPnlSeries(period = "1w") {
   for (let i = 0; i < days; i++) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
-    const key = d.toISOString().slice(0, 10);
+    const key = ymdKst(d.getTime());
     const daily = byDay.get(key) || 0;
     cumulative += daily;
-    points.push({ date: key, daily, cumulative: Number(cumulative.toFixed(4)) });
+    points.push({ date: key, daily: Number(daily.toFixed(4)), cumulative: Number(cumulative.toFixed(4)) });
   }
+
+  const [recent] = await pool.query(
+    `SELECT symbol, income_type, income, income_time
+     FROM binance_income_ledger
+     WHERE income_time >= ?
+     ORDER BY income_time DESC
+     LIMIT 10`,
+    [startMs]
+  );
+
+  const realized = Number(breakdown.REALIZED_PNL || 0);
+  const commission = Number(breakdown.COMMISSION || 0);
+  const funding = Number(breakdown.FUNDING_FEE || 0);
+  const net = realized + commission + funding + Number(breakdown.OTHER || 0);
 
   return {
     period,
-    total: Number(cumulative.toFixed(4)),
+    total: Number(net.toFixed(4)),
+    realized: Number(realized.toFixed(4)),
+    commission: Number(commission.toFixed(4)),
+    funding: Number(funding.toFixed(4)),
+    trades,
     points,
+    recent: recent.map((r) => ({
+      symbol: r.symbol,
+      type: r.income_type,
+      income: Number(r.income),
+      time: Number(r.income_time),
+    })),
   };
 }

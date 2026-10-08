@@ -356,7 +356,7 @@ const SCHEMA = [
     income_time BIGINT NOT NULL,
     raw_json JSON NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_tran (binance_tran_id),
+    UNIQUE KEY uniq_tran_type (binance_tran_id, income_type),
     INDEX idx_income_time (income_time),
     INDEX idx_attribution (attribution)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -511,12 +511,14 @@ async function runMigrations(conn) {
     "ALTER TABLE calendar_events MODIFY COLUMN appointment_type VARCHAR(32) DEFAULT NULL",
     // 할 일 세부설명(선택) — 리스트에는 안 보이고 팝업으로만 확인
     "ALTER TABLE todo_items ADD COLUMN description TEXT DEFAULT NULL AFTER text",
+    "ALTER TABLE binance_income_ledger DROP INDEX uniq_tran",
+    "ALTER TABLE binance_income_ledger ADD UNIQUE KEY uniq_tran_type (binance_tran_id, income_type)",
   ];
   for (const sql of migrations) {
     try {
       await conn.query(sql);
     } catch (err) {
-      if (err.code !== "ER_DUP_FIELDNAME") {
+      if (!["ER_DUP_FIELDNAME", "ER_CANT_DROP_FIELD_OR_KEY", "ER_DUP_KEYNAME"].includes(err.code)) {
         console.warn(`[db] migration skipped: ${err.code || err.message}`);
       }
     }

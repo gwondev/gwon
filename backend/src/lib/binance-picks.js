@@ -49,9 +49,52 @@ function formatVolume(val) {
   return `${Math.round(val).toLocaleString()}`;
 }
 
-function criteriaTextOf(settings) {
+const HORIZON_LABEL = { "1d": "하루", short: "단기", week: "일주일", swing: "일주일 이상 스윙" };
+
+function formatRules(rules) {
+  return [
+    `보유 기간: ${HORIZON_LABEL[rules.horizon] || rules.horizon}`,
+    `시가총액/규모 하한 ${rules.minSize}/100 (높을수록 대형만)`,
+    `1X 숏 안전도 ${rules.shortSafety}/100`,
+    rules.allowLong ? "1X 롱 포함" : "롱 제외",
+    rules.allowShort ? "숏 포함" : "숏 제외",
+  ].join("\n");
+}
+
+function parseStructuredRules(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.horizon) return parsed;
+  } catch {
+    /* 예전 자유 텍스트 */
+  }
+  return null;
+}
+
+export function criteriaTextOf(settings) {
   const raw = settings?.scoring_prompt?.trim();
-  return raw || DEFAULT_PICK_CRITERIA;
+  if (!raw) return DEFAULT_PICK_CRITERIA;
+  const parsed = parseStructuredRules(raw);
+  if (parsed) return formatRules(parsed);
+  return raw;
+}
+
+function minQuoteVolume(minSize) {
+  const t = (clamp(Number(minSize) || 72, 20, 95) - 20) / 75;
+  return 80_000_000 * 25 ** t;
+}
+
+function applyStructuredRules(picks, rules, metrics) {
+  if (!rules) return picks.slice(0, TOP_N);
+  const volMap = new Map(metrics.map((m) => [m.symbol, m.quoteVolume]));
+  const minVol = minQuoteVolume(rules.minSize);
+  return picks
+    .filter((p) => {
+      if (rules.allowLong === false && p.side === "LONG") return false;
+      if (rules.allowShort === false && p.side === "SHORT") return false;
+      return (volMap.get(p.symbol) || 0) >= minVol;
+    })
+    .slice(0, TOP_N);
 }
 
 function scoreSide(side, m) {
@@ -202,12 +245,13 @@ export async function getTopPicks({ force = false } = {}) {
     picks = heuristicPicks(metrics);
   }
 
+  const structured = parseStructuredRules(settings?.scoring_prompt || "");
   const payload = {
     criteria,
     computedAt: new Date().toISOString(),
     source,
     error,
-    picks,
+    picks: applyStructuredRules(picks, structured, metrics),
   };
   cache = { at: Date.now(), key: cacheKey, payload };
   return payload;

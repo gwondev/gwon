@@ -15,7 +15,7 @@ import { askGemini } from "../lib/gemini.js";
 import { refreshOpportunityCacheIfStale } from "../lib/binance-scoring.js";
 import { loadBotSettings, updateBotSettings, getOpenBotPosition } from "../lib/binance-settings.js";
 import { getPnlSummary, getPaperPnlSummary, getPnlSeries, syncIncomeLedger } from "../lib/binance-income.js";
-import { getTopPicks, invalidatePicksCache } from "../lib/binance-picks.js";
+import { getTopPicks, invalidatePicksCache, criteriaTextOf } from "../lib/binance-picks.js";
 import { DEFAULT_RULES_PROMPT, DEFAULT_SCORING_PROMPT } from "../lib/binance-defaults.js";
 
 const router = Router();
@@ -297,7 +297,6 @@ router.get("/picks", async (req, res, next) => {
 
 router.get("/pnl-chart", async (req, res, next) => {
   try {
-    syncIncomeLedger().catch((err) => console.error("[binance] income sync 실패:", err.message));
     const period = String(req.query.period || "1w");
     const series = await getPnlSeries(period);
     res.json({ ok: true, ...series });
@@ -346,28 +345,32 @@ router.get("/dashboard", async (_req, res, next) => {
 /**
  * 8. Gemini AI 실시간 시장 분석 & 전략 진단 (범용 롱/숏 문구)
  */
-router.post("/position-advice", async (_req, res, next) => {
+router.post("/position-advice", async (req, res, next) => {
   try {
     const creds = getBinanceCredentials();
     const settings = await loadBotSettings();
     const live = creds.hasCredentials ? await getFuturesPositions().catch(() => []) : [];
-    const criteria = (settings?.scoring_prompt || "").trim() || DEFAULT_SCORING_PROMPT;
+    const criteria = criteriaTextOf(settings);
     const positions = Array.isArray(live) ? live : [];
+    const body = req.body || {};
+    const userText = String(body.message || "").trim() || "지금 내 포지션에 대한 매매 추천을 해줘.";
+    const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
 
-    const systemPrompt = `당신은 1X 격리 마진 위주의 냉정한 선물 트레이더다.
-사용자의 [매매 기준]을 최우선으로, 현재 포지션마다 HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나를 고르고
-한국어로 짧게 근거를 말한다. 없는 포지션을 만들어내지 마라.
-포지션이 없으면 신규 진입을 기다릴지, 지금 볼 심볼이 있는지만 말한다.`;
+    const systemPrompt = `당신은 1X 격리 마진 위주의 냉정한 선물 트레이더 챗봇이다.
+사용자의 [매매 기준]과 [현재 포지션]을 항상 근거로 짧게 한국어로 답한다.
+액션은 HOLD / ADD / REDUCE / CLOSE / REVERSE 중 고른다. 없는 포지션을 만들지 마라.`;
 
-    const userMessage = `[사용자 매매 기준]
+    const analysis = await askGemini({
+      system: `${systemPrompt}
+
+[사용자 매매 기준]
 ${criteria}
 
 [현재 선물 포지션]
-${positions.length ? JSON.stringify(positions, null, 2) : "(없음)"}
-
-각 포지션에 대해 추천 액션과 이유를 적어라.`;
-
-    const analysis = await askGemini({ system: systemPrompt, message: userMessage });
+${positions.length ? JSON.stringify(positions, null, 2) : "(없음)"}`,
+      history,
+      message: userText,
+    });
     res.json({ ok: true, analysis, positionCount: positions.length });
   } catch (err) {
     console.error("[binance] position-advice error:", err);
