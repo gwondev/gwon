@@ -5,14 +5,19 @@ import {
   CONNECT_START,
   INTRO_END,
   JOURNEY_PROJECTS,
-  PROFILE_SCENE,
   PROFILE_START,
+  PROFILE_TABS,
   PROJECT_COUNT,
+  PROJECT_SPAN,
   SCENE_MAX,
+  cinematicEase,
+  isProfileScene,
   projectIndexAt,
   projectIndexFromScene,
   projectLocal,
   projectStage,
+  profileTabFromScene,
+  sceneFromProfileTab,
   sceneFromProjectIndex,
   sceneToProgress,
   matchLive,
@@ -88,6 +93,17 @@ function probe(urls) {
   });
 }
 
+function setWorldEffect(scene) {
+  const i = projectIndexFromScene(scene);
+  if (i >= 0) {
+    worldState.effect = JOURNEY_PROJECTS[i].effect || "none";
+    worldState.effectIndex = i;
+    return;
+  }
+  worldState.effect = isProfileScene(scene) ? "network" : "none";
+  worldState.effectIndex = -1;
+}
+
 export default function WorldExperience() {
   const root = useRef(null);
   const { preview } = usePortfolioPreview();
@@ -110,43 +126,86 @@ export default function WorldExperience() {
 
   useEffect(() => {
     worldState.progress = sceneToProgress(0);
+    setWorldEffect(0);
   }, []);
 
   goToRef.current = (nextScene) => {
     const clamped = Math.max(0, Math.min(SCENE_MAX, nextScene));
     if (clamped === sceneRef.current) return;
-    if (lockRef.current) return;
 
     const from = sceneRef.current;
+    const fromProfile = isProfileScene(from);
+    const toProfile = isProfileScene(clamped);
+
+    if (fromProfile && toProfile) {
+      if (lockRef.current) return;
+      lockRef.current = true;
+      sceneRef.current = clamped;
+      setScene(clamped);
+      setTab(profileTabFromScene(clamped) || "experience");
+      setWorldEffect(clamped);
+      settleRef.current?.kill();
+      settleRef.current = gsap.delayedCall(0.28, () => {
+        lockRef.current = false;
+        coolRef.current = true;
+        accRef.current = 0;
+      });
+      return;
+    }
+
+    if (lockRef.current) return;
+
     const dist = Math.abs(clamped - from);
     lockRef.current = true;
     sceneRef.current = clamped;
     setScene(clamped);
+    if (toProfile) setTab(profileTabFromScene(clamped) || "experience");
     accRef.current = 0;
+    setWorldEffect(clamped);
 
+    let fromProgress = worldState.progress;
     const target = sceneToProgress(clamped);
-    const duration = worldState.reduced ? 0.28 : Math.min(1.85, 1.08 + dist * 0.22);
+    if (toProfile && fromProgress < CONNECT_START) {
+      fromProgress = CONNECT_START;
+      worldState.progress = CONNECT_START;
+      setProgress(CONNECT_START);
+    }
+    if (fromProfile && !toProfile && clamped >= 1 && clamped <= PROJECT_COUNT) {
+      fromProgress = INTRO_END + (clamped - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.12;
+      worldState.progress = fromProgress;
+      setProgress(fromProgress);
+    }
+
+    const duration = worldState.reduced
+      ? 0.4
+      : toProfile || fromProfile
+        ? 2.55
+        : Math.min(3.55, 3.12 + Math.max(0, dist - 1) * 0.14);
 
     tweenRef.current?.kill();
     settleRef.current?.kill();
-    tweenRef.current = gsap.to(worldState, {
-      progress: target,
-      duration,
-      ease: "power3.inOut",
-      overwrite: true,
-      onUpdate: () => {
-        setProgress(worldState.progress);
-      },
-      onComplete: () => {
-        worldState.progress = target;
-        setProgress(target);
-        settleRef.current = gsap.delayedCall(worldState.reduced ? 0.02 : 0.16, () => {
-          lockRef.current = false;
-          coolRef.current = true;
-          accRef.current = 0;
-        });
-      },
-    });
+    tweenRef.current = gsap.fromTo(
+      worldState,
+      { progress: fromProgress },
+      {
+        progress: target,
+        duration,
+        ease: toProfile || fromProfile ? "power2.inOut" : cinematicEase,
+        overwrite: true,
+        onUpdate: () => {
+          setProgress(worldState.progress);
+        },
+        onComplete: () => {
+          worldState.progress = target;
+          setProgress(target);
+          settleRef.current = gsap.delayedCall(worldState.reduced ? 0.04 : 0.22, () => {
+            lockRef.current = false;
+            coolRef.current = true;
+            accRef.current = 0;
+          });
+        },
+      }
+    );
   };
 
   useEffect(() => {
@@ -181,18 +240,32 @@ export default function WorldExperience() {
       const gap = now - lastWheelRef.current;
       lastWheelRef.current = now;
 
-      if (sceneRef.current === PROFILE_SCENE) {
+      if (isProfileScene(sceneRef.current)) {
         const panel = inProfilePanel(e.target);
         if (panel && panel.scrollHeight > panel.clientHeight + 2) {
           const atTop = panel.scrollTop <= 0;
+          const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1;
           if (e.deltaY < 0 && atTop) {
             e.preventDefault();
             if (!lockRef.current) step(-1);
+          } else if (e.deltaY > 0 && atBottom) {
+            e.preventDefault();
+            if (!lockRef.current && sceneRef.current < SCENE_MAX) step(1);
           }
           return;
         }
         e.preventDefault();
-        if (e.deltaY < 0 && !lockRef.current) step(-1);
+        if (lockRef.current) return;
+        if (coolRef.current) {
+          if (gap > 140 || Math.abs(e.deltaY) < 8) coolRef.current = false;
+          else return;
+        }
+        accRef.current += e.deltaY;
+        if (Math.abs(accRef.current) < WHEEL_THRESHOLD) return;
+        const dir = accRef.current > 0 ? 1 : -1;
+        accRef.current = 0;
+        if (dir > 0 && sceneRef.current >= SCENE_MAX) return;
+        step(dir);
         return;
       }
 
@@ -222,21 +295,24 @@ export default function WorldExperience() {
       if (!next && !prev) return;
       e.preventDefault();
       if (lockRef.current) return;
+      if (next && sceneRef.current >= SCENE_MAX) return;
       step(next ? 1 : -1);
     };
 
     const onTouchStart = (e) => {
-      if (sceneRef.current === PROFILE_SCENE && inProfilePanel(e.target)) return;
+      if (isProfileScene(sceneRef.current) && inProfilePanel(e.target)) return;
       touchYRef.current = e.touches[0]?.clientY ?? 0;
     };
 
     const onTouchEnd = (e) => {
-      if (sceneRef.current === PROFILE_SCENE && inProfilePanel(e.target)) return;
+      if (isProfileScene(sceneRef.current) && inProfilePanel(e.target)) return;
       const y = e.changedTouches[0]?.clientY ?? touchYRef.current;
       const dy = touchYRef.current - y;
       if (Math.abs(dy) < SWIPE_THRESHOLD) return;
       if (lockRef.current) return;
-      step(dy > 0 ? 1 : -1);
+      const dir = dy > 0 ? 1 : -1;
+      if (dir > 0 && sceneRef.current >= SCENE_MAX) return;
+      step(dir);
     };
 
     window.addEventListener("wheel", onWheel, { passive: false });
@@ -261,7 +337,7 @@ export default function WorldExperience() {
   }, []);
 
   useEffect(() => {
-    worldState.quiet = scene === PROFILE_SCENE ? (tab === "certs" ? 0.95 : tab === "career" ? 0.82 : 0.7) : 0;
+    worldState.quiet = isProfileScene(scene) ? (tab === "certs" ? 0.95 : tab === "career" ? 0.82 : 0.7) : 0;
   }, [scene, tab]);
 
   const idx = projectIndexAt(progress);
@@ -271,8 +347,8 @@ export default function WorldExperience() {
   const project = idx >= 0 ? JOURNEY_PROJECTS[idx] : null;
   const showHero = progress < INTRO_END + 0.02;
   const showProject = idx >= 0 && (stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55));
-  const showConnect = scene === PROFILE_SCENE && progress >= CONNECT_START && progress < PROFILE_START;
-  const showProfile = scene === PROFILE_SCENE && progress >= PROFILE_START;
+  const showConnect = isProfileScene(scene) && progress >= CONNECT_START && progress < PROFILE_START;
+  const showProfile = isProfileScene(scene) && progress >= PROFILE_START;
   const imageReveal = !project
     ? 0
     : stage.id === "arrive"
@@ -286,14 +362,22 @@ export default function WorldExperience() {
 
   const activities = preview.activities || [];
   const career = preview.career || [];
-  const certs = preview.certifications || [];
+  const certs = (preview.certifications || []).map((it) => ({
+    id: it.id,
+    name: it.title,
+    organization: it.issuer,
+    date: it.acquired,
+    status: it.score,
+  }));
 
   const counterLabel =
     navIndex >= 0
       ? `${String(navIndex + 1).padStart(2, "0")} / ${String(PROJECT_COUNT).padStart(2, "0")}`
-      : scene === PROFILE_SCENE
+      : isProfileScene(scene)
         ? "FILE"
         : "00 / 05";
+
+  const profileActive = profileTabFromScene(scene);
 
   return (
     <main className="page world-page" ref={root}>
@@ -315,7 +399,11 @@ export default function WorldExperience() {
         )}
 
         {showProject && project && (
-          <section className={`world-proj is-${idx % 3} ${stage.id === "leave" ? "is-out" : ""}`} aria-label={project.title}>
+          <section
+            className={`world-proj is-${idx % 3} is-${project.effect || "none"} ${stage.id === "leave" ? "is-out" : ""}`}
+            aria-label={project.title}
+            style={{ "--scan": imageReveal }}
+          >
             <div
               className="world-proj__visual"
               style={{
@@ -361,20 +449,16 @@ export default function WorldExperience() {
         {showProfile && (
           <section className="world-file" aria-label="Profile">
             <div className="world-file__tabs" role="tablist">
-              {[
-                ["experience", "EXPERIENCE"],
-                ["career", "CAREER"],
-                ["certs", "CERTIFICATIONS"],
-              ].map(([id, label]) => (
+              {PROFILE_TABS.map((item) => (
                 <button
-                  key={id}
+                  key={item.id}
                   type="button"
                   role="tab"
-                  aria-selected={tab === id}
-                  className={tab === id ? "is-on" : ""}
-                  onClick={() => setTab(id)}
+                  aria-selected={tab === item.id}
+                  className={tab === item.id ? "is-on" : ""}
+                  onClick={() => goToRef.current(sceneFromProfileTab(item.id))}
                 >
-                  {label}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -404,8 +488,8 @@ export default function WorldExperience() {
               {tab === "certs" && (
                 <FileList
                   items={certs}
-                  titleOf={(it) => it.title}
-                  subOf={(it) => [it.issuer, it.acquired || it.score].filter(Boolean).join(" · ")}
+                  titleOf={(it) => it.name}
+                  subOf={(it) => [it.organization, it.date, it.status].filter(Boolean).join(" · ")}
                   empty="등록된 자격증이 없습니다."
                 />
               )}
@@ -428,15 +512,8 @@ export default function WorldExperience() {
         {counterLabel}
       </p>
 
-      <nav className={`world-nav${scene === PROFILE_SCENE ? " is-away" : ""}`} aria-label="Projects">
-        <span className="world-nav__spine" aria-hidden />
-        <span
-          className="world-nav__track"
-          style={{
-            opacity: navIndex >= 0 ? 1 : 0,
-            transform: `translateY(${Math.max(0, navIndex) * 2.05}rem)`,
-          }}
-        />
+      <nav className="world-nav" aria-label="Site">
+        <p className="world-nav__label">PROJECTS</p>
         {JOURNEY_PROJECTS.map((p, i) => (
           <button
             key={p.id}
@@ -453,6 +530,19 @@ export default function WorldExperience() {
             <i />
             <span>{p.no}</span>
             <em>{p.title}</em>
+          </button>
+        ))}
+        <p className="world-nav__label world-nav__label--gap">PROFILE</p>
+        {PROFILE_TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={profileActive === item.id ? "is-on" : ""}
+            onClick={() => goToRef.current(sceneFromProfileTab(item.id))}
+          >
+            <i />
+            <span aria-hidden />
+            <em>{item.label}</em>
           </button>
         ))}
       </nav>

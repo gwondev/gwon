@@ -17,6 +17,7 @@ export const JOURNEY_PROJECTS = [
     image: "/projects/gwon.png",
     imageAlt: "GWON 홈 서버 인프라",
     match: ["gwon"],
+    effect: "infrastructure",
   },
   {
     id: "meter",
@@ -32,6 +33,7 @@ export const JOURNEY_PROJECTS = [
     image: "/projects/meter.png",
     imageAlt: "METER AIoT 시스템",
     match: ["meter"],
+    effect: "data-flow",
   },
   {
     id: "greeneye",
@@ -46,6 +48,7 @@ export const JOURNEY_PROJECTS = [
     image: "/projects/greeneye.png",
     imageAlt: "GREENEYE 인식·리워드",
     match: ["greeneye", "그린아이", "greenegye"],
+    effect: "neural-recognition",
   },
   {
     id: "tress",
@@ -60,6 +63,7 @@ export const JOURNEY_PROJECTS = [
     image: "/projects/tress.png",
     imageAlt: "TRESS 압축 장치",
     match: ["tress"],
+    effect: "mechanical-pulse",
   },
   {
     id: "oj",
@@ -75,7 +79,16 @@ export const JOURNEY_PROJECTS = [
     image: "/projects/devsign.png",
     imageAlt: "DEVSIGN Online Judge",
     match: ["devsign", "oj"],
+    effect: "code-stream",
   },
+];
+
+export const PROJECT_EFFECTS = Object.fromEntries(JOURNEY_PROJECTS.map((p) => [p.id, p.effect]));
+
+export const PROFILE_TABS = [
+  { id: "experience", label: "EXPERIENCE" },
+  { id: "career", label: "CAREER" },
+  { id: "certs", label: "CERTIFICATIONS" },
 ];
 
 export const PLANET_POS = [
@@ -93,15 +106,35 @@ export const PROFILE_START = 0.9;
 
 export const PROJECT_COUNT = JOURNEY_PROJECTS.length;
 export const INTRO_SCENE = 0;
-export const PROFILE_SCENE = PROJECT_COUNT + 1;
-export const SCENE_MAX = PROFILE_SCENE;
+export const EXPERIENCE_SCENE = PROJECT_COUNT + 1;
+export const CAREER_SCENE = PROJECT_COUNT + 2;
+export const CERTS_SCENE = PROJECT_COUNT + 3;
+export const PROFILE_SCENE = EXPERIENCE_SCENE;
+export const SCENE_MAX = CERTS_SCENE;
 
-/** Settled progress for a snap scene: 0 intro, 1–5 projects, 6 profile. */
+export function isProfileScene(scene) {
+  return scene >= EXPERIENCE_SCENE;
+}
+
+export function profileTabFromScene(scene) {
+  if (scene === CAREER_SCENE) return "career";
+  if (scene === CERTS_SCENE) return "certs";
+  if (scene >= EXPERIENCE_SCENE) return "experience";
+  return null;
+}
+
+export function sceneFromProfileTab(tab) {
+  if (tab === "career") return CAREER_SCENE;
+  if (tab === "certs") return CERTS_SCENE;
+  return EXPERIENCE_SCENE;
+}
+
+/** Settled progress: 0 intro, 1–5 projects (read), 6–8 profile. */
 export function sceneToProgress(scene) {
   if (scene <= INTRO_SCENE) return 0.018;
   if (scene <= PROJECT_COUNT) {
     const i = scene - 1;
-    return INTRO_END + i * PROJECT_SPAN + PROJECT_SPAN * 0.7;
+    return INTRO_END + i * PROJECT_SPAN + PROJECT_SPAN * 0.8;
   }
   return Math.min(0.985, PROFILE_START + 0.045);
 }
@@ -129,22 +162,42 @@ export function projectLocal(p) {
 }
 
 export function projectStage(t) {
-  if (t < 0.16) return { id: "network", u: t / 0.16 };
-  if (t < 0.42) return { id: "warp", u: (t - 0.16) / 0.26 };
-  if (t < 0.55) return { id: "arrive", u: (t - 0.42) / 0.13 };
-  if (t < 0.86) return { id: "read", u: (t - 0.55) / 0.31 };
-  return { id: "leave", u: (t - 0.86) / 0.14 };
+  if (t < 0.14) return { id: "network", u: t / 0.14 };
+  if (t < 0.58) return { id: "warp", u: (t - 0.14) / 0.44 };
+  if (t < 0.7) return { id: "arrive", u: (t - 0.58) / 0.12 };
+  if (t < 0.9) return { id: "read", u: (t - 0.7) / 0.2 };
+  return { id: "leave", u: (t - 0.9) / 0.1 };
 }
 
 export function warpEase(u) {
   const x = Math.min(1, Math.max(0, u));
-  if (x < 0.18) return (x / 0.18) * 0.07;
+  if (x < 0.22) return (x / 0.22) * (x / 0.22) * 0.12;
   if (x < 0.55) {
-    const k = (x - 0.18) / 0.37;
-    return 0.07 + k * k * 0.78;
+    const k = (x - 0.22) / 0.33;
+    return 0.12 + k * k * 0.7;
   }
   const k = (x - 0.55) / 0.45;
-  return 0.85 + (1 - (1 - k) * (1 - k)) * 0.15;
+  return 0.82 + (1 - (1 - k) * (1 - k)) * 0.18;
+}
+
+/** Slow → accelerate → peak → decelerate → settle. GSAP ease(t). */
+export function cinematicEase(t) {
+  const x = Math.min(1, Math.max(0, t));
+  if (x < 0.1) return x * x * 0.7;
+  if (x < 0.36) {
+    const k = (x - 0.1) / 0.26;
+    return 0.007 + k * k * 0.4;
+  }
+  if (x < 0.58) {
+    const k = (x - 0.36) / 0.22;
+    return 0.407 + k * 0.33;
+  }
+  if (x < 0.82) {
+    const k = (x - 0.58) / 0.24;
+    return 0.737 + (1 - (1 - k) * (1 - k)) * 0.2;
+  }
+  const k = (x - 0.82) / 0.18;
+  return 0.937 + (1 - (1 - k) * (1 - k)) * 0.063;
 }
 
 export function matchLive(item, project) {
