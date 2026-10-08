@@ -13,13 +13,11 @@ const PERIODS = [
   { id: "all", label: "전체" },
 ];
 
-const FALLBACK_CRITERIA = [
-  "시가총액이 적당히 큰 코인 (소형 펌핑 코인 제외)",
-  "1X로 숏 쳐도 청산·급등 위험이 거의 없음",
-  "지금까지의 움직임이 방향이 깔끔하고 딱 좋음",
-  "일주일 정도 들고 있으면 기대 수익률이 가장 좋음",
-  "1X 롱도 포함 · 롱/숏 통합 상위 10개",
-];
+const FALLBACK_CRITERIA = `시가총액이 적당히 큰 코인 (소형 펌핑 코인 제외)
+1X로 숏 쳐도 청산·급등 위험이 거의 없음
+지금까지의 움직임이 방향이 깔끔하고 딱 좋음
+일주일 정도 들고 있으면 기대 수익률이 가장 좋음
+1X 롱도 포함 · 롱/숏 통합 상위 10개`;
 
 function formatNumber(v, digits) {
   return Number(v).toLocaleString("ko-KR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -34,9 +32,7 @@ function formatPct(v) {
 function PnlChart({ points, total }) {
   const { path, area, min, max } = useMemo(() => {
     const vals = (points || []).map((p) => p.cumulative);
-    if (!vals.length) {
-      return { path: "", area: "", min: 0, max: 0 };
-    }
+    if (!vals.length) return { path: "", area: "", min: 0, max: 0 };
     const minV = Math.min(0, ...vals);
     const maxV = Math.max(0, ...vals);
     const span = maxV - minV || 1;
@@ -52,19 +48,17 @@ function PnlChart({ points, total }) {
     const d = xy.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(" ");
     const last = xy[xy.length - 1];
     const first = xy[0];
-    const areaD = `${d} L${last[0].toFixed(2)},${h} L${first[0].toFixed(2)},${h} Z`;
-    return { path: d, area: areaD, min: minV, max: maxV };
+    return { path: d, area: `${d} L${last[0].toFixed(2)},${h} L${first[0].toFixed(2)},${h} Z`, min: minV, max: maxV };
   }, [points]);
 
   const up = total >= 0;
-
   if (!points?.length) {
     return <div className="b-chart__empty">아직 실현손익 기록이 없습니다.</div>;
   }
 
   return (
     <div className="b-chart__plot">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={`b-chart__svg ${up ? "is-up" : "is-down"}`}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="b-chart__svg">
         <defs>
           <linearGradient id="bPnlFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={up ? "#d8c19a" : "#f87171"} stopOpacity="0.32" />
@@ -82,19 +76,39 @@ function PnlChart({ points, total }) {
   );
 }
 
+function PositionRow({ p }) {
+  if (!p) return null;
+  const up = Number(p.unRealizedProfit) >= 0;
+  return (
+    <li className="b-pos__row">
+      <span className="b-picks__sym">{String(p.symbol || "").replace("USDT", "")}</span>
+      <span className={`b-picks__side is-${String(p.side || "").toLowerCase()}`}>{p.side === "LONG" ? "롱" : "숏"}</span>
+      <span>{p.leverage}X</span>
+      <span className={up ? "is-up" : "is-down"}>{formatPct(p.roe)}</span>
+      <span className={up ? "is-up" : "is-down"}>
+        {up ? "+" : ""}
+        {formatNumber(p.unRealizedProfit, 2)}
+      </span>
+    </li>
+  );
+}
+
 export default function BinancePage() {
   const { isAuthed, loading: authLoading, isSuperAdmin, token } = useAuth();
   const navigate = useNavigate();
   const [asset, setAsset] = useState(null);
+  const [positions, setPositions] = useState([]);
   const [picks, setPicks] = useState(null);
+  const [criteria, setCriteria] = useState(FALLBACK_CRITERIA);
   const [period, setPeriod] = useState("1w");
   const [chart, setChart] = useState(null);
+  const [advice, setAdvice] = useState("");
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [pickError, setPickError] = useState("");
 
   useEffect(() => {
-    if (!authLoading && (!isAuthed || !isSuperAdmin)) {
-      navigate("/", { replace: true });
-    }
+    if (!authLoading && (!isAuthed || !isSuperAdmin)) navigate("/", { replace: true });
   }, [authLoading, isAuthed, isSuperAdmin, navigate]);
 
   const loadAsset = useCallback(async () => {
@@ -104,21 +118,44 @@ export default function BinancePage() {
       if (data.ok) {
         setAsset(data);
         setError("");
-      } else {
-        setError(data.error || "총자산을 불러오지 못했습니다.");
-      }
+      } else setError(data.error || "총자산을 불러오지 못했습니다.");
     } catch (err) {
       setError(err.message);
     }
   }, [token]);
 
-  const loadPicks = useCallback(async () => {
+  const loadPositions = useCallback(async () => {
     if (!token) return;
     try {
-      const data = await api("/binance/picks", { token });
-      if (data.ok) setPicks(data);
+      const data = await api("/binance/positions", { token });
+      const list = Array.isArray(data.positions) ? data.positions : [data.manual, data.bot].filter(Boolean);
+      setPositions(list);
     } catch {
-      /* 공개 시세 실패는 카드만 비움 */
+      setPositions([]);
+    }
+  }, [token]);
+
+  const loadBot = useCallback(async () => {
+    if (!token) return;
+    try {
+      const data = await api("/binance/bot", { token });
+      if (data.settings?.scoringPrompt) setCriteria(data.settings.scoringPrompt);
+    } catch {
+      /* keep fallback */
+    }
+  }, [token]);
+
+  const loadPicks = useCallback(async (refresh = false) => {
+    if (!token) return;
+    setPickError("");
+    try {
+      const data = await api(`/binance/picks${refresh ? "?refresh=1" : ""}`, { token });
+      setPicks(data);
+      if (data.criteria) setCriteria(data.criteria);
+      if (!data.ok) setPickError(data.error || "추천 실패");
+      else if (data.error) setPickError(`AI 순위 실패 → 규칙 점수 사용: ${data.error}`);
+    } catch (err) {
+      setPickError(err.message);
     }
   }, [token]);
 
@@ -126,31 +163,57 @@ export default function BinancePage() {
     if (!token) return;
     try {
       const data = await api(`/binance/pnl-chart?period=${encodeURIComponent(p)}`, { token });
-      if (data.ok) setChart(data);
+      setChart(data.ok ? data : { points: [], total: 0, period: p });
     } catch {
       setChart({ points: [], total: 0, period: p });
     }
   }, [token]);
 
+  const saveCriteria = async () => {
+    setBusy("save");
+    setPickError("");
+    try {
+      await api("/binance/bot", { method: "PUT", token, body: { scoringPrompt: criteria } });
+      await loadPicks(true);
+    } catch (err) {
+      setPickError(err.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const askAdvice = async () => {
+    setBusy("ai");
+    setAdvice("");
+    try {
+      const data = await api("/binance/position-advice", { method: "POST", token, body: {} });
+      setAdvice(data.analysis || data.error || "응답이 비었습니다.");
+    } catch (err) {
+      setAdvice(err.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
   useEffect(() => {
     if (!token || !isSuperAdmin) return;
     loadAsset();
-    loadPicks();
+    loadPositions();
+    loadBot();
+    loadPicks(false);
     const timer = setInterval(() => {
       loadAsset();
-      loadPicks();
-    }, 60000);
+      loadPositions();
+    }, 30000);
     return () => clearInterval(timer);
-  }, [token, isSuperAdmin, loadAsset, loadPicks]);
+  }, [token, isSuperAdmin, loadAsset, loadPositions, loadBot, loadPicks]);
 
   useEffect(() => {
     if (!token || !isSuperAdmin) return;
     loadChart(period);
   }, [token, isSuperAdmin, period, loadChart]);
 
-  if (authLoading || !isAuthed || !isSuperAdmin) {
-    return null;
-  }
+  if (authLoading || !isAuthed || !isSuperAdmin) return null;
 
   return (
     <PageTransition className="page binance-page">
@@ -180,17 +243,52 @@ export default function BinancePage() {
           {error && <p className="b-asset__error">{error}</p>}
         </section>
 
-        <section className="b-card b-picks">
-          <div className="b-picks__rules">
-            <p className="b-card__kicker">내 기준</p>
-            <ol>
-              {(picks?.criteria || FALLBACK_CRITERIA).map((line) => (
-                <li key={line}>{line}</li>
+        <section className="b-card b-pos">
+          <p className="b-card__kicker">내 포지션</p>
+          {positions.length ? (
+            <ol className="b-pos__list">
+              {positions.map((p) => (
+                <PositionRow key={`${p.symbol}-${p.side}`} p={p} />
               ))}
             </ol>
+          ) : (
+            <p className="b-empty">열려 있는 선물 포지션이 없습니다.</p>
+          )}
+        </section>
+
+        <section className="b-card b-ai">
+          <div className="b-card__head">
+            <p className="b-card__kicker">포지션 AI 매매추천</p>
+            <button type="button" className="b-btn" disabled={busy === "ai"} onClick={askAdvice}>
+              {busy === "ai" ? "분석 중…" : "추천 받기"}
+            </button>
+          </div>
+          <div className="b-ai__body">{advice || "현재 포지션을 기준으로 HOLD / 줄이기 / 청산 / 반전을 제안합니다."}</div>
+        </section>
+
+        <section className="b-card b-picks">
+          <div className="b-picks__rules">
+            <div className="b-card__head">
+              <p className="b-card__kicker">내 기준</p>
+              <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveCriteria}>
+                {busy === "save" ? "저장 중…" : "저장 후 추천"}
+              </button>
+            </div>
+            <textarea
+              value={criteria}
+              onChange={(e) => setCriteria(e.target.value)}
+              rows={7}
+              spellCheck={false}
+            />
+            {pickError && <p className="b-asset__error">{pickError}</p>}
           </div>
           <div className="b-picks__board">
-            <p className="b-card__kicker">추천 상위 10</p>
+            <div className="b-card__head">
+              <p className="b-card__kicker">추천 상위 10</p>
+              <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
+                새로고침
+              </button>
+            </div>
             <ol className="b-picks__list">
               {(picks?.picks || []).map((row, i) => (
                 <li key={row.symbol}>
@@ -201,7 +299,7 @@ export default function BinancePage() {
                   <span className="b-picks__score">{row.score}</span>
                 </li>
               ))}
-              {!picks?.picks?.length && <li className="b-picks__empty">점수를 계산하는 중…</li>}
+              {!picks?.picks?.length && <li className="b-picks__empty">추천을 불러오는 중…</li>}
             </ol>
           </div>
         </section>
@@ -218,12 +316,7 @@ export default function BinancePage() {
             </div>
             <div className="b-chart__periods">
               {PERIODS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={period === p.id ? "is-on" : ""}
-                  onClick={() => setPeriod(p.id)}
-                >
+                <button key={p.id} type="button" className={period === p.id ? "is-on" : ""} onClick={() => setPeriod(p.id)}>
                   {p.label}
                 </button>
               ))}

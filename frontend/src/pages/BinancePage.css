@@ -1,44 +1,60 @@
-@media (min-width: 761px) {
-  html:has(.binance-page),
-  body:has(.binance-page) {
-    overflow: hidden;
-    height: 100%;
-  }
-}
-
 .page.binance-page {
   max-width: none;
   width: 100%;
-  height: calc(100dvh - 5.1rem);
-  max-height: calc(100dvh - 5.1rem);
-  overflow: hidden;
-  padding: 0.2rem clamp(16px, 3.5vw, 40px) 0.45rem;
+  overflow: visible;
+  padding: 0.35rem clamp(16px, 3.5vw, 40px) 2.4rem;
   color: var(--text);
 }
 
 .b-shell {
-  height: 100%;
-  min-height: 0;
   max-width: min(1120px, 96vw);
   margin: 0 auto;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1.2fr) minmax(0, 0.88fr);
-  gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
 }
 
 .b-card {
-  min-height: 0;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
+  padding: 0.75rem 0.9rem 0.8rem;
 }
 
 .b-card__kicker {
-  margin: 0 0 0.28rem;
+  margin: 0;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.b-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+}
+
+.b-btn {
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+}
+
+.b-btn:disabled {
+  opacity: 0.55;
+}
+
+.b-empty {
+  margin: 0;
+  font-size: 0.8rem;
   color: var(--text-faint);
 }
 
@@ -48,7 +64,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
-  padding: 0.42rem 0.85rem;
+  padding: 0.5rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--bg-elev);
@@ -60,7 +76,6 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-faint);
-  flex: none;
 }
 
 .b-asset__nums {
@@ -68,14 +83,12 @@
   align-items: baseline;
   gap: 0.7rem;
   flex-wrap: wrap;
-  min-width: 0;
 }
 
 .b-asset__usdt {
   font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -93,99 +106,78 @@
   font-variant-numeric: tabular-nums;
 }
 
-.b-asset__krw.is-dim {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-faint);
-}
-
+.b-asset__krw.is-dim,
 .b-asset__rate {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   color: var(--text-faint);
 }
 
 .b-asset__error {
-  margin: 0;
+  margin: 0.35rem 0 0;
   font-size: 0.75rem;
   color: #f87171;
 }
 
+.b-pos__list,
+.b-picks__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.b-pos__row,
+.b-picks__list li {
+  display: grid;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.38rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.b-pos__row {
+  grid-template-columns: minmax(0, 1.2fr) 2.2rem 2.2rem 3.6rem minmax(4.5rem, 1fr);
+}
+
+.b-picks__list li {
+  grid-template-columns: 1.2rem minmax(0, 1fr) 2.2rem 3.6rem 2.2rem;
+}
+
+.b-pos__row:last-child,
+.b-picks__list li:last-child {
+  border-bottom: none;
+}
+
 .b-picks {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.18fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
   gap: 0;
-  overflow: hidden;
+  padding: 0;
 }
 
 .b-picks__rules,
 .b-picks__board {
-  min-height: 0;
-  padding: 0.7rem 0.85rem 0.6rem;
-  overflow: hidden;
+  padding: 0.75rem 0.9rem 0.8rem;
+  min-width: 0;
 }
 
 .b-picks__rules {
   border-right: 1px solid var(--line);
 }
 
-.b-picks__rules ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.32rem;
-  counter-reset: item;
-}
-
-.b-picks__rules li {
-  position: relative;
-  padding-left: 1.35rem;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: var(--text-dim);
-}
-
-.b-picks__rules li::before {
-  content: counter(item);
-  counter-increment: item;
-  position: absolute;
-  left: 0;
-  top: 0.05rem;
-  width: 1.05rem;
-  height: 1.05rem;
-  border-radius: 999px;
-  border: 1px solid var(--accent-line);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 0.58rem;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
-}
-
-.b-picks__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  height: calc(100% - 1.15rem);
-  display: grid;
-  grid-template-rows: repeat(10, minmax(0, 1fr));
-  min-height: 0;
-}
-
-.b-picks__list li {
-  display: grid;
-  grid-template-columns: 1.1rem minmax(0, 1fr) 2.1rem 3.4rem 2rem;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 0;
-  border-bottom: 1px solid var(--line);
-  font-variant-numeric: tabular-nums;
-}
-
-.b-picks__list li:last-child {
-  border-bottom: none;
+.b-picks__rules textarea {
+  width: 100%;
+  min-height: 9.5rem;
+  resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  font-family: inherit;
 }
 
 .b-picks__rank {
@@ -195,7 +187,6 @@
 }
 
 .b-picks__sym {
-  font-size: 0.76rem;
   font-weight: 750;
   letter-spacing: -0.02em;
   overflow: hidden;
@@ -204,50 +195,48 @@
 }
 
 .b-picks__side {
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
 }
 
-.b-picks__side.is-long {
+.b-picks__side.is-long,
+.is-up {
   color: #86efac;
 }
 
-.b-picks__side.is-short {
+.b-picks__side.is-short,
+.is-down {
   color: #fca5a5;
 }
 
 .b-picks__week {
-  font-size: 0.68rem;
-  font-weight: 650;
   text-align: right;
-}
-
-.b-picks__week.is-up {
-  color: #86efac;
-}
-
-.b-picks__week.is-down {
-  color: #fca5a5;
+  font-weight: 650;
 }
 
 .b-picks__score {
-  font-size: 0.78rem;
-  font-weight: 800;
   text-align: right;
+  font-weight: 800;
   color: var(--accent);
 }
 
 .b-picks__empty {
   grid-column: 1 / -1;
-  font-size: 0.75rem;
   color: var(--text-faint);
 }
 
+.b-ai__body {
+  white-space: pre-wrap;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  min-height: 4.5rem;
+}
+
 .b-chart {
+  min-height: 220px;
   display: flex;
   flex-direction: column;
-  padding: 0.55rem 0.8rem 0.45rem;
 }
 
 .b-chart__head {
@@ -256,16 +245,14 @@
   justify-content: space-between;
   gap: 0.6rem;
   flex-wrap: wrap;
-  flex: none;
 }
 
 .b-chart__total {
   display: block;
+  margin-top: 0.2rem;
   font-size: 1.05rem;
   font-weight: 800;
-  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
 }
 
 .b-chart__total small {
@@ -306,16 +293,16 @@
 
 .b-chart__plot {
   flex: 1;
-  min-height: 0;
+  min-height: 160px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.4rem;
-  margin-top: 0.35rem;
+  margin-top: 0.45rem;
 }
 
 .b-chart__svg {
   width: 100%;
-  height: 100%;
+  height: 160px;
   display: block;
 }
 
@@ -326,30 +313,17 @@
   font-size: 0.58rem;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
-  padding: 0.15rem 0;
 }
 
 .b-chart__empty {
-  flex: 1;
+  min-height: 140px;
   display: grid;
   place-items: center;
-  font-size: 0.78rem;
   color: var(--text-faint);
+  font-size: 0.8rem;
 }
 
 @media (max-width: 760px) {
-  .page.binance-page {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding-bottom: 1rem;
-  }
-
-  .b-shell {
-    height: auto;
-    grid-template-rows: auto auto auto;
-  }
-
   .b-picks {
     grid-template-columns: 1fr;
   }
@@ -359,12 +333,8 @@
     border-bottom: 1px solid var(--line);
   }
 
-  .b-picks__list {
-    height: auto;
-    grid-template-rows: repeat(10, 1.7rem);
-  }
-
-  .b-chart {
-    min-height: 220px;
+  .b-pos__row {
+    grid-template-columns: minmax(0, 1fr) 2rem 2rem 3.2rem 4.2rem;
+    font-size: 0.72rem;
   }
 }

@@ -15,7 +15,7 @@ import { askGemini } from "../lib/gemini.js";
 import { refreshOpportunityCacheIfStale } from "../lib/binance-scoring.js";
 import { loadBotSettings, updateBotSettings, getOpenBotPosition } from "../lib/binance-settings.js";
 import { getPnlSummary, getPaperPnlSummary, getPnlSeries, syncIncomeLedger } from "../lib/binance-income.js";
-import { getTopPicks } from "../lib/binance-picks.js";
+import { getTopPicks, invalidatePicksCache } from "../lib/binance-picks.js";
 import { DEFAULT_RULES_PROMPT, DEFAULT_SCORING_PROMPT } from "../lib/binance-defaults.js";
 
 const router = Router();
@@ -131,7 +131,7 @@ router.get("/positions", async (_req, res, next) => {
       try {
         live = await getFuturesPositions();
       } catch (e) {
-        return res.status(500).json({ ok: false, error: e.message, manual: null, bot: null });
+        return res.json({ ok: false, error: e.message, positions: [], manual: null, bot: null });
       }
     }
 
@@ -177,7 +177,7 @@ router.get("/positions", async (_req, res, next) => {
       ? { ...manualLive, reasonText: null, isPaper: false }
       : null;
 
-    res.json({ ok: true, manual, bot });
+    res.json({ ok: true, positions: live, manual, bot });
   } catch (err) {
     next(err);
   }
@@ -258,6 +258,7 @@ router.put("/bot", async (req, res, next) => {
     }
 
     await updateBotSettings(fields);
+    if (fields.scoring_prompt != null) invalidatePicksCache();
 
     await pool.query(
       "INSERT INTO binance_bot_logs (symbol, action, message) VALUES (?, ?, ?)",
@@ -289,7 +290,8 @@ router.get("/picks", async (req, res, next) => {
     const data = await getTopPicks({ force: req.query.refresh === "1" });
     res.json({ ok: true, ...data });
   } catch (err) {
-    next(err);
+    console.error("[binance] picks error:", err);
+    res.json({ ok: false, error: err.message || "추천을 불러오지 못했습니다.", picks: [], criteria: "" });
   }
 });
 
@@ -344,6 +346,35 @@ router.get("/dashboard", async (_req, res, next) => {
 /**
  * 8. Gemini AI 실시간 시장 분석 & 전략 진단 (범용 롱/숏 문구)
  */
+router.post("/position-advice", async (_req, res, next) => {
+  try {
+    const creds = getBinanceCredentials();
+    const settings = await loadBotSettings();
+    const live = creds.hasCredentials ? await getFuturesPositions().catch(() => []) : [];
+    const criteria = (settings?.scoring_prompt || "").trim() || DEFAULT_SCORING_PROMPT;
+    const positions = Array.isArray(live) ? live : [];
+
+    const systemPrompt = `당신은 1X 격리 마진 위주의 냉정한 선물 트레이더다.
+사용자의 [매매 기준]을 최우선으로, 현재 포지션마다 HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나를 고르고
+한국어로 짧게 근거를 말한다. 없는 포지션을 만들어내지 마라.
+포지션이 없으면 신규 진입을 기다릴지, 지금 볼 심볼이 있는지만 말한다.`;
+
+    const userMessage = `[사용자 매매 기준]
+${criteria}
+
+[현재 선물 포지션]
+${positions.length ? JSON.stringify(positions, null, 2) : "(없음)"}
+
+각 포지션에 대해 추천 액션과 이유를 적어라.`;
+
+    const analysis = await askGemini({ system: systemPrompt, message: userMessage });
+    res.json({ ok: true, analysis, positionCount: positions.length });
+  } catch (err) {
+    console.error("[binance] position-advice error:", err);
+    res.status(500).json({ ok: false, error: err.message || "AI 추천 생성 실패" });
+  }
+});
+
 router.post("/bot/ai-diagnose", async (req, res, next) => {
   try {
     const { promptText, targetSymbol } = req.body || {};
