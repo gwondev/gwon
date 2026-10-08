@@ -23,8 +23,9 @@ import "./styles/cosmic.css";
 
 export default function App() {
   const location = useLocation();
-  // /schedule 은 기존 캘린더 UI를 그대로 유지 — 코스믹 테마 미적용
-  const isCosmic = location.pathname !== "/schedule";
+  const path = location.pathname;
+  // 일정·바이낸스는 블랙 테마. 메인/포트폴리오만 코스믹.
+  const isCosmic = path !== "/schedule" && path !== "/BINANCE" && path !== "/binance";
 
   return (
     <div className={`app-shell ${isCosmic ? "cosmic" : ""}`}>

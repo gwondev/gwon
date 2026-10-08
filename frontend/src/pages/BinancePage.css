@@ -1,62 +1,370 @@
-.binance-page {
-  max-width: 960px;
+@media (min-width: 761px) {
+  html:has(.binance-page),
+  body:has(.binance-page) {
+    overflow: hidden;
+    height: 100%;
+  }
+}
+
+.page.binance-page {
+  max-width: none;
+  width: 100%;
+  height: calc(100dvh - 5.1rem);
+  max-height: calc(100dvh - 5.1rem);
+  overflow: hidden;
+  padding: 0.2rem clamp(16px, 3.5vw, 40px) 0.45rem;
+  color: var(--text);
+}
+
+.b-shell {
+  height: 100%;
+  min-height: 0;
+  max-width: min(1120px, 96vw);
   margin: 0 auto;
-  padding: 1.5rem clamp(1rem, 2.5vw, 2.5rem) 5rem;
-  color: #eaecef;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1.2fr) minmax(0, 0.88fr);
+  gap: 0.5rem;
+}
+
+.b-card {
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
+}
+
+.b-card__kicker {
+  margin: 0 0 0.28rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
 
 .b-asset {
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 1.5rem 1.75rem;
-  background: linear-gradient(180deg, rgba(240, 185, 11, 0.06), #181a20 70%);
-  border: 1px solid rgba(240, 185, 11, 0.3);
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.42rem 0.85rem;
+  border: 1px solid var(--line);
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: var(--bg-elev);
 }
 
 .b-asset__label {
-  font-size: 0.8rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #848e9c;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.b-asset__nums {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .b-asset__usdt {
-  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-size: 1.05rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #ffffff;
+  letter-spacing: -0.03em;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
 .b-asset__usdt small {
-  font-size: 0.9rem;
+  margin-left: 0.28rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  color: #f0b90b;
+  color: var(--accent);
 }
 
 .b-asset__krw {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #f0b90b;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
 .b-asset__krw.is-dim {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  color: #848e9c;
+  color: var(--text-faint);
 }
 
 .b-asset__rate {
-  font-size: 0.75rem;
-  color: #5e6673;
+  font-size: 0.68rem;
+  color: var(--text-faint);
 }
 
 .b-asset__error {
   margin: 0;
-  font-size: 0.85rem;
-  color: #f6465d;
+  font-size: 0.75rem;
+  color: #f87171;
+}
+
+.b-picks {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.18fr);
+  gap: 0;
+  overflow: hidden;
+}
+
+.b-picks__rules,
+.b-picks__board {
+  min-height: 0;
+  padding: 0.7rem 0.85rem 0.6rem;
+  overflow: hidden;
+}
+
+.b-picks__rules {
+  border-right: 1px solid var(--line);
+}
+
+.b-picks__rules ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  counter-reset: item;
+}
+
+.b-picks__rules li {
+  position: relative;
+  padding-left: 1.35rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+.b-picks__rules li::before {
+  content: counter(item);
+  counter-increment: item;
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.58rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+
+.b-picks__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  height: calc(100% - 1.15rem);
+  display: grid;
+  grid-template-rows: repeat(10, minmax(0, 1fr));
+  min-height: 0;
+}
+
+.b-picks__list li {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr) 2.1rem 3.4rem 2rem;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 0;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.b-picks__list li:last-child {
+  border-bottom: none;
+}
+
+.b-picks__rank {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--text-faint);
+}
+
+.b-picks__sym {
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.b-picks__side {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.b-picks__side.is-long {
+  color: #86efac;
+}
+
+.b-picks__side.is-short {
+  color: #fca5a5;
+}
+
+.b-picks__week {
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-align: right;
+}
+
+.b-picks__week.is-up {
+  color: #86efac;
+}
+
+.b-picks__week.is-down {
+  color: #fca5a5;
+}
+
+.b-picks__score {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: right;
+  color: var(--accent);
+}
+
+.b-picks__empty {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+.b-chart {
+  display: flex;
+  flex-direction: column;
+  padding: 0.55rem 0.8rem 0.45rem;
+}
+
+.b-chart__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  flex: none;
+}
+
+.b-chart__total {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.b-chart__total small {
+  margin-left: 0.28rem;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.b-chart__total.is-up {
+  color: var(--accent);
+}
+
+.b-chart__total.is-down {
+  color: #fca5a5;
+}
+
+.b-chart__periods {
+  display: flex;
+  gap: 0.22rem;
+}
+
+.b-chart__periods button {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.64rem;
+  font-weight: 650;
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+}
+
+.b-chart__periods button.is-on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.b-chart__plot {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.b-chart__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.b-chart__axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.58rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  padding: 0.15rem 0;
+}
+
+.b-chart__empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+@media (max-width: 760px) {
+  .page.binance-page {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding-bottom: 1rem;
+  }
+
+  .b-shell {
+    height: auto;
+    grid-template-rows: auto auto auto;
+  }
+
+  .b-picks {
+    grid-template-columns: 1fr;
+  }
+
+  .b-picks__rules {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .b-picks__list {
+    height: auto;
+    grid-template-rows: repeat(10, 1.7rem);
+  }
+
+  .b-chart {
+    min-height: 220px;
+  }
 }

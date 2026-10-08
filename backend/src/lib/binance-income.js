@@ -17,7 +17,9 @@ async function attributeIncomeTime(symbol, incomeTimeMs) {
 /** 최근 REALIZED_PNL income 이력을 가져와 원장에 dedupe 저장하고 봇/수동 귀속을 매긴다. */
 export async function syncIncomeLedger() {
   const [lastRows] = await pool.query("SELECT MAX(income_time) AS last_time FROM binance_income_ledger");
-  const startTime = lastRows[0]?.last_time ? Number(lastRows[0].last_time) + 1 : Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const startTime = lastRows[0]?.last_time
+    ? Number(lastRows[0].last_time) + 1
+    : Date.now() - 90 * 24 * 60 * 60 * 1000;
 
   let entries = [];
   try {
@@ -57,4 +59,48 @@ export async function getPaperPnlSummary() {
     "SELECT COALESCE(SUM(realized_pnl), 0) AS total FROM binance_bot_positions WHERE is_paper = 1 AND status = 'CLOSED'"
   );
   return Number(rows[0]?.total || 0);
+}
+
+const PERIOD_DAYS = { "1d": 1, "1w": 7, "1m": 30, "3m": 90, all: 365 };
+
+/** 기간별 일간 실현손익 + 누적 곡선 */
+export async function getPnlSeries(period = "1w") {
+  const days = PERIOD_DAYS[period] || 7;
+  const startMs = Date.now() - days * 24 * 60 * 60 * 1000;
+  const [rows] = await pool.query(
+    `SELECT
+       DATE(FROM_UNIXTIME(income_time / 1000)) AS d,
+       COALESCE(SUM(income), 0) AS pnl
+     FROM binance_income_ledger
+     WHERE income_time >= ?
+     GROUP BY d
+     ORDER BY d`,
+    [startMs]
+  );
+
+  const byDay = new Map();
+  for (const r of rows) {
+    const key = typeof r.d === "string" ? r.d.slice(0, 10) : new Date(r.d).toISOString().slice(0, 10);
+    byDay.set(key, Number(r.pnl) || 0);
+  }
+
+  const points = [];
+  let cumulative = 0;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (days - 1));
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    const daily = byDay.get(key) || 0;
+    cumulative += daily;
+    points.push({ date: key, daily, cumulative: Number(cumulative.toFixed(4)) });
+  }
+
+  return {
+    period,
+    total: Number(cumulative.toFixed(4)),
+    points,
+  };
 }

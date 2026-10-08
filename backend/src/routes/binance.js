@@ -14,7 +14,8 @@ import { getUsdKrwRate } from "../lib/fx-rate.js";
 import { askGemini } from "../lib/gemini.js";
 import { refreshOpportunityCacheIfStale } from "../lib/binance-scoring.js";
 import { loadBotSettings, updateBotSettings, getOpenBotPosition } from "../lib/binance-settings.js";
-import { getPnlSummary, getPaperPnlSummary, syncIncomeLedger } from "../lib/binance-income.js";
+import { getPnlSummary, getPaperPnlSummary, getPnlSeries, syncIncomeLedger } from "../lib/binance-income.js";
+import { getTopPicks } from "../lib/binance-picks.js";
 import { DEFAULT_RULES_PROMPT, DEFAULT_SCORING_PROMPT } from "../lib/binance-defaults.js";
 
 const router = Router();
@@ -278,6 +279,26 @@ router.get("/pnl-summary", async (_req, res, next) => {
     const realized = await getPnlSummary();
     const paperRealized = await getPaperPnlSummary();
     res.json({ ok: true, realized, paperRealized });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/picks", async (req, res, next) => {
+  try {
+    const data = await getTopPicks({ force: req.query.refresh === "1" });
+    res.json({ ok: true, ...data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/pnl-chart", async (req, res, next) => {
+  try {
+    syncIncomeLedger().catch((err) => console.error("[binance] income sync 실패:", err.message));
+    const period = String(req.query.period || "1w");
+    const series = await getPnlSeries(period);
+    res.json({ ok: true, ...series });
   } catch (err) {
     next(err);
   }

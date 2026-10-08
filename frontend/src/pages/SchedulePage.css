@@ -1,10 +1,10 @@
 .page.schedule-page {
   max-width: none;
   width: 100%;
-  padding-top: 0.25rem;
+  padding-top: 0.1rem;
   padding-left: clamp(16px, 4vw, 48px);
   padding-right: clamp(16px, 4vw, 48px);
-  padding-bottom: clamp(40px, 8vh, 72px);
+  padding-bottom: clamp(16px, 3.2vh, 36px);
 }
 
 @media (max-width: 720px) {
