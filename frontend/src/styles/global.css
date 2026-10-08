@@ -114,9 +114,22 @@ body::after {
   flex-direction: column;
 }
 
+.app-shell--world {
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .app-shell--world .topbar {
   position: fixed;
   width: 100%;
+  z-index: 40;
+}
+
+html:has(.app-shell--world),
+body:has(.app-shell--world) {
+  overflow: hidden;
+  height: 100%;
+  scrollbar-gutter: auto;
 }
 
 .page {

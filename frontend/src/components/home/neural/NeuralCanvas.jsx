@@ -150,8 +150,10 @@ function NeuralField({ count }) {
   useFrame(({ clock }) => {
     const meshObj = mesh.current;
     if (!meshObj) return;
-    const breath = worldState.reduced ? 1 : 1 + Math.sin(clock.elapsedTime * 0.35) * 0.012;
-    const warp = worldState.warp || 0;
+    const quiet = Math.min(1, Math.max(0, worldState.quiet || (worldState.progress >= PROFILE_START ? 0.85 : 0)));
+    const live = 1 - quiet;
+    const breath = worldState.reduced || quiet > 0.6 ? 1 : 1 + Math.sin(clock.elapsedTime * 0.35) * 0.012 * live;
+    const warp = (worldState.warp || 0) * live;
     const p = worldState.progress;
     const idx = projectIndexAt(p);
     const active = idx >= 0 ? PLANET_POS[idx] : null;
@@ -163,12 +165,12 @@ function NeuralField({ count }) {
       dummy.position.set(net.pos[o] * breath, net.pos[o + 1] * breath, net.pos[o + 2] * breath);
       if (warp > 0.05) dummy.position.z -= warp * 1.8 * ((i % 7) - 3) * 0.08;
       let s = 1;
-      if (highlight) {
+      if (highlight && live > 0.15) {
         const dx = dummy.position.x - highlight[0];
         const dy = dummy.position.y - highlight[1];
         const dz = dummy.position.z - highlight[2];
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (d < 3.2) s = 1 + (1 - d / 3.2) * 1.8;
+        if (d < 3.2) s = 1 + (1 - d / 3.2) * 1.8 * live;
       }
       dummy.scale.set(s, s, s * (1 + warp * 4.5));
       dummy.updateMatrix();
@@ -176,7 +178,8 @@ function NeuralField({ count }) {
     }
     meshObj.instanceMatrix.needsUpdate = true;
     if (lines.current) {
-      lines.current.material.opacity = 0.08 + 0.08 * (0.5 + 0.5 * Math.sin(clock.elapsedTime * 0.6)) + warp * 0.12;
+      const pulse = quiet > 0.85 ? 0 : 0.5 + 0.5 * Math.sin(clock.elapsedTime * 0.6 * live);
+      lines.current.material.opacity = 0.05 + 0.08 * pulse * live + warp * 0.12;
     }
   });
 

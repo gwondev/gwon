@@ -1,15 +1,17 @@
 .world-page {
   max-width: none;
   width: 100%;
+  height: 100dvh;
+  overflow: hidden;
   padding: 0;
   margin: 0;
   background: #050506;
   color: #f3f2ef;
+  position: relative;
 }
 
 .world-pin {
-  position: sticky;
-  top: 0;
+  position: relative;
   height: 100dvh;
   overflow: hidden;
 }
@@ -19,12 +21,15 @@
   inset: 0;
   width: 100% !important;
   height: 100% !important;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .world-boot {
   position: absolute;
   inset: 0;
   background: #050506;
+  z-index: 0;
 }
 
 .world-kicker {
@@ -62,51 +67,76 @@
 }
 
 .world-counter {
-  position: absolute;
+  position: fixed;
   top: 5.4rem;
-  right: clamp(16px, 3vw, 36px);
-  z-index: 4;
+  right: clamp(18px, 3vw, 36px);
+  z-index: 30;
   margin: 0;
   font-size: 0.64rem;
   letter-spacing: 0.16em;
   color: rgba(243, 242, 239, 0.38);
+  pointer-events: none;
 }
 
 .world-nav {
-  position: absolute;
-  left: clamp(14px, 2.4vw, 32px);
+  position: fixed;
+  left: max(22px, env(safe-area-inset-left, 0px) + 20px);
   top: 50%;
   transform: translateY(-50%);
-  z-index: 4;
+  z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0;
+  padding: 0.15rem 0.85rem 0.15rem 0;
+  pointer-events: auto;
+  max-height: calc(100dvh - 7.5rem);
+  overflow: visible;
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.world-nav.is-away {
+  opacity: 0.22;
+}
+
+.world-nav__spine {
+  position: absolute;
+  left: 4px;
+  top: 0.7rem;
+  bottom: 0.7rem;
+  width: 1px;
+  background: rgba(243, 242, 239, 0.12);
+  pointer-events: none;
 }
 
 .world-nav__track {
   position: absolute;
-  left: 5px;
-  top: 0.55rem;
+  left: 4px;
+  top: 0.7rem;
   width: 1px;
-  height: 1.2rem;
+  height: 1.15rem;
   background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 8px rgba(216, 193, 154, 0.45);
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
   pointer-events: none;
 }
 
 .world-nav button {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: 10px 1.7rem max-content;
   align-items: center;
-  gap: 0.55rem;
+  column-gap: 0.5rem;
+  height: 2.05rem;
   border: 0;
   background: transparent;
   color: rgba(243, 242, 239, 0.28);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 650;
   letter-spacing: 0.12em;
-  padding: 0.2rem 0;
+  padding: 0 0.2rem 0 0;
+  white-space: nowrap;
+  overflow: visible;
+  cursor: pointer;
 }
 
 .world-nav button i {
@@ -115,11 +145,24 @@
   border-radius: 50%;
   border: 1px solid rgba(243, 242, 239, 0.28);
   background: transparent;
+  justify-self: center;
+  transition: background 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
 }
 
 .world-nav button span {
+  font-style: normal;
   font-variant-numeric: tabular-nums;
   color: inherit;
+}
+
+.world-nav button em {
+  font-style: normal;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+}
+
+.world-nav button:hover {
+  color: rgba(243, 242, 239, 0.58);
 }
 
 .world-nav button.is-on {
@@ -129,7 +172,11 @@
 .world-nav button.is-on i {
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
+  box-shadow: 0 0 8px rgba(216, 193, 154, 0.55);
+}
+
+.world-nav button.is-on:hover {
+  color: var(--accent);
 }
 
 .world-nav button:focus-visible {
@@ -144,7 +191,7 @@
   pointer-events: none;
   display: grid;
   align-items: center;
-  padding: 5.5rem clamp(88px, 12vw, 180px) 3rem clamp(120px, 14vw, 200px);
+  padding: 5.5rem clamp(88px, 12vw, 180px) 3rem clamp(168px, 16vw, 220px);
 }
 
 .world-proj.is-0 {
@@ -226,27 +273,33 @@
 .world-file {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 5.5rem clamp(24px, 6vw, 72px) 2.2rem;
+  padding: 5.5rem clamp(24px, 6vw, 72px) 2.2rem clamp(168px, 16vw, 220px);
   pointer-events: auto;
 }
 
 .world-file__tabs {
   display: flex;
-  gap: 1.2rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.15rem;
   margin-bottom: 1rem;
+  pointer-events: auto;
 }
 
 .world-file__tabs button {
   border: 0;
   background: transparent;
   color: rgba(243, 242, 239, 0.32);
-  font-size: 0.68rem;
-  letter-spacing: 0.16em;
-  padding: 0.2rem 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  padding: 0.25rem 0 0.4rem;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 0 transparent;
+  transition: color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .world-file__tabs button.is-on {
@@ -255,11 +308,12 @@
 }
 
 .world-file__panel {
-  animation: world-panel 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: world-panel 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
 }
 
 @keyframes world-panel {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -312,10 +366,6 @@
   border-bottom: 1px solid var(--accent-line);
 }
 
-.world-spacer {
-  height: 860vh;
-}
-
 @media (max-width: 860px) {
   .world-nav {
     top: auto;
@@ -323,29 +373,44 @@
     left: 50%;
     transform: translateX(-50%);
     flex-direction: row;
-    gap: 0.7rem;
+    max-height: none;
+    padding: 0.2rem 0.4rem;
   }
 
+  .world-nav__spine,
   .world-nav__track {
     display: none;
   }
 
   .world-nav button {
     font-size: 0;
-    gap: 0;
+    column-gap: 0;
+    grid-template-columns: 10px;
+    height: auto;
+    padding: 0.35rem;
   }
 
   .world-nav button.is-on {
-    font-size: 0.68rem;
-    gap: 0.4rem;
+    font-size: 0.62rem;
+    grid-template-columns: 10px max-content;
+    column-gap: 0.4rem;
   }
 
   .world-nav button span {
     display: none;
   }
 
+  .world-nav button.is-on em {
+    display: inline;
+  }
+
+  .world-nav button:not(.is-on) em {
+    display: none;
+  }
+
   .world-proj,
-  .world-proj.is-1 {
+  .world-proj.is-1,
+  .world-file {
     grid-template-columns: 1fr;
     padding: 5rem 1.1rem 4.2rem;
   }
@@ -356,11 +421,24 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .world-spacer {
-    height: 280vh;
+@media (max-height: 780px) and (min-width: 861px) {
+  .world-nav button {
+    height: 1.7rem;
+    font-size: 0.6rem;
   }
 
+  .world-nav__track {
+    height: 1rem;
+    top: 0.55rem;
+  }
+
+  .world-nav__spine {
+    top: 0.55rem;
+    bottom: 0.55rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
   .world-file__panel {
     animation: none;
   }

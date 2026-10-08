@@ -6,4 +6,5 @@ export const worldState = {
   mobile: false,
   warp: 0,
   hoverIndex: -1,
+  quiet: 0,
 };

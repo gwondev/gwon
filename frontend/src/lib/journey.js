@@ -91,6 +91,30 @@ export const PROJECT_SPAN = 0.145;
 export const CONNECT_START = INTRO_END + JOURNEY_PROJECTS.length * PROJECT_SPAN;
 export const PROFILE_START = 0.9;
 
+export const PROJECT_COUNT = JOURNEY_PROJECTS.length;
+export const INTRO_SCENE = 0;
+export const PROFILE_SCENE = PROJECT_COUNT + 1;
+export const SCENE_MAX = PROFILE_SCENE;
+
+/** Settled progress for a snap scene: 0 intro, 1–5 projects, 6 profile. */
+export function sceneToProgress(scene) {
+  if (scene <= INTRO_SCENE) return 0.018;
+  if (scene <= PROJECT_COUNT) {
+    const i = scene - 1;
+    return INTRO_END + i * PROJECT_SPAN + PROJECT_SPAN * 0.7;
+  }
+  return Math.min(0.985, PROFILE_START + 0.045);
+}
+
+export function projectIndexFromScene(scene) {
+  if (scene >= 1 && scene <= PROJECT_COUNT) return scene - 1;
+  return -1;
+}
+
+export function sceneFromProjectIndex(i) {
+  return Math.min(PROJECT_COUNT, Math.max(1, i + 1));
+}
+
 export function projectIndexAt(p) {
   if (p < INTRO_END) return -1;
   if (p >= CONNECT_START) return -2;
