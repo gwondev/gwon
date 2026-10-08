@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useViewMode } from "../context/ViewModeContext";
 import SideDrawer from "./SideDrawer";
-import { IconChart, IconCalendar } from "./ActionIcons";
+import { IconHome, IconCalendar } from "./ActionIcons";
 import "./TopBar.css";
 
 const VIEWMODE_PATHS = ["/certifications", "/activities", "/competitions", "/projects", "/career"];
@@ -50,40 +50,41 @@ export default function TopBar() {
     <>
       <header className={`topbar ${scrolled ? "is-scrolled" : ""}`}>
         <div className="topbar__left">
-          <button
-            type="button"
-            className="topbar__logo"
-            onClick={() => navigate("/")}
-            aria-label="메인으로"
-          >
-            <span className="topbar__logo-mark">LSG</span>
-            <span className="topbar__logo-dot" aria-hidden />
-          </button>
-
-          {isAdmin && (
-            <div className="topbar__adminlinks">
-              <button
-                type="button"
-                className={`topbar__adminlink ${location.pathname.toLowerCase() === "/binance" ? "is-active" : ""}`}
-                onClick={() => navigate("/binance")}
-                aria-label="바이낸스"
-                title="바이낸스"
-              >
-                <IconChart width={16} height={16} />
-                <span>바이낸스</span>
-              </button>
-              <button
-                type="button"
-                className={`topbar__adminlink ${location.pathname === "/schedule" ? "is-active" : ""}`}
-                onClick={() => navigate("/schedule")}
-                aria-label="일정"
-                title="일정"
-              >
-                <IconCalendar width={16} height={16} />
-                <span>일정</span>
-              </button>
-            </div>
-          )}
+          <div className="topbar__adminlinks">
+            <button
+              type="button"
+              className={`topbar__adminlink topbar__home ${location.pathname === "/" ? "is-active" : ""}`}
+              onClick={() => navigate("/")}
+              aria-label="홈"
+              title="홈"
+            >
+              <IconHome width={15} height={15} />
+              <span>HOME</span>
+            </button>
+            {isAdmin && (
+              <>
+                <button
+                  type="button"
+                  className={`topbar__adminlink topbar__b ${location.pathname.toLowerCase() === "/binance" ? "is-active" : ""}`}
+                  onClick={() => navigate("/binance")}
+                  aria-label="바이낸스"
+                  title="바이낸스"
+                >
+                  B
+                </button>
+                <button
+                  type="button"
+                  className={`topbar__adminlink ${location.pathname === "/schedule" ? "is-active" : ""}`}
+                  onClick={() => navigate("/schedule")}
+                  aria-label="일정"
+                  title="일정"
+                >
+                  <IconCalendar width={16} height={16} />
+                  <span>일정</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {showViewMode && (

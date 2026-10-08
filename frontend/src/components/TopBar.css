@@ -35,14 +35,28 @@
   gap: clamp(10px, 1.6vw, 18px);
 }
 
-.topbar__logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
+.topbar__home {
+  padding: 0.38rem 0.78rem 0.38rem 0.62rem;
+  background:
+    radial-gradient(120% 180% at 20% 0%, var(--accent-soft), transparent 62%),
+    linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
+  color: var(--accent);
+}
+
+.topbar__home span:last-child {
+  display: inline;
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+}
+
+.topbar__b {
+  min-width: 2.1rem;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding-left: 0.62rem;
+  padding-right: 0.62rem;
 }
 
 .topbar__adminlinks {
@@ -198,4 +212,8 @@
     padding: 0.24rem 0.5rem;
     font-size: 0.7rem;
   }
+}
+
+.topbar__home span:last-child {
+  display: inline;
 }

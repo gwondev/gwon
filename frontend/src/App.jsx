@@ -24,8 +24,9 @@ import "./styles/cosmic.css";
 export default function App() {
   const location = useLocation();
   const path = location.pathname;
-  // 일정·바이낸스는 블랙 테마. 메인/포트폴리오만 코스믹.
-  const isCosmic = path !== "/schedule" && path !== "/BINANCE" && path !== "/binance";
+  // 홈·일정·바이낸스는 블랙 골드 톤. 세부 포트폴리오 페이지만 코스믹.
+  const isCosmic =
+    path !== "/" && path !== "/schedule" && path !== "/BINANCE" && path !== "/binance";
 
   return (
     <div className={`app-shell ${isCosmic ? "cosmic" : ""}`}>
@@ -53,7 +54,7 @@ export default function App() {
         <Route path="*" element={<RootPage />} />
       </Routes>
       <SiteFooter />
-      {isCosmic && <ChatWidget />}
+      {path !== "/schedule" && path !== "/BINANCE" && path !== "/binance" && <ChatWidget />}
     </div>
   );
 }

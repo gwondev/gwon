@@ -121,7 +121,7 @@ export default function MyPage() {
                 className="btn btn-ghost mypage__binance-btn"
                 onClick={() => navigate("/BINANCE")}
               >
-                BINANCE
+                B
               </button>
             )}
             <button

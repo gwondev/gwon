@@ -328,20 +328,19 @@
 
 .b-picks__list li {
   display: grid;
-  grid-template-columns: 1.1rem 4.2rem 1.8rem 4.6rem 2.8rem 3.4rem 2rem;
+  grid-template-columns: 1.1rem minmax(0, 1fr) auto;
   gap: 0.28rem;
   align-items: center;
-  padding: 0.2rem 0;
+  padding: 0.18rem 0;
   border-bottom: 1px solid var(--line);
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   font-variant-numeric: tabular-nums;
 }
 
-.b-reason {
-  grid-column: 1 / -1;
-  font-size: 0.62rem;
-  color: var(--text-faint);
-  margin-top: -0.08rem;
+.b-mcap {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.7rem;
 }
 
 .b-rank {
@@ -374,6 +373,13 @@
   font-size: 0.62rem;
   font-weight: 600;
   color: var(--text-faint);
+}
+
+.b-range {
+  margin: 0.12rem 0 0;
+  font-size: 0.62rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .b-stats {
@@ -430,15 +436,15 @@
   font-size: 0.76rem;
 }
 
-.b-recent {
+.b-buckets {
   margin: 0.4rem 0 0;
   padding: 0;
   list-style: none;
 }
 
-.b-recent li {
+.b-buckets li {
   display: grid;
-  grid-template-columns: 6.4rem 4.2rem 3rem minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.2fr) 4.2rem minmax(0, 1fr);
   gap: 0.3rem;
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
@@ -447,7 +453,7 @@
   color: var(--text-dim);
 }
 
-.b-recent--head {
+.b-buckets--head {
   color: var(--text-faint);
   font-size: 0.56rem;
   font-weight: 700;

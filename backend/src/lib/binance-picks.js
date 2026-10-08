@@ -49,6 +49,57 @@ function formatVolume(val) {
   return `${Math.round(val).toLocaleString()}`;
 }
 
+function formatMcap(n) {
+  const v = Number(n) || 0;
+  if (!v) return "-";
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
+  return `$${Math.round(v).toLocaleString()}`;
+}
+
+function coinKey(symbol) {
+  return String(symbol || "")
+    .replace(/USDT$/i, "")
+    .replace(/^1000000/i, "")
+    .replace(/^1000/i, "")
+    .toUpperCase();
+}
+
+let mcapCache = { at: 0, bySymbol: new Map() };
+
+async function loadMarketCaps() {
+  if (Date.now() - mcapCache.at < 30 * 60 * 1000 && mcapCache.bySymbol.size) {
+    return mcapCache.bySymbol;
+  }
+  const res = await fetch(
+    "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1"
+  );
+  if (!res.ok) throw new Error(`coingecko ${res.status}`);
+  const data = await res.json();
+  const map = new Map();
+  if (Array.isArray(data)) {
+    for (const c of data) {
+      map.set(String(c.symbol || "").toUpperCase(), Number(c.market_cap) || 0);
+    }
+  }
+  mcapCache = { at: Date.now(), bySymbol: map };
+  return map;
+}
+
+async function withMarketCap(picks) {
+  let caps = new Map();
+  try {
+    caps = await loadMarketCaps();
+  } catch (err) {
+    console.warn("[binance-picks] 시가총액 조회 실패:", err.message);
+  }
+  return picks.map((p) => {
+    const cap = caps.get(coinKey(p.symbol)) || 0;
+    return { ...p, marketCap: cap, marketCapFormatted: formatMcap(cap) };
+  });
+}
+
 const HORIZON_LABEL = { "1d": "하루", short: "단기", week: "일주일", swing: "일주일 이상 스윙" };
 
 function formatRules(rules) {
@@ -251,7 +302,7 @@ export async function getTopPicks({ force = false } = {}) {
     computedAt: new Date().toISOString(),
     source,
     error,
-    picks: applyStructuredRules(picks, structured, metrics),
+    picks: await withMarketCap(applyStructuredRules(picks, structured, metrics)),
   };
   cache = { at: Date.now(), key: cacheKey, payload };
   return payload;

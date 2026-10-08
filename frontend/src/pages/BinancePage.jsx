@@ -64,11 +64,8 @@ function parseRules(raw) {
   return { ...DEFAULT_RULES };
 }
 
-function typeLabel(type) {
-  if (type === "REALIZED_PNL") return "실현";
-  if (type === "COMMISSION") return "수수료";
-  if (type === "FUNDING_FEE") return "펀딩";
-  return type || "-";
+function formatDay(ms) {
+  return new Date(ms).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" });
 }
 
 function PnlChart({ points, total }) {
@@ -473,12 +470,7 @@ export default function BinancePage() {
               <li key={row.symbol}>
                 <span className="b-rank">{i + 1}</span>
                 <span className="b-sym">{row.symbol.replace("USDT", "")}</span>
-                <span className={`b-side is-${row.side.toLowerCase()}`}>{row.side === "LONG" ? "롱" : "숏"}</span>
-                <span className="b-pos__kv">{formatNumber(row.lastPrice, 4)}</span>
-                <span className="b-pos__kv">{row.volumeFormatted}</span>
-                <span className={row.chg24 >= 0 ? "is-up" : "is-down"}>{formatPct(row.chg24)}</span>
-                <span className="b-score">{row.score}</span>
-                {row.reason && <span className="b-reason">{row.reason}</span>}
+                <span className="b-mcap">{row.marketCapFormatted || "-"}</span>
               </li>
             ))}
             {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
@@ -494,6 +486,11 @@ export default function BinancePage() {
                 {formatNumber(chart?.total || 0, 2)}
                 <small>USDT 순손익</small>
               </strong>
+              {chart?.rangeFrom && (
+                <p className="b-range">
+                  {String(chart.rangeFrom).replace(/-/g, ".")} – {String(chart.rangeTo || "").replace(/-/g, ".")}
+                </p>
+              )}
             </div>
             <div className="b-seg">
               {PERIODS.map((p) => (
@@ -528,20 +525,26 @@ export default function BinancePage() {
             </div>
           </div>
           <PnlChart points={chart?.points} total={chart?.total || 0} />
-          {!!chart?.recent?.length && (
-            <ul className="b-recent">
-              <li className="b-recent--head">
-                <span>시각</span>
-                <span>심볼</span>
-                <span>구분</span>
-                <span>금액</span>
+          {!!chart?.buckets?.length && (
+            <ul className="b-buckets">
+              <li className="b-buckets--head">
+                <span>구간</span>
+                <span>수익률</span>
+                <span>수익금</span>
               </li>
-              {chart.recent.map((r, i) => (
-                <li key={`${r.time}-${i}`}>
-                  <span>{new Date(r.time).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-                  <span className="b-sym">{String(r.symbol || "").replace("USDT", "")}</span>
-                  <span>{typeLabel(r.type)}</span>
-                  <span className={r.income >= 0 ? "is-up" : "is-down"}>{formatNumber(r.income, 4)}</span>
+              {chart.buckets.map((b, i) => (
+                <li key={i}>
+                  <span>
+                    {formatDay(b.from)}–{formatDay(b.to)}
+                  </span>
+                  <span className={b.returnPct >= 0 ? "is-up" : "is-down"}>
+                    {b.returnPct > 0 ? "+" : ""}
+                    {Number(b.returnPct).toFixed(2)}%
+                  </span>
+                  <span className={b.pnl >= 0 ? "is-up" : "is-down"}>
+                    {b.pnl >= 0 ? "+" : ""}
+                    {formatNumber(b.pnl, 2)}
+                  </span>
                 </li>
               ))}
             </ul>
