@@ -30,7 +30,7 @@ export default function App() {
     path !== "/" && path !== "/schedule" && path !== "/BINANCE" && path !== "/binance";
 
   return (
-    <div className={`app-shell ${isCosmic ? "cosmic" : ""} ${isHome ? "app-shell--fit" : ""}`}>
+    <div className={`app-shell ${isCosmic ? "cosmic" : ""} ${isHome ? "app-shell--world" : ""}`}>
       <ScrollToTop />
       {isCosmic && <Starfield />}
       {isCosmic && <ScrollProgress />}

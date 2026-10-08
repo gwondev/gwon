@@ -114,13 +114,9 @@ body::after {
   flex-direction: column;
 }
 
-.app-shell--fit {
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.app-shell--fit .topbar {
-  flex: none;
+.app-shell--world .topbar {
+  position: fixed;
+  width: 100%;
 }
 
 .page {
