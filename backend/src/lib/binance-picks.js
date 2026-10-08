@@ -133,7 +133,7 @@ async function computePicks() {
     const m = {
       quoteVolume: Number(t.quoteVolume) || 0,
       chg24: Number(t.priceChangePercent) || 0,
-      ret7d: retMap.get(t.symbol) ?? Number(t.priceChangePercent) || 0,
+      ret7d: retMap.get(t.symbol) ?? (Number(t.priceChangePercent) || 0),
       funding: (fundingMap.get(t.symbol) || 0) * 100,
       rangePos: high > low ? ((last - low) / (high - low)) * 100 : 50,
     };
