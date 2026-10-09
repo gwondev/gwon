@@ -1,19 +1,21 @@
 .page.binance-page {
   max-width: none;
   width: 100%;
-  padding: 0.12rem clamp(14px, 3.2vw, 28px) 0.4rem;
+  padding: 0.12rem clamp(12px, 2vw, 24px) 0.4rem;
   color: var(--text);
+  line-height: 1.35;
+  overflow: hidden;
 }
 
 .b-shell {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1480px;
   margin: 0 auto;
   height: calc(100dvh - 4.4rem);
   display: grid;
-  grid-template-columns: minmax(240px, 0.4fr) minmax(0, 0.6fr);
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 0.4rem;
+  grid-template-columns: minmax(280px, 0.38fr) minmax(0, 0.62fr);
+  grid-template-rows: 218px minmax(0, 1fr);
+  gap: 0.45rem;
 }
 
 .b-asset { grid-column: 1; grid-row: 1; }
@@ -279,17 +281,20 @@
 .b-tvstage {
   position: relative;
   flex: 1.15;
-  min-height: 160px;
+  min-height: 180px;
+  overflow: hidden;
+  contain: layout;
 }
 
 .b-tv {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 160px;
+  min-height: 180px;
   border: 0;
   border-radius: 10px;
   background: #0c0c0e;
+  pointer-events: auto;
 }
 
 .b-chat {
@@ -399,6 +404,19 @@
   font-size: 0.62rem;
 }
 
+.b-pnl {
+  display: flex;
+  flex-direction: column;
+}
+
+.b-pnl__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  flex: 1;
+  min-height: 0;
+}
+
 .b-pnl .b-chart__head {
   display: flex;
   align-items: flex-end;
@@ -449,12 +467,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.28rem;
-  min-height: 72px;
+  min-height: 64px;
+  height: 64px;
 }
 
 .b-chart__svg {
   width: 100%;
-  height: 72px;
+  height: 64px;
   display: block;
 }
 
@@ -473,6 +492,44 @@
   place-items: center;
   color: var(--text-faint);
   font-size: 0.72rem;
+}
+
+.b-buckets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.b-buckets li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.22rem 0.18rem;
+  min-width: 0;
+}
+
+.b-buckets span {
+  font-size: 0.52rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.b-buckets strong {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.b-buckets em {
+  font-style: normal;
+  font-size: 0.56rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
 }
 
 @media (max-width: 900px) {
@@ -503,5 +560,9 @@
   .b-tvstage,
   .b-tv {
     min-height: 220px;
+  }
+
+  .b-buckets {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }

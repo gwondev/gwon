@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import PageTransition from "../components/PageTransition";
 import TradingViewChart from "../components/binance/TradingViewChart";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
@@ -83,6 +82,10 @@ function stripMd(text) {
     .trim();
 }
 
+function formatBucket(ms) {
+  return new Date(ms).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }).replace(/\s/g, "");
+}
+
 function PnlChart({ points, total }) {
   const { path, area, min, max } = useMemo(() => {
     const vals = (points || []).map((p) => p.cumulative);
@@ -126,7 +129,7 @@ function PnlChart({ points, total }) {
 export default function BinancePage() {
   const { isAuthed, loading: authLoading, isSuperAdmin, token } = useAuth();
   const navigate = useNavigate();
-  const chatEnd = useRef(null);
+  const chatLog = useRef(null);
   const [asset, setAsset] = useState(null);
   const [positions, setPositions] = useState([]);
   const [activeSymbol, setActiveSymbol] = useState("BTCUSDT");
@@ -256,7 +259,9 @@ export default function BinancePage() {
   };
 
   useEffect(() => {
-    chatEnd.current?.scrollIntoView({ block: "end" });
+    const el = chatLog.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
 
   useEffect(() => {
@@ -284,7 +289,7 @@ export default function BinancePage() {
   const fut = asset?.futures;
 
   return (
-    <PageTransition className="page binance-page">
+    <main className="page binance-page">
       <div className="b-shell">
         <section className="b-card b-asset">
           <p className="b-card__kicker">총자산</p>
@@ -371,7 +376,26 @@ export default function BinancePage() {
               <strong>{chart?.trades || 0}</strong>
             </div>
           </div>
-          <PnlChart points={chart?.points} total={chart?.total || 0} />
+          <div className="b-pnl__body">
+            <PnlChart points={chart?.points} total={chart?.total || 0} />
+            {!!chart?.buckets?.length && (
+              <ul className="b-buckets">
+                {chart.buckets.map((b, i) => (
+                  <li key={i}>
+                    <span>{formatBucket(b.from)}</span>
+                    <strong className={b.returnPct >= 0 ? "is-up" : "is-down"}>
+                      {b.returnPct > 0 ? "+" : ""}
+                      {Number(b.returnPct).toFixed(1)}%
+                    </strong>
+                    <em className={b.pnl >= 0 ? "is-up" : "is-down"}>
+                      {b.pnl >= 0 ? "+" : ""}
+                      {formatNumber(b.pnl, 1)}
+                    </em>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         <section className="b-card b-desk">
@@ -469,14 +493,13 @@ export default function BinancePage() {
                 ))}
               </div>
             </div>
-            <div className="b-chat__log">
+            <div className="b-chat__log" ref={chatLog}>
               {messages.map((m, i) => (
                 <div key={i} className={`b-chat__bubble is-${m.role}`}>
                   {m.text}
                 </div>
               ))}
               {busy === "ai" && <div className="b-chat__bubble is-assistant">분석 중…</div>}
-              <div ref={chatEnd} />
             </div>
             <form
               className="b-chat__form"
@@ -493,6 +516,6 @@ export default function BinancePage() {
           </div>
         </section>
       </div>
-    </PageTransition>
+    </main>
   );
 }
