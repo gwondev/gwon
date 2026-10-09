@@ -107,17 +107,20 @@ export async function askGeminiJson({ system, message, schema }) {
   throw lastErr || new Error("Gemini JSON 응답 생성에 실패했습니다.");
 }
 
-export async function askGemini({ system, history, message }) {
+export async function askGemini({ system, history, message, maxOutputTokens, temperature }) {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new Error("GEMINI API 키가 설정되지 않았습니다.");
 
   const contents = normalizeHistory(history);
   contents.push({ role: "user", parts: [{ text: message.trim() }] });
+  const overrides = {};
+  if (maxOutputTokens) overrides.maxOutputTokens = maxOutputTokens;
+  if (temperature != null) overrides.temperature = temperature;
 
   let lastErr;
   for (const model of getGeminiModels()) {
     try {
-      const reply = await callModel(model, apiKey, system, contents);
+      const reply = await callModel(model, apiKey, system, contents, overrides);
       console.log(`[gemini] ok: ${model}`);
       return reply;
     } catch (err) {

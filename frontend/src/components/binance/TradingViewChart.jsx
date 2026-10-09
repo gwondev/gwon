@@ -6,7 +6,7 @@ export default function TradingViewChart({ symbol, interval = "60" }) {
     new URLSearchParams({
       symbol: tvSymbol,
       interval: String(interval),
-      hidesidetoolbar: "1",
+      hidesidetoolbar: "0",
       hidetoptoolbar: "1",
       symboledit: "0",
       saveimage: "0",
@@ -21,11 +21,8 @@ export default function TradingViewChart({ symbol, interval = "60" }) {
     }).toString();
 
   return (
-    <iframe
-      className="b-tv"
-      title={`${pair} chart`}
-      src={src}
-      loading="lazy"
-    />
+    <div className="b-tvstage">
+      <iframe className="b-tv" title={`${pair} chart`} src={src} loading="lazy" />
+    </div>
   );
 }

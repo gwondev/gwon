@@ -15,24 +15,35 @@ const PERIODS = [
 ];
 
 const HORIZONS = [
-  { id: "1d", label: "하루", interval: "15" },
-  { id: "short", label: "단기", interval: "60" },
-  { id: "week", label: "일주일", interval: "240" },
-  { id: "swing", label: "스윙+", interval: "D" },
+  { id: "scalp", label: "초단기", interval: "5" },
+  { id: "1d", label: "1일", interval: "15" },
+  { id: "week", label: "7일", interval: "240" },
+  { id: "month", label: "한달", interval: "D" },
 ];
+
+const LEVERS = [1, 2, 3, 5, 10];
 
 const DEFAULT_RULES = {
   horizon: "week",
   minSize: 72,
-  shortSafety: 86,
+  safety: 70,
+  leverage: 1,
   allowLong: true,
   allowShort: true,
 };
+
+const CHAT_CHIPS = ["지금 홀드?", "익절·손절 라인", "방향 바꿀까?"];
 
 function formatNumber(v, digits) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "-";
   return n.toLocaleString("ko-KR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function formatPct(v) {
+  const n = Number(v) || 0;
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}%`;
 }
 
 function liqDistance(p) {
@@ -43,25 +54,33 @@ function liqDistance(p) {
   return Number.isFinite(dist) ? dist : null;
 }
 
-const CHAT_CHIPS = ["지금 홀드?", "익절/손절 라인", "방향 바꿀까?"];
-
-function formatPct(v) {
-  const n = Number(v) || 0;
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
-}
-
 function parseRules(raw) {
   if (!raw) return { ...DEFAULT_RULES };
   try {
     const parsed = JSON.parse(raw);
     if (parsed && parsed.horizon) {
-      return { ...DEFAULT_RULES, ...parsed };
+      const horizon = parsed.horizon === "short" ? "scalp" : parsed.horizon === "swing" ? "month" : parsed.horizon;
+      return {
+        ...DEFAULT_RULES,
+        ...parsed,
+        horizon,
+        safety: Number(parsed.safety ?? parsed.shortSafety) || DEFAULT_RULES.safety,
+        leverage: Number(parsed.leverage) || 1,
+      };
     }
   } catch {
     /* ignore */
   }
   return { ...DEFAULT_RULES };
+}
+
+function stripMd(text) {
+  return String(text || "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/`+/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .trim();
 }
 
 function formatDay(ms) {
@@ -120,7 +139,7 @@ export default function BinancePage() {
   const [period, setPeriod] = useState("1w");
   const [chart, setChart] = useState(null);
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "포지션을 보고 매매를 제안합니다. 궁금한 걸 물어보세요." },
+    { role: "assistant", text: "포지션과 대형 코인 기준으로 짧게 제안합니다." },
   ]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState("");
@@ -178,7 +197,7 @@ export default function BinancePage() {
       const data = await api(`/binance/picks${refresh ? "?refresh=1" : ""}`, { token });
       setPicks(data);
       if (!data.ok) setPickError(data.error || "추천 실패");
-      else if (data.error) setPickError(`AI 순위 실패 → 규칙 점수 사용`);
+      else if (data.error) setPickError("규칙 점수로 추천합니다.");
     } catch (err) {
       setPickError(err.message);
     }
@@ -222,9 +241,17 @@ export default function BinancePage() {
       const data = await api("/binance/position-advice", {
         method: "POST",
         token,
-        body: { message, history },
+        body: {
+          message,
+          history,
+          picks: (picks?.picks || []).map((p) => ({
+            symbol: p.symbol,
+            side: p.side,
+            marketCapFormatted: p.marketCapFormatted,
+          })),
+        },
       });
-      setMessages([...next, { role: "assistant", text: data.analysis || data.error || "응답이 비었습니다." }]);
+      setMessages([...next, { role: "assistant", text: stripMd(data.analysis || data.error || "응답이 비었습니다.") }]);
     } catch (err) {
       setMessages([...next, { role: "assistant", text: err.message }]);
     } finally {
@@ -257,227 +284,62 @@ export default function BinancePage() {
   if (authLoading || !isAuthed || !isSuperAdmin) return null;
 
   const active = positions.find((p) => p.symbol === activeSymbol) || positions[0] || null;
+  const chartSymbol = active?.symbol || activeSymbol;
+  const fut = asset?.futures;
 
   return (
     <PageTransition className="page binance-page">
       <div className="b-shell">
-        <section className="b-asset">
-          <span className="b-asset__label">총자산</span>
+        <section className="b-card b-asset">
+          <p className="b-card__kicker">총자산</p>
           {asset ? (
-            <div className="b-asset__nums">
-              <strong className="b-asset__usdt">
-                {formatNumber(asset.totalUsdt, 2)}
-                <small>USDT</small>
-              </strong>
-              {asset.totalKrw != null && (
-                <span className="b-asset__krw">≈ {formatNumber(asset.totalKrw, 0)}원</span>
-              )}
-            </div>
-          ) : (
-            !error && <span className="b-muted">불러오는 중…</span>
-          )}
-          {error && <p className="b-err">{error}</p>}
-        </section>
-
-        <section className="b-pair">
-          <div className="b-card b-rules">
-            <div className="b-card__head">
-              <p className="b-card__kicker">내 기준</p>
-              <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveRules}>
-                {busy === "save" ? "저장 중…" : "저장·추천"}
-              </button>
-            </div>
-            <div className="b-rules__row">
-              <span className="b-rules__lab">기간</span>
-              <div className="b-seg">
-                {HORIZONS.map((h) => (
-                  <button
-                    key={h.id}
-                    type="button"
-                    className={rules.horizon === h.id ? "is-on" : ""}
-                    onClick={() => setRules((r) => ({ ...r, horizon: h.id }))}
-                  >
-                    {h.label}
-                  </button>
-                ))}
+            <>
+              <div className="b-asset__hero">
+                <strong>
+                  {formatNumber(asset.totalUsdt, 2)}
+                  <small>USDT</small>
+                </strong>
+                {asset.totalKrw != null && <span>≈ {formatNumber(asset.totalKrw, 0)}원</span>}
               </div>
-            </div>
-            <div className="b-rules__row">
-              <span className="b-rules__lab">규모 {rules.minSize}</span>
-              <input
-                type="range"
-                min="20"
-                max="95"
-                value={rules.minSize}
-                onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))}
-              />
-              <span className="b-muted">대형만</span>
-            </div>
-            <div className="b-rules__row">
-              <span className="b-rules__lab">1X숏안전 {rules.shortSafety}</span>
-              <input
-                type="range"
-                min="40"
-                max="100"
-                value={rules.shortSafety}
-                onChange={(e) => setRules((r) => ({ ...r, shortSafety: Number(e.target.value) }))}
-              />
-              <span className="b-muted">안전</span>
-            </div>
-            <div className="b-rules__row">
-              <span className="b-rules__lab">방향</span>
-              <div className="b-seg">
-                <button
-                  type="button"
-                  className={rules.allowLong ? "is-on" : ""}
-                  onClick={() => setRules((r) => ({ ...r, allowLong: !r.allowLong }))}
-                >
-                  1X 롱
-                </button>
-                <button
-                  type="button"
-                  className={rules.allowShort ? "is-on" : ""}
-                  onClick={() => setRules((r) => ({ ...r, allowShort: !r.allowShort }))}
-                >
-                  숏
-                </button>
+              <div className="b-facts b-facts--3">
+                <div>
+                  <span>선물 지갑</span>
+                  <strong>{formatNumber(fut?.wallet, 2)}</strong>
+                </div>
+                <div>
+                  <span>가용</span>
+                  <strong>{formatNumber(fut?.available, 2)}</strong>
+                </div>
+                <div>
+                  <span>미실현</span>
+                  <strong className={(fut?.unrealized || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(fut?.unrealized, 2)}</strong>
+                </div>
               </div>
-            </div>
-            {pickError && <p className="b-err">{pickError}</p>}
-          </div>
-
-          <div className="b-card b-pos">
-            <p className="b-card__kicker">내 포지션</p>
-            {positions.length ? (
-              <>
-                <div className="b-pos__table">
-                  <div className="b-pos__row b-pos__row--head">
-                    <span>심볼</span>
-                    <span>방향</span>
-                    <span>레버</span>
-                    <span>진입</span>
-                    <span>마크</span>
-                    <span>청산</span>
-                    <span>명목</span>
-                    <span>ROE</span>
-                    <span>미실현</span>
-                  </div>
+              {positions.length ? (
+                <div className="b-mini">
                   {positions.map((p) => {
-                    const on = p.symbol === (active?.symbol || "");
+                    const on = p.symbol === chartSymbol;
                     const up = Number(p.unRealizedProfit) >= 0;
                     return (
-                      <button
-                        key={`${p.symbol}-${p.side}`}
-                        type="button"
-                        className={`b-pos__row ${on ? "is-on" : ""}`}
-                        onClick={() => setActiveSymbol(p.symbol)}
-                      >
-                        <span className="b-sym">{p.symbol.replace("USDT", "")}</span>
-                        <span className={`b-side is-${String(p.side).toLowerCase()}`}>{p.side === "LONG" ? "롱" : "숏"}</span>
-                        <span>{p.leverage}X</span>
-                        <span>{formatNumber(p.entryPrice, 4)}</span>
-                        <span>{formatNumber(p.markPrice, 4)}</span>
-                        <span>{formatNumber(p.liquidationPrice, 4)}</span>
-                        <span>{formatNumber(p.notional, 2)}</span>
+                      <button key={`${p.symbol}-${p.side}`} type="button" className={on ? "is-on" : ""} onClick={() => setActiveSymbol(p.symbol)}>
+                        <b>{p.symbol.replace("USDT", "")}</b>
+                        <em className={`b-side is-${String(p.side).toLowerCase()}`}>{p.side === "LONG" ? "롱" : "숏"}</em>
                         <span className={up ? "is-up" : "is-down"}>{formatPct(p.roe)}</span>
-                        <span className={up ? "is-up" : "is-down"}>
-                          {up ? "+" : ""}
-                          {formatNumber(p.unRealizedProfit, 2)}
-                        </span>
                       </button>
                     );
                   })}
                 </div>
-                {active && (
-                  <div className="b-facts">
-                    <div>
-                      <span>수량</span>
-                      <strong>{formatNumber(Math.abs(active.positionAmt || 0), 4)}</strong>
-                    </div>
-                    <div>
-                      <span>마진</span>
-                      <strong>{String(active.marginType || "-").toUpperCase()}</strong>
-                    </div>
-                    <div>
-                      <span>증거금</span>
-                      <strong>{formatNumber(Number(active.notional) / Math.max(Number(active.leverage) || 1, 1), 2)}</strong>
-                    </div>
-                    <div>
-                      <span>청산까지</span>
-                      <strong>{liqDistance(active) == null ? "-" : `${liqDistance(active).toFixed(2)}%`}</strong>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="b-muted">열려 있는 선물 포지션이 없습니다.</p>
-            )}
-          </div>
+              ) : (
+                <p className="b-muted">열려 있는 선물 포지션이 없습니다.</p>
+              )}
+            </>
+          ) : (
+            !error && <p className="b-muted">불러오는 중…</p>
+          )}
+          {error && <p className="b-err">{error}</p>}
         </section>
 
-        <section className="b-split">
-          <div className="b-card b-tvwrap">
-            <p className="b-card__kicker">{(active?.symbol || activeSymbol).replace("USDT", "")} 차트</p>
-            <TradingViewChart symbol={active?.symbol || activeSymbol} interval={tvInterval} />
-          </div>
-          <div className="b-card b-chat">
-            <p className="b-card__kicker">AI 매매추천</p>
-            <div className="b-seg b-chat__chips">
-              {CHAT_CHIPS.map((c) => (
-                <button key={c} type="button" onClick={() => sendChat(c)} disabled={busy === "ai"}>
-                  {c}
-                </button>
-              ))}
-            </div>
-            <div className="b-chat__log">
-              {messages.map((m, i) => (
-                <div key={i} className={`b-chat__bubble is-${m.role}`}>
-                  {m.text}
-                </div>
-              ))}
-              {busy === "ai" && <div className="b-chat__bubble is-assistant">생각 중…</div>}
-              <div ref={chatEnd} />
-            </div>
-            <form
-              className="b-chat__form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendChat();
-              }}
-            >
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="포지션에 대해 물어보기"
-              />
-              <button type="submit" className="b-btn" disabled={busy === "ai"}>
-                전송
-              </button>
-            </form>
-          </div>
-        </section>
-
-        <section className="b-pair b-pair--bottom">
-        <div className="b-card b-picks">
-          <div className="b-card__head">
-            <p className="b-card__kicker">추천 상위 10</p>
-            <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
-              새로고침
-            </button>
-          </div>
-          <ol className="b-picks__list">
-            {(picks?.picks || []).map((row, i) => (
-              <li key={row.symbol}>
-                <span className="b-rank">{i + 1}</span>
-                <span className="b-sym">{row.symbol.replace("USDT", "")}</span>
-                <span className="b-mcap">{row.marketCapFormatted || "-"}</span>
-              </li>
-            ))}
-            {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
-          </ol>
-        </div>
-
-        <div className="b-card b-pnl">
+        <section className="b-card b-pnl">
           <div className="b-chart__head">
             <div>
               <p className="b-card__kicker">수익률</p>
@@ -486,11 +348,6 @@ export default function BinancePage() {
                 {formatNumber(chart?.total || 0, 2)}
                 <small>USDT 순손익</small>
               </strong>
-              {chart?.rangeFrom && (
-                <p className="b-range">
-                  {String(chart.rangeFrom).replace(/-/g, ".")} – {String(chart.rangeTo || "").replace(/-/g, ".")}
-                </p>
-              )}
             </div>
             <div className="b-seg">
               {PERIODS.map((p) => (
@@ -502,36 +359,25 @@ export default function BinancePage() {
           </div>
           <div className="b-stats">
             <div>
-              <span>실현손익</span>
-              <strong className={(chart?.realized || 0) >= 0 ? "is-up" : "is-down"}>
-                {formatNumber(chart?.realized || 0, 2)}
-              </strong>
+              <span>실현</span>
+              <strong className={(chart?.realized || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.realized || 0, 2)}</strong>
             </div>
             <div>
               <span>펀딩</span>
-              <strong className={(chart?.funding || 0) >= 0 ? "is-up" : "is-down"}>
-                {formatNumber(chart?.funding || 0, 2)}
-              </strong>
+              <strong className={(chart?.funding || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.funding || 0, 2)}</strong>
             </div>
             <div>
               <span>수수료</span>
-              <strong className={(chart?.commission || 0) >= 0 ? "is-up" : "is-down"}>
-                {formatNumber(chart?.commission || 0, 2)}
-              </strong>
+              <strong className={(chart?.commission || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.commission || 0, 2)}</strong>
             </div>
             <div>
-              <span>실현 건수</span>
+              <span>건수</span>
               <strong>{chart?.trades || 0}</strong>
             </div>
           </div>
           <PnlChart points={chart?.points} total={chart?.total || 0} />
           {!!chart?.buckets?.length && (
             <ul className="b-buckets">
-              <li className="b-buckets--head">
-                <span>구간</span>
-                <span>수익률</span>
-                <span>수익금</span>
-              </li>
               {chart.buckets.map((b, i) => (
                 <li key={i}>
                   <span>
@@ -549,7 +395,146 @@ export default function BinancePage() {
               ))}
             </ul>
           )}
-        </div>
+        </section>
+
+        <section className="b-card b-tvwrap">
+          <div className="b-tvwrap__head">
+            <p className="b-card__kicker">{chartSymbol.replace("USDT", "")} 차트</p>
+            {active && (
+              <div className="b-avg">
+                <span>평단</span>
+                <strong>{formatNumber(active.entryPrice, 4)}</strong>
+                <span>마크 {formatNumber(active.markPrice, 4)}</span>
+                <em className={`b-side is-${String(active.side).toLowerCase()}`}>{active.side === "LONG" ? "롱" : "숏"} {active.leverage}X</em>
+              </div>
+            )}
+          </div>
+          <TradingViewChart symbol={chartSymbol} interval={tvInterval} />
+          {active && (
+            <div className="b-facts">
+              <div>
+                <span>청산</span>
+                <strong>{formatNumber(active.liquidationPrice, 4)}</strong>
+              </div>
+              <div>
+                <span>청산까지</span>
+                <strong>{liqDistance(active) == null ? "-" : `${liqDistance(active).toFixed(2)}%`}</strong>
+              </div>
+              <div>
+                <span>명목</span>
+                <strong>{formatNumber(active.notional, 2)}</strong>
+              </div>
+              <div>
+                <span>미실현</span>
+                <strong className={Number(active.unRealizedProfit) >= 0 ? "is-up" : "is-down"}>{formatNumber(active.unRealizedProfit, 2)}</strong>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="b-card b-chat">
+          <p className="b-card__kicker">AI 매매추천</p>
+          <div className="b-seg b-chat__chips">
+            {CHAT_CHIPS.map((c) => (
+              <button key={c} type="button" onClick={() => sendChat(c)} disabled={busy === "ai"}>
+                {c}
+              </button>
+            ))}
+          </div>
+          <div className="b-chat__log">
+            {messages.map((m, i) => (
+              <div key={i} className={`b-chat__bubble is-${m.role}`}>
+                {m.text}
+              </div>
+            ))}
+            {busy === "ai" && <div className="b-chat__bubble is-assistant">분석 중…</div>}
+            <div ref={chatEnd} />
+          </div>
+          <form
+            className="b-chat__form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendChat();
+            }}
+          >
+            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="포지션에 대해 물어보기" />
+            <button type="submit" className="b-btn" disabled={busy === "ai"}>
+              전송
+            </button>
+          </form>
+        </section>
+
+        <section className="b-card b-rules">
+          <div className="b-card__head">
+            <p className="b-card__kicker">추천 코인 기준</p>
+            <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveRules}>
+              {busy === "save" ? "저장 중…" : "저장·추천"}
+            </button>
+          </div>
+          <div className="b-rules__row">
+            <span className="b-rules__lab">기간</span>
+            <div className="b-seg">
+              {HORIZONS.map((h) => (
+                <button key={h.id} type="button" className={rules.horizon === h.id ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, horizon: h.id }))}>
+                  {h.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="b-rules__row">
+            <span className="b-rules__lab">레버리지</span>
+            <div className="b-seg">
+              {LEVERS.map((n) => (
+                <button key={n} type="button" className={Number(rules.leverage) === n ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, leverage: n }))}>
+                  {n}X
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="b-rules__row">
+            <span className="b-rules__lab">방향</span>
+            <div className="b-seg">
+              <button type="button" className={rules.allowLong ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowLong: !r.allowLong }))}>
+                롱
+              </button>
+              <button type="button" className={rules.allowShort ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowShort: !r.allowShort }))}>
+                숏
+              </button>
+            </div>
+          </div>
+          <div className="b-rules__row">
+            <span className="b-rules__lab">안전도 {rules.safety}</span>
+            <input type="range" min="40" max="100" value={rules.safety} onChange={(e) => setRules((r) => ({ ...r, safety: Number(e.target.value) }))} />
+            <span className="b-muted">안전</span>
+          </div>
+          <div className="b-rules__row">
+            <span className="b-rules__lab">규모 {rules.minSize}</span>
+            <input type="range" min="20" max="95" value={rules.minSize} onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))} />
+            <span className="b-muted">대형</span>
+          </div>
+          {pickError && <p className="b-err">{pickError}</p>}
+        </section>
+
+        <section className="b-card b-picks">
+          <div className="b-card__head">
+            <p className="b-card__kicker">추천 코인 10</p>
+            <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
+              새로고침
+            </button>
+          </div>
+          <ol className="b-picks__list">
+            {(picks?.picks || []).map((row, i) => (
+              <li key={`${row.symbol}-${row.side}-${i}`}>
+                <button type="button" onClick={() => setActiveSymbol(row.symbol)}>
+                  <span className="b-rank">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="b-sym">{row.symbol.replace("USDT", "")}</span>
+                  <em className={`b-side is-${String(row.side).toLowerCase()}`}>{row.side === "LONG" ? "롱" : "숏"}</em>
+                  <span className="b-mcap">{row.marketCapFormatted || "-"}</span>
+                </button>
+              </li>
+            ))}
+            {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
+          </ol>
         </section>
       </div>
     </PageTransition>

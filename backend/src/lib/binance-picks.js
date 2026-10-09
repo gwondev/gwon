@@ -7,11 +7,11 @@ const MIN_QUOTE_VOLUME = 80_000_000;
 const CANDIDATE_N = 24;
 const TOP_N = 10;
 
-export const DEFAULT_PICK_CRITERIA = `시가총액이 적당히 큰 코인 (소형 펌핑 코인 제외)
-1X로 숏 쳐도 청산·급등 위험이 거의 없음
-지금까지의 움직임이 방향이 깔끔하고 딱 좋음
-일주일 정도 들고 있으면 기대 수익률이 가장 좋음
-1X 롱도 포함 · 롱/숏 통합 상위 10개`;
+export const DEFAULT_PICK_CRITERIA = `시가총액이 큰 코인 우선 (소형 펌핑 코인 제외)
+안전도 기준으로 급등락·청산 위험이 낮은 쪽을 고른다
+움직임이 방향이 분명한 종목
+7일 보유 기대값이 좋은 종목
+롱/숏을 구분해 상위 10개`;
 
 const PICK_SCHEMA = {
   type: "object",
@@ -100,15 +100,25 @@ async function withMarketCap(picks) {
   });
 }
 
-const HORIZON_LABEL = { "1d": "하루", short: "단기", week: "일주일", swing: "일주일 이상 스윙" };
+const HORIZON_LABEL = {
+  scalp: "초단기",
+  "1d": "1일",
+  week: "7일",
+  month: "한달",
+  short: "초단기",
+  swing: "한달",
+};
 
 function formatRules(rules) {
+  const safety = Number(rules.safety ?? rules.shortSafety) || 70;
+  const leverage = Number(rules.leverage) || 1;
   return [
     `보유 기간: ${HORIZON_LABEL[rules.horizon] || rules.horizon}`,
     `시가총액/규모 하한 ${rules.minSize}/100 (높을수록 대형만)`,
-    `1X 숏 안전도 ${rules.shortSafety}/100`,
-    rules.allowLong ? "1X 롱 포함" : "롱 제외",
-    rules.allowShort ? "숏 포함" : "숏 제외",
+    `안전도 ${safety}/100 (높을수록 변동·청산 위험이 낮은 종목)`,
+    `레버리지 가정 ${leverage}X`,
+    rules.allowLong !== false ? "롱 포함" : "롱 제외",
+    rules.allowShort !== false ? "숏 포함" : "숏 제외",
   ].join("\n");
 }
 
@@ -138,12 +148,16 @@ function minQuoteVolume(minSize) {
 function applyStructuredRules(picks, rules, metrics) {
   if (!rules) return picks.slice(0, TOP_N);
   const volMap = new Map(metrics.map((m) => [m.symbol, m.quoteVolume]));
+  const moveMap = new Map(metrics.map((m) => [m.symbol, Math.abs(m.chg24)]));
   const minVol = minQuoteVolume(rules.minSize);
+  const safety = clamp(Number(rules.safety ?? rules.shortSafety) || 70, 40, 100);
+  const maxMove = (110 - safety) * 0.42;
   return picks
     .filter((p) => {
       if (rules.allowLong === false && p.side === "LONG") return false;
       if (rules.allowShort === false && p.side === "SHORT") return false;
-      return (volMap.get(p.symbol) || 0) >= minVol;
+      if ((volMap.get(p.symbol) || 0) < minVol) return false;
+      return (moveMap.get(p.symbol) || 0) <= maxMove + 8;
     })
     .slice(0, TOP_N);
 }

@@ -104,6 +104,12 @@ router.get("/total-asset", async (_req, res, next) => {
 
     const { totalUsdt } = assetResult.value;
     const fx = fxResult.status === "fulfilled" ? fxResult.value : null;
+    let futures = null;
+    try {
+      futures = await getFuturesBalances();
+    } catch (err) {
+      console.warn("[binance] futures snapshot skip:", err.message);
+    }
     res.json({
       ok: true,
       hasCredentials: true,
@@ -112,6 +118,14 @@ router.get("/total-asset", async (_req, res, next) => {
       krwRateDate: fx?.dateKey ?? null,
       totalKrw: fx?.rate ? totalUsdt * fx.rate : null,
       fxError: fx ? null : fxResult.reason?.message || "환율 조회 실패",
+      futures: futures
+        ? {
+            wallet: futures.totalWalletBalance,
+            available: futures.availableBalance,
+            unrealized: futures.totalUnrealizedProfit,
+            margin: futures.totalMarginBalance,
+          }
+        : null,
     });
   } catch (err) {
     next(err);
@@ -356,9 +370,29 @@ router.post("/position-advice", async (req, res, next) => {
     const userText = String(body.message || "").trim() || "지금 내 포지션에 대한 매매 추천을 해줘.";
     const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
 
-    const systemPrompt = `당신은 1X 격리 마진 위주의 냉정한 선물 트레이더 챗봇이다.
-사용자의 [매매 기준]과 [현재 포지션]을 항상 근거로 짧게 한국어로 답한다.
-액션은 HOLD / ADD / REDUCE / CLOSE / REVERSE 중 고른다. 없는 포지션을 만들지 마라.`;
+    const fromClient = Array.isArray(body.picks) ? body.picks : [];
+    let pickBrief = fromClient
+      .slice(0, 10)
+      .map((p) => `${p.symbol || ""} ${p.side || ""} ${p.marketCapFormatted || ""}`.trim())
+      .filter(Boolean)
+      .join(", ");
+    if (!pickBrief) {
+      try {
+        const top = await getTopPicks({ force: false });
+        pickBrief = (top?.picks || [])
+          .slice(0, 10)
+          .map((p) => `${p.symbol} ${p.side} ${p.marketCapFormatted || ""}`.trim())
+          .join(", ");
+      } catch {
+        pickBrief = "";
+      }
+    }
+
+    const systemPrompt = `당신은 바이낸스 USDT 무기한 선물의 시니어 트레이더다.
+답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
+시가총액이 큰 메이저·대형 코인을 우선한다. 소형 알트는 사용자가 묻지 않으면 꺼내지 마라.
+문장은 짧고 단정하게. 액션은 HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나만 고른다.
+없는 포지션을 만들지 마라.`;
 
     const analysis = await askGemini({
       system: `${systemPrompt}
@@ -367,11 +401,21 @@ router.post("/position-advice", async (req, res, next) => {
 ${criteria}
 
 [현재 선물 포지션]
-${positions.length ? JSON.stringify(positions, null, 2) : "(없음)"}`,
+${positions.length ? JSON.stringify(positions, null, 2) : "(없음)"}
+
+[현재 추천 상위(참고)]
+${pickBrief || "(없음)"}`,
       history,
       message: userText,
+      maxOutputTokens: 480,
+      temperature: 0.25,
     });
-    res.json({ ok: true, analysis, positionCount: positions.length });
+    const plain = String(analysis || "")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/`+/g, "")
+      .replace(/^#{1,6}\s+/gm, "");
+    res.json({ ok: true, analysis: plain, positionCount: positions.length });
   } catch (err) {
     console.error("[binance] position-advice error:", err);
     res.status(500).json({ ok: false, error: err.message || "AI 추천 생성 실패" });
