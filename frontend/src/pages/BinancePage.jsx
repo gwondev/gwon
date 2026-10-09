@@ -83,10 +83,6 @@ function stripMd(text) {
     .trim();
 }
 
-function formatDay(ms) {
-  return new Date(ms).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" });
-}
-
 function PnlChart({ points, total }) {
   const { path, area, min, max } = useMemo(() => {
     const vals = (points || []).map((p) => p.cumulative);
@@ -303,7 +299,7 @@ export default function BinancePage() {
               </div>
               <div className="b-facts b-facts--3">
                 <div>
-                  <span>선물 지갑</span>
+                  <span>지갑</span>
                   <strong>{formatNumber(fut?.wallet, 2)}</strong>
                 </div>
                 <div>
@@ -330,7 +326,7 @@ export default function BinancePage() {
                   })}
                 </div>
               ) : (
-                <p className="b-muted">열려 있는 선물 포지션이 없습니다.</p>
+                <p className="b-muted">열린 포지션 없음</p>
               )}
             </>
           ) : (
@@ -346,7 +342,7 @@ export default function BinancePage() {
               <strong className={`b-total ${(chart?.total || 0) >= 0 ? "is-up" : "is-down"}`}>
                 {(chart?.total || 0) >= 0 ? "+" : ""}
                 {formatNumber(chart?.total || 0, 2)}
-                <small>USDT 순손익</small>
+                <small>USDT</small>
               </strong>
             </div>
             <div className="b-seg">
@@ -376,151 +372,61 @@ export default function BinancePage() {
             </div>
           </div>
           <PnlChart points={chart?.points} total={chart?.total || 0} />
-          {!!chart?.buckets?.length && (
-            <ul className="b-buckets">
-              {chart.buckets.map((b, i) => (
-                <li key={i}>
-                  <span>
-                    {formatDay(b.from)}–{formatDay(b.to)}
-                  </span>
-                  <span className={b.returnPct >= 0 ? "is-up" : "is-down"}>
-                    {b.returnPct > 0 ? "+" : ""}
-                    {Number(b.returnPct).toFixed(2)}%
-                  </span>
-                  <span className={b.pnl >= 0 ? "is-up" : "is-down"}>
-                    {b.pnl >= 0 ? "+" : ""}
-                    {formatNumber(b.pnl, 2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
         </section>
 
-        <section className="b-card b-tvwrap">
-          <div className="b-tvwrap__head">
-            <p className="b-card__kicker">{chartSymbol.replace("USDT", "")} 차트</p>
-            {active && (
-              <div className="b-avg">
-                <span>평단</span>
-                <strong>{formatNumber(active.entryPrice, 4)}</strong>
-                <span>마크 {formatNumber(active.markPrice, 4)}</span>
-                <em className={`b-side is-${String(active.side).toLowerCase()}`}>{active.side === "LONG" ? "롱" : "숏"} {active.leverage}X</em>
-              </div>
-            )}
-          </div>
-          <TradingViewChart symbol={chartSymbol} interval={tvInterval} />
-          {active && (
-            <div className="b-facts">
-              <div>
-                <span>청산</span>
-                <strong>{formatNumber(active.liquidationPrice, 4)}</strong>
-              </div>
-              <div>
-                <span>청산까지</span>
-                <strong>{liqDistance(active) == null ? "-" : `${liqDistance(active).toFixed(2)}%`}</strong>
-              </div>
-              <div>
-                <span>명목</span>
-                <strong>{formatNumber(active.notional, 2)}</strong>
-              </div>
-              <div>
-                <span>미실현</span>
-                <strong className={Number(active.unRealizedProfit) >= 0 ? "is-up" : "is-down"}>{formatNumber(active.unRealizedProfit, 2)}</strong>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="b-card b-chat">
-          <p className="b-card__kicker">AI 매매추천</p>
-          <div className="b-seg b-chat__chips">
-            {CHAT_CHIPS.map((c) => (
-              <button key={c} type="button" onClick={() => sendChat(c)} disabled={busy === "ai"}>
-                {c}
-              </button>
-            ))}
-          </div>
-          <div className="b-chat__log">
-            {messages.map((m, i) => (
-              <div key={i} className={`b-chat__bubble is-${m.role}`}>
-                {m.text}
-              </div>
-            ))}
-            {busy === "ai" && <div className="b-chat__bubble is-assistant">분석 중…</div>}
-            <div ref={chatEnd} />
-          </div>
-          <form
-            className="b-chat__form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendChat();
-            }}
-          >
-            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="포지션에 대해 물어보기" />
-            <button type="submit" className="b-btn" disabled={busy === "ai"}>
-              전송
-            </button>
-          </form>
-        </section>
-
-        <section className="b-card b-rules">
+        <section className="b-card b-desk">
           <div className="b-card__head">
-            <p className="b-card__kicker">추천 코인 기준</p>
-            <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveRules}>
-              {busy === "save" ? "저장 중…" : "저장·추천"}
-            </button>
-          </div>
-          <div className="b-rules__row">
-            <span className="b-rules__lab">기간</span>
-            <div className="b-seg">
-              {HORIZONS.map((h) => (
-                <button key={h.id} type="button" className={rules.horizon === h.id ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, horizon: h.id }))}>
-                  {h.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="b-rules__row">
-            <span className="b-rules__lab">레버리지</span>
-            <div className="b-seg">
-              {LEVERS.map((n) => (
-                <button key={n} type="button" className={Number(rules.leverage) === n ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, leverage: n }))}>
-                  {n}X
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="b-rules__row">
-            <span className="b-rules__lab">방향</span>
-            <div className="b-seg">
-              <button type="button" className={rules.allowLong ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowLong: !r.allowLong }))}>
-                롱
+            <p className="b-card__kicker">추천 기준 · 10</p>
+            <div className="b-desk__acts">
+              <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveRules}>
+                {busy === "save" ? "저장…" : "저장·추천"}
               </button>
-              <button type="button" className={rules.allowShort ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowShort: !r.allowShort }))}>
-                숏
+              <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
+                새로고침
               </button>
             </div>
           </div>
-          <div className="b-rules__row">
-            <span className="b-rules__lab">안전도 {rules.safety}</span>
-            <input type="range" min="40" max="100" value={rules.safety} onChange={(e) => setRules((r) => ({ ...r, safety: Number(e.target.value) }))} />
-            <span className="b-muted">안전</span>
-          </div>
-          <div className="b-rules__row">
-            <span className="b-rules__lab">규모 {rules.minSize}</span>
-            <input type="range" min="20" max="95" value={rules.minSize} onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))} />
-            <span className="b-muted">대형</span>
-          </div>
-          {pickError && <p className="b-err">{pickError}</p>}
-        </section>
-
-        <section className="b-card b-picks">
-          <div className="b-card__head">
-            <p className="b-card__kicker">추천 코인 10</p>
-            <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
-              새로고침
-            </button>
+          <div className="b-rules">
+            <div className="b-rules__row">
+              <span className="b-rules__lab">기간</span>
+              <div className="b-seg">
+                {HORIZONS.map((h) => (
+                  <button key={h.id} type="button" className={rules.horizon === h.id ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, horizon: h.id }))}>
+                    {h.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="b-rules__row">
+              <span className="b-rules__lab">레버</span>
+              <div className="b-seg">
+                {LEVERS.map((n) => (
+                  <button key={n} type="button" className={Number(rules.leverage) === n ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, leverage: n }))}>
+                    {n}X
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="b-rules__row">
+              <span className="b-rules__lab">방향</span>
+              <div className="b-seg">
+                <button type="button" className={rules.allowLong ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowLong: !r.allowLong }))}>
+                  롱
+                </button>
+                <button type="button" className={rules.allowShort ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowShort: !r.allowShort }))}>
+                  숏
+                </button>
+              </div>
+            </div>
+            <div className="b-rules__row">
+              <span className="b-rules__lab">안전 {rules.safety}</span>
+              <input type="range" min="40" max="100" value={rules.safety} onChange={(e) => setRules((r) => ({ ...r, safety: Number(e.target.value) }))} />
+            </div>
+            <div className="b-rules__row">
+              <span className="b-rules__lab">규모 {rules.minSize}</span>
+              <input type="range" min="20" max="95" value={rules.minSize} onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))} />
+            </div>
+            {pickError && <p className="b-err">{pickError}</p>}
           </div>
           <ol className="b-picks__list">
             {(picks?.picks || []).map((row, i) => (
@@ -535,6 +441,56 @@ export default function BinancePage() {
             ))}
             {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
           </ol>
+        </section>
+
+        <section className="b-card b-trade">
+          <div className="b-tvwrap__head">
+            <p className="b-card__kicker">{chartSymbol.replace("USDT", "")} 차트</p>
+            {active && (
+              <div className="b-avg">
+                <span>평단</span>
+                <strong>{formatNumber(active.entryPrice, 4)}</strong>
+                <span>마크 {formatNumber(active.markPrice, 4)}</span>
+                <em className={`b-side is-${String(active.side).toLowerCase()}`}>
+                  {active.side === "LONG" ? "롱" : "숏"} {active.leverage}X
+                </em>
+              </div>
+            )}
+          </div>
+          <TradingViewChart symbol={chartSymbol} interval={tvInterval} />
+          <div className="b-chat">
+            <div className="b-chat__bar">
+              <p className="b-card__kicker">AI 매매추천</p>
+              <div className="b-seg b-chat__chips">
+                {CHAT_CHIPS.map((c) => (
+                  <button key={c} type="button" onClick={() => sendChat(c)} disabled={busy === "ai"}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="b-chat__log">
+              {messages.map((m, i) => (
+                <div key={i} className={`b-chat__bubble is-${m.role}`}>
+                  {m.text}
+                </div>
+              ))}
+              {busy === "ai" && <div className="b-chat__bubble is-assistant">분석 중…</div>}
+              <div ref={chatEnd} />
+            </div>
+            <form
+              className="b-chat__form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendChat();
+              }}
+            >
+              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="포지션에 대해 물어보기" />
+              <button type="submit" className="b-btn" disabled={busy === "ai"}>
+                전송
+              </button>
+            </form>
+          </div>
         </section>
       </div>
     </PageTransition>
