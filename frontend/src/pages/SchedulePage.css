@@ -35,7 +35,7 @@
 @media (min-width: 721px) {
   .schedule-page__body {
     /* 데스크톱에서는 화면 양옆까지 꽉 채우지 않고 80% 정도로 제한한다. */
-    max-width: min(1680px, 70vw);
+    max-width: min(1680px, 73.5vw);
   }
 }
 
