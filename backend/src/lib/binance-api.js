@@ -366,6 +366,52 @@ export function formatPositionDossier(position, story) {
   return lines.join("\n");
 }
 
+/** 일상 질문용 짧은 포지션 스냅샷. 추매를 한 줄로만 적는다. */
+export function formatCompactDossier(position, story) {
+  if (!position) return "(열린 포지션 없음)";
+  const addN = story?.addons?.length || 0;
+  const last = story?.lastAdd;
+  const entry = story?.entry;
+  return [
+    `${position.symbol} ${position.side} ${position.leverage}X`,
+    `수량 ${position.positionAmt}  명목 ${Number(position.notional || 0).toFixed(2)} USDT`,
+    `평단 ${position.entryPrice}  현재가 ${position.markPrice}  청산가 ${position.liquidationPrice || "-"}`,
+    `미실현 ${Number(position.unRealizedProfit || 0).toFixed(4)} USDT  ROE ${position.roe}%`,
+    entry ? `최초 진입 ${kstWhen(entry.time)}  ${entry.price}  수량 ${entry.qty}` : "최초 진입 기록 없음",
+    addN
+      ? `추매 ${addN}회, 마지막 ${kstWhen(last.time)}  ${last.price}  수량 ${last.qty}`
+      : "추매 없음",
+  ].join("\n");
+}
+
+const TV_TO_BINANCE = { 1: "1m", 3: "3m", 5: "5m", 15: "15m", 30: "30m", 60: "1h", 120: "2h", 240: "4h", D: "1d", W: "1w" };
+
+export async function getKlines(symbol, interval = "240", limit = 48) {
+  const tf = TV_TO_BINANCE[interval] || TV_TO_BINANCE[String(interval)] || "4h";
+  const raw = await publicFuturesRequest("/fapi/v1/klines", {
+    symbol,
+    interval: tf,
+    limit: String(Math.min(limit, 200)),
+  });
+  const rows = (Array.isArray(raw) ? raw : []).map((k) => ({
+    time: kstWhen(k[0]),
+    open: Number(k[1]),
+    high: Number(k[2]),
+    low: Number(k[3]),
+    close: Number(k[4]),
+  }));
+  if (!rows.length) return { interval: tf, last: null, changePct: null, candles: [] };
+  const first = rows[0].open;
+  const last = rows[rows.length - 1].close;
+  const changePct = first ? ((last - first) / first) * 100 : 0;
+  return {
+    interval: tf,
+    last,
+    changePct: Number(changePct.toFixed(2)),
+    candles: rows.slice(-16).map((r) => `${r.time} O${r.open} H${r.high} L${r.low} C${r.close}`),
+  };
+}
+
 /**
  * 최신 체결부터 현재 포지션 수량을 채워 진입/추매를 나눈다.
  * 없는 체결을 만들지 않는다.

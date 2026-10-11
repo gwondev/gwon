@@ -31,7 +31,7 @@ const DEFAULT_RULES = {
   allowShort: true,
 };
 
-const CHAT_CHIPS = ["지금 어떻게 할까", "추매해도 되나", "익절·손절 어디", "추세 설명해줘"];
+const SUMMARY_CHIP = "전체 요약";
 
 function formatWhen(ms) {
   const n = Number(ms);
@@ -54,14 +54,6 @@ function formatPct(v) {
   const n = Number(v) || 0;
   const sign = n > 0 ? "+" : "";
   return `${sign}${n.toFixed(2)}%`;
-}
-
-function liqDistance(p) {
-  const mark = Number(p?.markPrice);
-  const liq = Number(p?.liquidationPrice);
-  if (!mark || !liq) return null;
-  const dist = p.side === "SHORT" ? ((liq - mark) / mark) * 100 : ((mark - liq) / mark) * 100;
-  return Number.isFinite(dist) ? dist : null;
 }
 
 function parseRules(raw) {
@@ -152,7 +144,7 @@ export default function BinancePage() {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      text: "현재 포지션 비서입니다. 어디 진입했고 어디에 추매했는지, 지금 추세가 어떤지, 홀드·추매·익절·청산 중 무엇을 할지 구체적으로 적어 드립니다.",
+      text: "차트와 지금 포지션을 보고 질문에 답합니다. 체결 전체가 필요하면 전체 요약을 누르세요.",
     },
   ]);
   const [draft, setDraft] = useState("");
@@ -259,7 +251,7 @@ export default function BinancePage() {
     }
   };
 
-  const sendChat = async (text) => {
+  const sendChat = async (text, { summary = false } = {}) => {
     const message = (text || draft).trim();
     if (!message || busy === "ai") return;
     const next = [...messages, { role: "user", text: message }];
@@ -278,6 +270,8 @@ export default function BinancePage() {
           message,
           history,
           symbol: activeSymbol,
+          interval: tvInterval,
+          mode: summary ? "summary" : "ask",
           picks: (picks?.picks || []).map((p) => ({
             symbol: p.symbol,
             side: p.side,
@@ -571,24 +565,12 @@ export default function BinancePage() {
                   <strong>{formatNumber(active.markPrice, 4)}</strong>
                 </div>
                 <div>
+                  <span>청산가</span>
+                  <strong>{formatNumber(active.liquidationPrice, 4)}</strong>
+                </div>
+                <div>
                   <span>미실현</span>
                   <strong className={Number(active.unRealizedProfit) >= 0 ? "is-up" : "is-down"}>{formatNumber(active.unRealizedProfit, 2)}</strong>
-                </div>
-                <div>
-                  <span>진입</span>
-                  <strong>{fills?.entry?.time ? formatWhen(fills.entry.time) : "-"}</strong>
-                </div>
-                <div>
-                  <span>추매 위치</span>
-                  <strong>{fills?.lastAdd ? formatNumber(fills.lastAdd.price, 4) : "없음"}</strong>
-                </div>
-                <div>
-                  <span>추매 시점</span>
-                  <strong>{fills?.lastAdd?.time ? formatWhen(fills.lastAdd.time) : "-"}</strong>
-                </div>
-                <div>
-                  <span>청산까지</span>
-                  <strong>{liqDistance(active) != null ? `${liqDistance(active).toFixed(1)}%` : "-"}</strong>
                 </div>
               </div>
             ) : (
@@ -620,11 +602,9 @@ export default function BinancePage() {
             <div className="b-chat__bar">
               <p className="b-card__kicker">AI 포지션 비서</p>
               <div className="b-seg b-chat__chips">
-                {CHAT_CHIPS.map((c) => (
-                  <button key={c} type="button" onClick={() => sendChat(c)} disabled={busy === "ai"}>
-                    {c}
-                  </button>
-                ))}
+                <button type="button" className="is-on" onClick={() => sendChat(SUMMARY_CHIP, { summary: true })} disabled={busy === "ai"}>
+                  {SUMMARY_CHIP}
+                </button>
               </div>
             </div>
             <div className="b-chat__log" ref={chatLog}>
@@ -642,7 +622,7 @@ export default function BinancePage() {
                 sendChat();
               }}
             >
-              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="지금 포지션, 추매, 추세를 물어보세요" />
+              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="방금 움직임이 어떤 신호냐?" />
               <button type="submit" className="b-btn" disabled={busy === "ai"}>
                 전송
               </button>

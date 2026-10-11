@@ -11,6 +11,8 @@ import {
   getPositionTrades,
   summarizePositionFills,
   formatPositionDossier,
+  formatCompactDossier,
+  getKlines,
   publicFuturesRequest,
 } from "../lib/binance-api.js";
 import { getUsdKrwRate } from "../lib/fx-rate.js";
@@ -401,7 +403,9 @@ router.post("/position-advice", async (req, res, next) => {
     const body = req.body || {};
     const userText = String(body.message || "").trim() || "지금 내 포지션에 대한 매매 추천을 해줘.";
     const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
+    const fullSummary = body.mode === "summary" || /전체\s*요약/.test(userText);
     const focusSymbol = String(body.symbol || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    const chartInterval = String(body.interval || "240");
     const ordered = [...positions].sort((a, b) => {
       if (a.symbol === focusSymbol) return -1;
       if (b.symbol === focusSymbol) return 1;
@@ -452,26 +456,55 @@ router.post("/position-advice", async (req, res, next) => {
         dossiers.push({
           symbol: p.symbol,
           side: p.side,
-          text: formatPositionDossier(p, story),
+          full: formatPositionDossier(p, story),
+          compact: formatCompactDossier(p, story),
           story,
           income,
         });
       } catch (err) {
         console.warn("[binance] position dossier skip:", p.symbol, err.message);
-        dossiers.push({ symbol: p.symbol, side: p.side, text: formatPositionDossier(p, null), story: null, income: [] });
+        dossiers.push({
+          symbol: p.symbol,
+          side: p.side,
+          full: formatPositionDossier(p, null),
+          compact: formatCompactDossier(p, null),
+          story: null,
+          income: [],
+        });
       }
     }
 
-    const systemPrompt = `당신은 이 계정의 현재 포지션 비서다.
+    let chartBrief = "(없음)";
+    const chartSym = focusSymbol || ordered[0]?.symbol;
+    if (chartSym) {
+      try {
+        const k = await getKlines(chartSym, chartInterval, 48);
+        chartBrief = [
+          `${chartSym} ${k.interval} 최근 ${k.candles.length}봉`,
+          `구간 등락 ${k.changePct == null ? "-" : `${k.changePct}%`}  마지막 종가 ${k.last ?? "-"}`,
+          ...(k.candles || []),
+        ].join("\n");
+      } catch (err) {
+        console.warn("[binance] klines skip:", err.message);
+      }
+    }
+
+    const systemPrompt = fullSummary
+      ? `당신은 이 계정의 현재 포지션 비서다.
 답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
 [현재 포지션 기록]에 있는 체결·손익만 근거로 쓴다. 없는 숫자와 없는 체결을 만들지 마라.
-한두 문장으로 끝내지 마라. 반드시 아래 다섯 블록을 끝까지 쓴 뒤에만 멈춰라.
+이번 요청은 전체 요약이다. 반드시 아래 다섯 블록을 끝까지 쓴 뒤에만 멈춰라.
 1) 지금 어떤 포지션을 얼마에, 몇 배로 들고 있는지
 2) 처음 진입 가격과 시점. 이후 추매가 있으면 가격·수량·시점을 빠짐없이. 없으면 추매 없다고 말해라
 3) 현재가 대비 추세와 손익 상태
 4) 지금부터 할 일. HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나를 결정하고 이유를 설명한다
 5) 추매·익절·손절을 한다면 어디 부근인지. 모르는 값은 추정하지 말고 조건으로만 말한다
-중간에 끊지 마라.`;
+중간에 끊지 마라.`
+      : `당신은 이 계정의 현재 포지션 비서다.
+답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
+사용자가 물은 질문에만 답한다. 체결 전체를 나열하지 마라. 전체 요약 양식을 쓰지 마라.
+[차트 봉]과 [현재 포지션 요약]을 보고, 방금 움직임이 어떤 신호인지, 지금 봉·추세가 포지션에 유리한지 구체적으로 말한다.
+없는 숫자를 만들지 마라. 1~4문단으로 질문에 답하고, 필요하면 마지막에 한 줄로 HOLD / ADD / REDUCE / CLOSE 만 덧붙인다.`;
 
     const analysis = await askGemini({
       system: `${systemPrompt}
@@ -479,20 +512,25 @@ router.post("/position-advice", async (req, res, next) => {
 [사용자 매매 기준]
 ${criteria}
 
-[현재 포지션 기록]
+[현재 포지션 ${fullSummary ? "기록" : "요약"}]
 ${focusSymbol ? `지금 보고 있는 심볼: ${focusSymbol}` : ""}
-${dossiers.length ? dossiers.map((d) => d.text).join("\n\n") : "(없음)"}
+${dossiers.length ? dossiers.map((d) => (fullSummary ? d.full : d.compact)).join("\n\n") : "(없음)"}
+
+[차트 봉]
+${chartBrief}
 
 [실현손익·펀딩·수수료]
-${dossiers.some((d) => d.income?.length)
+${fullSummary && dossiers.some((d) => d.income?.length)
     ? JSON.stringify(dossiers.map((d) => ({ symbol: d.symbol, income: d.income })), null, 2)
-    : "(없음)"}
+    : fullSummary
+      ? "(없음)"
+      : "(질문 답변에서는 생략. 필요하면 요약 숫자만 언급)"}
 
 [현재 추천 상위(참고)]
 ${pickBrief || "(없음)"}`,
       history,
       message: userText,
-      maxOutputTokens: 8192,
+      maxOutputTokens: fullSummary ? 8192 : 2048,
       temperature: 0.35,
     });
     const plain = String(analysis || "")
