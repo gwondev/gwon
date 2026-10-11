@@ -418,24 +418,6 @@ export default function BinancePage() {
                 ))}
               </div>
             </div>
-            <div className="b-stats">
-              <div>
-                <span>실현</span>
-                <strong className={(chart?.realized || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.realized || 0, 2)}</strong>
-              </div>
-              <div>
-                <span>펀딩</span>
-                <strong className={(chart?.funding || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.funding || 0, 2)}</strong>
-              </div>
-              <div>
-                <span>수수료</span>
-                <strong className={(chart?.commission || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.commission || 0, 2)}</strong>
-              </div>
-              <div>
-                <span>건수</span>
-                <strong>{chart?.trades || 0}</strong>
-              </div>
-            </div>
             <div className="b-pnl__body">
               <PnlChart points={chart?.points} total={chart?.total || 0} />
               {!!chart?.buckets?.length && (
