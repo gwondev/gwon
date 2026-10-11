@@ -221,6 +221,102 @@
   border-radius: var(--radius-pill);
 }
 
+.portfolio-chat__head-acts {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.portfolio-chat__admin-btn {
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.portfolio-chat__admin {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.portfolio-chat__admin label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.62rem;
+  color: var(--text-faint);
+}
+
+.portfolio-chat__admin textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.72rem;
+  resize: vertical;
+}
+
+.portfolio-chat__admin p {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--accent);
+}
+
+.portfolio-chat--home {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: none;
+  padding: 0.7rem 0.75rem 0.8rem;
+  background: #141416;
+}
+
+.portfolio-chat--home .portfolio-chat__log {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.portfolio-chat--home .portfolio-chat__bubble {
+  max-width: 78%;
+  border: 0;
+  padding: 0.55rem 0.7rem;
+}
+
+.portfolio-chat--home .portfolio-chat__bubble--user {
+  align-self: flex-end;
+  background: #d8c19a;
+  color: #1a1408;
+}
+
+.portfolio-chat--home .portfolio-chat__bubble--assistant {
+  align-self: flex-start;
+  background: #2a2a2e;
+  color: #f3f2ef;
+}
+
+.portfolio-chat--home .portfolio-chat__who {
+  display: none;
+}
+
+.portfolio-chat--home .portfolio-chat__bubble p {
+  white-space: pre-wrap;
+}
+
 @media (max-width: 480px) {
   .portfolio-chat__title {
     font-size: 0.86rem;

@@ -68,57 +68,58 @@ function cameraTarget(p) {
     };
   }
   if (p >= PROFILE_START) {
+    const last = PLANET_POS[PLANET_POS.length - 1] || [0, 0, -76];
     const u = (p - PROFILE_START) / 0.1;
     return {
-      cam: [0, 4.2 + u * 6, 28 + u * 14],
-      look: [0, 0, -40],
-      fov: 42,
+      cam: [last[0] * 0.08, last[1] + 0.5 + u * 0.4, last[2] - 6 - u * 4],
+      look: [0, 0, last[2] - 18],
+      fov: 38,
       warp: 0,
     };
   }
   if (p >= CONNECT_START) {
+    const last = PLANET_POS[PLANET_POS.length - 1] || [0, 0, -76];
     const u = (p - CONNECT_START) / Math.max(0.001, PROFILE_START - CONNECT_START);
     return {
-      cam: [0, 2.2 + u * 2, 8 + u * 18],
-      look: [0, 0, -40],
-      fov: 44,
-      warp: 0,
+      cam: [last[0] * 0.12, last[1] + 0.4 + u * 0.2, last[2] + 2.1 - u * 8],
+      look: [0, 0, last[2] - 16],
+      fov: 40 - u * 2,
+      warp: 0.08,
     };
   }
 
   const { i, t } = projectLocal(p);
   const planet = PLANET_POS[i] || PLANET_POS[0];
-  const prev = i === 0 ? [0, 0.2, 12] : lookFrom(PLANET_POS[i - 1], 5.4);
+  const prev = i === 0 ? [0, 0.2, 12] : lookFrom(PLANET_POS[i - 1], 2.35);
   const arrive = lookFrom(planet, 3.15);
   const read = lookFrom(planet, 2.35);
   const stage = projectStage(t);
 
   if (stage.id === "network") {
-    return { cam: prev, look: planet, fov: 45 + stage.u * 10, warp: 0 };
+    return { cam: prev, look: planet, fov: 46 - stage.u * 2, warp: 0 };
   }
   if (stage.id === "warp") {
     const e = reduced ? stage.u : warpEase(stage.u);
     _from.set(prev[0], prev[1], prev[2]);
     _to.set(arrive[0], arrive[1], arrive[2]);
     _from.lerp(_to, e);
-    const bump = reduced ? 6 : 22;
-    const fov = 55 + Math.sin(stage.u * Math.PI) * bump;
-    return { cam: [_from.x, _from.y, _from.z], look: planet, fov: Math.min(72, fov), warp: Math.sin(stage.u * Math.PI) };
+    return { cam: [_from.x, _from.y, _from.z], look: planet, fov: 44 - e * 2, warp: e * 0.28 };
   }
   if (stage.id === "arrive") {
     _from.set(arrive[0], arrive[1], arrive[2]);
     _to.set(read[0], read[1], read[2]);
     _from.lerp(_to, stage.u);
-    return { cam: [_from.x, _from.y, _from.z], look: planet, fov: 55 - stage.u * 10, warp: (1 - stage.u) * 0.12 };
+    return { cam: [_from.x, _from.y, _from.z], look: planet, fov: 42 - stage.u, warp: (1 - stage.u) * 0.08 };
   }
   if (stage.id === "read") {
-    return { cam: read, look: planet, fov: 42, warp: 0 };
+    return { cam: read, look: planet, fov: 41, warp: 0 };
   }
-  const nextLook = i < PLANET_POS.length - 1 ? PLANET_POS[i + 1] : [0, 0, -90];
+  const nextPlanet = i < PLANET_POS.length - 1 ? PLANET_POS[i + 1] : [0, 0, -94];
+  const nextCam = lookFrom(nextPlanet, 5.2);
   _from.set(read[0], read[1], read[2]);
-  _to.set(prev[0] * 0.3 + nextLook[0] * 0.1, 1.2, read[2] + 6);
+  _to.set(nextCam[0], nextCam[1], nextCam[2]);
   _from.lerp(_to, stage.u);
-  return { cam: [_from.x, _from.y, _from.z], look: planet, fov: 45 + stage.u * 8, warp: stage.u * 0.18 };
+  return { cam: [_from.x, _from.y, _from.z], look: nextPlanet, fov: 41, warp: stage.u * 0.16 };
 }
 
 function lookFrom(planet, dist) {

@@ -64,6 +64,30 @@
   height: 100%;
 }
 
+.chat-widget--home {
+  z-index: 140;
+}
+
+.chat-widget__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 139;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1.2rem;
+}
+
+.chat-widget__square {
+  width: min(520px, 92vw);
+  height: min(520px, 78vh);
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--accent-line);
+  background: #111114;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chat-widget__ring {
     animation: none;

@@ -4,8 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import "./PortfolioChat.css";
 
-export default function PortfolioChat({ floating = false, onClose }) {
-  const { token, isAuthed, localMode } = useAuth();
+export default function PortfolioChat({ floating = false, home = false, onClose }) {
+  const { token, isAuthed, localMode, isSuperAdmin } = useAuth();
   const authedRequest = isAuthed && !localMode && token;
 
   const [compact, setCompact] = useState(true);
@@ -14,6 +14,11 @@ export default function PortfolioChat({ floating = false, onClose }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [quota, setQuota] = useState(null);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [extraPrompt, setExtraPrompt] = useState("");
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminMsg, setAdminMsg] = useState("");
   const logRef = useRef(null);
 
   const useCompact = compact && !floating;
@@ -94,9 +99,42 @@ export default function PortfolioChat({ floating = false, onClose }) {
 
   const examplesDisabled = busy || quota?.remaining === 0;
 
+  const loadAdmin = async () => {
+    const next = !adminOpen;
+    setAdminOpen(next);
+    if (!next || localMode) return;
+    try {
+      const data = await api("/admin/chat-prompt", { token });
+      setSystemPrompt(data.systemPrompt || "");
+      setExtraPrompt(data.extraPrompt || "");
+    } catch (e2) {
+      setAdminMsg(e2.message);
+    }
+  };
+
+  const saveAdmin = async (e) => {
+    e.preventDefault();
+    setAdminBusy(true);
+    setAdminMsg("");
+    try {
+      if (!localMode) {
+        await api("/admin/chat-prompt", {
+          method: "PUT",
+          token,
+          body: { systemPrompt, extraPrompt },
+        });
+      }
+      setAdminMsg("저장했습니다. 다음 답변부터 적용됩니다.");
+    } catch (e2) {
+      setAdminMsg(e2.message);
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
   return (
     <motion.section
-      className={`portfolio-chat ${floating ? "portfolio-chat--floating" : ""}`}
+      className={`portfolio-chat ${floating ? "portfolio-chat--floating" : ""} ${home ? "portfolio-chat--home" : ""}`}
       initial={{ opacity: 0, y: floating ? 0 : 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: floating ? 0.35 : 0.75, delay: floating ? 0 : 0.08, ease: [0.16, 1, 0.3, 1] }}
@@ -108,9 +146,16 @@ export default function PortfolioChat({ floating = false, onClose }) {
           </span>
         </div>
         {floating ? (
-          <button type="button" className="portfolio-chat__close" onClick={onClose} aria-label="닫기">
-            ✕
-          </button>
+          <div className="portfolio-chat__head-acts">
+            {home && isSuperAdmin && (
+              <button type="button" className="portfolio-chat__admin-btn" onClick={loadAdmin}>
+                관리
+              </button>
+            )}
+            <button type="button" className="portfolio-chat__close" onClick={onClose} aria-label="닫기">
+              ✕
+            </button>
+          </div>
         ) : (
           <button
             type="button"
@@ -122,6 +167,23 @@ export default function PortfolioChat({ floating = false, onClose }) {
           </button>
         )}
       </div>
+
+      {home && adminOpen && isSuperAdmin && (
+        <form className="portfolio-chat__admin" onSubmit={saveAdmin}>
+          <label>
+            기본 규칙
+            <textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={3} />
+          </label>
+          <label>
+            추가 지침
+            <textarea value={extraPrompt} onChange={(e) => setExtraPrompt(e.target.value)} rows={2} />
+          </label>
+          {adminMsg && <p>{adminMsg}</p>}
+          <button type="submit" className="btn btn-accent" disabled={adminBusy}>
+            {adminBusy ? "저장…" : "즉시 저장"}
+          </button>
+        </form>
+      )}
 
       {guestExhausted && (
         <p className="portfolio-chat__limit-notice">
@@ -153,7 +215,7 @@ export default function PortfolioChat({ floating = false, onClose }) {
         </div>
       )}
 
-      {hasLog && (
+      {(hasLog || home) && (
         <div
           ref={logRef}
           className={`portfolio-chat__log ${useCompact ? "is-compact" : "is-full"}`}

@@ -10,7 +10,6 @@ const TABS = [
   { id: "me", label: "마이페이지" },
   { id: "users", label: "회원관리" },
   { id: "db", label: "DS관리" },
-  { id: "chat", label: "AI CHAT BOT 관리" },
 ];
 
 function resolveTab(raw, isAdmin) {

@@ -2,8 +2,10 @@
   --cal-accent: #ef4444;
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
+  gap: 0.16rem;
   width: 100%;
+  min-height: 0;
+  height: calc(100vh - 5.6rem);
 }
 
 .schedule__layout {
@@ -11,14 +13,17 @@
   align-items: stretch;
   gap: 1.35rem;
   width: 100%;
+  min-height: 0;
+  flex: 1;
 }
 
 .schedule__calendar-col {
   flex: 7 1 0%;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.42rem;
+  gap: 0.22rem;
 }
 
 .schedule__layout .todo {
@@ -28,7 +33,7 @@
   min-width: 220px;
   align-self: stretch;
   /* 달력 상단 월 이동 행이 아니라 요일(일/월/화…) 행과 높이를 맞춘다. */
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 /* 데스크톱이라도 창이 좁아지면 7:3 비율로도 캘린더가 찌그러지므로,
@@ -157,6 +162,10 @@
   overflow: hidden;
   width: 100%;
   touch-action: pan-y;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .schedule__weekdays {
@@ -167,7 +176,7 @@
 }
 
 .schedule__weekday {
-  padding: 0.32rem 0.25rem;
+  padding: 0.16rem 0.25rem;
   text-align: center;
   font-size: 0.79rem;
   font-weight: 700;
@@ -186,11 +195,15 @@
 .schedule__grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
 }
 
 .schedule__cell {
   --cell-pad-x: 0.28rem;
-  min-height: 118px;
+  min-height: 0;
+  height: 100%;
   /* 좌우 패딩 0: 버블이 칸 경계 끝까지 닿아야 옆 칸과 이어진다.
      안쪽 여백은 버블/날짜 요소의 margin 으로 따로 준다. */
   padding: 0.3rem 0 0.36rem;
@@ -2039,7 +2052,7 @@
 
   .schedule__weekday {
     font-size: 0.68rem;
-    padding: 0.4rem 0.12rem;
+    padding: 0.16rem 0.12rem;
   }
 
   .schedule__bubble {
@@ -2121,8 +2134,8 @@
 @media (min-width: 1024px) {
   .schedule__cell {
     --cell-pad-x: 0.34rem;
-    min-height: 136px;
-    padding: 0.4rem 0 0.44rem;
+    min-height: 0;
+    padding: 0.22rem 0 0.2rem;
   }
 
   .schedule__day-num {
@@ -2156,17 +2169,17 @@
    덮어쓰도록 배치, 셀/버블 높이를 줄인다. */
 @media (min-width: 721px) {
   .schedule__calendar-col {
-    gap: 0.85rem;
+    gap: 0.22rem;
   }
 
   .schedule__weekday {
-    padding: 0.4rem 0.25rem;
+    padding: 0.14rem 0.25rem;
   }
 
   .schedule__cell {
-    min-height: 100px;
-    padding: 0.2rem 0 0.22rem;
-    gap: 0.1rem;
+    min-height: 0;
+    padding: 0.16rem 0 0.14rem;
+    gap: 0.08rem;
   }
 
   .schedule__day-num {

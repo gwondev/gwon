@@ -8,7 +8,6 @@ import {
   PROFILE_START,
   PROFILE_TABS,
   PROJECT_COUNT,
-  PROJECT_SPAN,
   SCENE_MAX,
   cinematicEase,
   isProfileScene,
@@ -330,6 +329,7 @@ export default function WorldExperience() {
     organization: it.issuer,
     date: it.acquired,
     status: it.score,
+    description: it.description,
   }));
 
   const counterLabel =
@@ -371,7 +371,7 @@ export default function WorldExperience() {
               style={{
                 opacity: imageReveal,
                 filter: `blur(${(1 - imageReveal) * 16}px)`,
-                transform: `scale(${1.05 - imageReveal * 0.05})`,
+                transform: `scale(${0.92 + imageReveal * 0.08})`,
               }}
             >
               <ProjectVisual
@@ -427,46 +427,36 @@ export default function WorldExperience() {
             </div>
             <div key={tab} className="world-file__panel" role="tabpanel">
               {tab === "experience" && (
-                <FileList
+                <FileCards
                   items={activities}
                   titleOf={(it) => it.title}
                   subOf={(it) => [it.organization, it.role, it.period].filter(Boolean).join(" · ")}
+                  detailOf={(it) => it.description}
                 />
               )}
-              {tab === "career" &&
-                (career.length ? (
-                  <FileList
-                    items={career}
-                    titleOf={(it) => it.title}
-                    subOf={(it) => [it.position || it.category, formatCareerPeriodPreview(it.period) || it.period].filter(Boolean).join(" · ")}
-                  />
-                ) : (
-                  <FileList
-                    items={activities}
-                    titleOf={(it) => it.title}
-                    subOf={(it) => [it.role, it.organization, it.period].filter(Boolean).join(" · ")}
-                    empty="등록된 경력이 없습니다."
-                  />
-                ))}
+              {tab === "career" && (
+                <FileCards
+                  items={career.length ? career : activities}
+                  titleOf={(it) => it.title}
+                  subOf={(it) =>
+                    career.length
+                      ? [it.position || it.category, formatCareerPeriodPreview(it.period) || it.period].filter(Boolean).join(" · ")
+                      : [it.role, it.organization, it.period].filter(Boolean).join(" · ")
+                  }
+                  detailOf={(it) => it.description}
+                  empty="등록된 경력이 없습니다."
+                />
+              )}
               {tab === "certs" && (
-                <FileList
+                <FileCards
                   items={certs}
                   titleOf={(it) => it.name}
                   subOf={(it) => [it.organization, it.date, it.status].filter(Boolean).join(" · ")}
+                  detailOf={(it) => it.description}
                   empty="등록된 자격증이 없습니다."
                 />
               )}
             </div>
-            <footer className="world-end">
-              <p className="world-kicker">이성권</p>
-              <p className="world-end__mark">BUILD. CONNECT. DEPLOY.</p>
-              <div className="world-end__links">
-                <a href="mailto:gwondev0323@gmail.com">Email</a>
-                <a href="https://github.com/gwondev" target="_blank" rel="noopener noreferrer">
-                  GitHub
-                </a>
-              </div>
-            </footer>
           </section>
         )}
       </div>
@@ -531,16 +521,37 @@ function ProjectVisual({ image, video, reveal, alt }) {
   return <div className="world-proj__void" aria-hidden />;
 }
 
-function FileList({ items, titleOf, subOf, empty = "—" }) {
+function FileCards({ items, titleOf, subOf, detailOf, empty = "—" }) {
+  const [open, setOpen] = useState(null);
   if (!items?.length) return <p className="world-empty">{empty}</p>;
   return (
-    <ul>
-      {items.map((it) => (
-        <li key={it.id}>
-          <b>{titleOf(it)}</b>
-          <span>{subOf(it)}</span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="world-cards">
+        {items.map((it) => {
+          const detail = detailOf?.(it);
+          return (
+            <li key={it.id}>
+              <button type="button" className="world-card" onClick={() => setOpen(it)}>
+                <b>{titleOf(it)}</b>
+                <span>{subOf(it)}</span>
+                {detail && <em>{detail}</em>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {open && (
+        <div className="world-card-pop" onClick={() => setOpen(null)} role="presentation">
+          <div className="world-card-pop__box" onClick={(e) => e.stopPropagation()} role="dialog">
+            <strong>{titleOf(open)}</strong>
+            <span>{subOf(open)}</span>
+            <p>{detailOf?.(open) || "등록된 세부 설명이 없습니다."}</p>
+            <button type="button" onClick={() => setOpen(null)}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
