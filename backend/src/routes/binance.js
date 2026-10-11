@@ -8,8 +8,9 @@ import {
   getFuturesPositions,
   getMarkPrice,
   getTotalAssetUsdt,
-  getUserTrades,
+  getPositionTrades,
   summarizePositionFills,
+  formatPositionDossier,
   publicFuturesRequest,
 } from "../lib/binance-api.js";
 import { getUsdKrwRate } from "../lib/fx-rate.js";
@@ -207,7 +208,7 @@ async function loadPositionStory(symbol) {
   if (!position) {
     return { ok: true, symbol: pair, position: null, story: { entry: null, addons: [], lastAdd: null, fillCount: 0, covered: false } };
   }
-  const trades = await getUserTrades(pair, { limit: 200 });
+  const trades = await getPositionTrades(position);
   const story = summarizePositionFills(trades, position);
   return { ok: true, symbol: pair, position, story };
 }
@@ -400,6 +401,12 @@ router.post("/position-advice", async (req, res, next) => {
     const body = req.body || {};
     const userText = String(body.message || "").trim() || "지금 내 포지션에 대한 매매 추천을 해줘.";
     const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
+    const focusSymbol = String(body.symbol || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    const ordered = [...positions].sort((a, b) => {
+      if (a.symbol === focusSymbol) return -1;
+      if (b.symbol === focusSymbol) return 1;
+      return 0;
+    });
 
     const fromClient = Array.isArray(body.picks) ? body.picks : [];
     let pickBrief = fromClient
@@ -419,29 +426,52 @@ router.post("/position-advice", async (req, res, next) => {
       }
     }
 
-    const stories = [];
-    for (const p of positions.slice(0, 4)) {
+    const dossiers = [];
+    for (const p of ordered.slice(0, 4)) {
       try {
-        const trades = await getUserTrades(p.symbol, { limit: 200 });
-        stories.push({ symbol: p.symbol, side: p.side, ...summarizePositionFills(trades, p) });
+        const trades = await getPositionTrades(p);
+        const story = summarizePositionFills(trades, p);
+        let income = [];
+        try {
+          const [rows] = await pool.query(
+            `SELECT income_type, income, income_time
+             FROM binance_income_ledger
+             WHERE symbol = ?
+             ORDER BY income_time DESC
+             LIMIT 40`,
+            [p.symbol]
+          );
+          income = (rows || []).map((r) => ({
+            type: r.income_type,
+            amount: Number(r.income) || 0,
+            time: Number(r.income_time) || 0,
+          }));
+        } catch {
+          income = [];
+        }
+        dossiers.push({
+          symbol: p.symbol,
+          side: p.side,
+          text: formatPositionDossier(p, story),
+          story,
+          income,
+        });
       } catch (err) {
-        console.warn("[binance] position fills skip:", p.symbol, err.message);
-        stories.push({ symbol: p.symbol, side: p.side, entry: null, addons: [], lastAdd: null, fillCount: 0 });
+        console.warn("[binance] position dossier skip:", p.symbol, err.message);
+        dossiers.push({ symbol: p.symbol, side: p.side, text: formatPositionDossier(p, null), story: null, income: [] });
       }
     }
 
-    const systemPrompt = `당신은 이 계정의 현재 포지션 비서다. 챗봇처럼 한두 줄로 끝내지 마라.
+    const systemPrompt = `당신은 이 계정의 현재 포지션 비서다.
 답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
-시가총액이 큰 메이저·대형 코인을 우선한다. 소형 알트는 사용자가 묻지 않으면 꺼내지 마라.
-없는 숫자·없는 체결·없는 포지션을 만들지 마라.
-
-반드시 이 순서로 구체적으로 쓴다.
+[현재 포지션 기록]에 있는 체결·손익만 근거로 쓴다. 없는 숫자와 없는 체결을 만들지 마라.
+한두 문장으로 끝내지 마라. 반드시 아래 다섯 블록을 끝까지 쓴 뒤에만 멈춰라.
 1) 지금 어떤 포지션을 얼마에, 몇 배로 들고 있는지
-2) 처음 진입 가격과 시점. 추매가 있으면 어디서 언제 추가했는지. 없으면 추매 없다고 말해라
+2) 처음 진입 가격과 시점. 이후 추매가 있으면 가격·수량·시점을 빠짐없이. 없으면 추매 없다고 말해라
 3) 현재가 대비 추세와 손익 상태
-4) 지금부터 할 일. HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나를 결정하고, 왜 그런지 설명한다
-5) 추매·익절·손절을 한다면 어디 부근인지. 모르는 값은 추정하지 말고 범위를 조건으로만 말한다
-문장은 단정하되 짧지 않게. 4~8문단으로 조언한다.`;
+4) 지금부터 할 일. HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나를 결정하고 이유를 설명한다
+5) 추매·익절·손절을 한다면 어디 부근인지. 모르는 값은 추정하지 말고 조건으로만 말한다
+중간에 끊지 마라.`;
 
     const analysis = await askGemini({
       system: `${systemPrompt}
@@ -449,18 +479,21 @@ router.post("/position-advice", async (req, res, next) => {
 [사용자 매매 기준]
 ${criteria}
 
-[현재 선물 포지션]
-${positions.length ? JSON.stringify(positions, null, 2) : "(없음)"}
+[현재 포지션 기록]
+${focusSymbol ? `지금 보고 있는 심볼: ${focusSymbol}` : ""}
+${dossiers.length ? dossiers.map((d) => d.text).join("\n\n") : "(없음)"}
 
-[진입·추매 체결]
-${stories.length ? JSON.stringify(stories, null, 2) : "(체결 이력 없음)"}
+[실현손익·펀딩·수수료]
+${dossiers.some((d) => d.income?.length)
+    ? JSON.stringify(dossiers.map((d) => ({ symbol: d.symbol, income: d.income })), null, 2)
+    : "(없음)"}
 
 [현재 추천 상위(참고)]
 ${pickBrief || "(없음)"}`,
       history,
       message: userText,
-      maxOutputTokens: 2048,
-      temperature: 0.4,
+      maxOutputTokens: 8192,
+      temperature: 0.35,
     });
     const plain = String(analysis || "")
       .replace(/\*\*([^*]+)\*\*/g, "$1")

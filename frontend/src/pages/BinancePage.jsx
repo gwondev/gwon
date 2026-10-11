@@ -277,6 +277,7 @@ export default function BinancePage() {
         body: {
           message,
           history,
+          symbol: activeSymbol,
           picks: (picks?.picks || []).map((p) => ({
             symbol: p.symbol,
             side: p.side,
@@ -595,6 +596,7 @@ export default function BinancePage() {
             )}
           </div>
 
+          <div className="b-split">
           <div className="b-tvwrap">
             <div className="b-tvwrap__head">
               <p className="b-card__kicker">{chartSymbol.replace("USDT", "")} 차트</p>
@@ -645,6 +647,7 @@ export default function BinancePage() {
                 전송
               </button>
             </form>
+          </div>
           </div>
         </section>
       </div>

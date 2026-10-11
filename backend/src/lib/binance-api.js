@@ -309,10 +309,61 @@ export async function getFuturesPositions() {
 }
 
 /** 심볼 체결 이력 (현재 포지션의 진입/추매 재구성용) */
-export async function getUserTrades(symbol, { limit = 200, startTime } = {}) {
+export async function getUserTrades(symbol, { limit = 200, startTime, endTime } = {}) {
   const params = { symbol, limit: String(Math.min(limit, 1000)) };
   if (startTime) params.startTime = String(startTime);
+  if (endTime) params.endTime = String(endTime);
   return signedRequest(FUTURES_BASE, "/fapi/v1/userTrades", "GET", params);
+}
+
+/** 현재 포지션을 덮을 때까지 체결을 더 가져온다. */
+export async function getPositionTrades(position, { max = 3000 } = {}) {
+  const symbol = position?.symbol;
+  if (!symbol) return [];
+  const all = [];
+  const seen = new Set();
+  let endTime;
+  for (let i = 0; i < 6 && all.length < max; i++) {
+    const batch = await getUserTrades(symbol, { limit: 1000, endTime });
+    if (!Array.isArray(batch) || !batch.length) break;
+    for (const t of batch) {
+      const id = t.id ?? `${t.time}-${t.qty}-${t.price}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      all.push(t);
+    }
+    const story = summarizePositionFills(all, position);
+    if (story.covered) break;
+    const oldest = Math.min(...batch.map((t) => Number(t.time) || Date.now()));
+    if (!Number.isFinite(oldest) || (endTime && oldest >= endTime)) break;
+    endTime = oldest - 1;
+  }
+  return all;
+}
+
+function kstWhen(ms) {
+  const n = Number(ms);
+  if (!n) return "";
+  return new Date(n + 9 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 16);
+}
+
+/** 비서에게 넘길 현재 포지션 전체 기록 */
+export function formatPositionDossier(position, story) {
+  if (!position) return "(열린 포지션 없음)";
+  const fills = [story?.entry, ...(story?.addons || [])].filter(Boolean);
+  const lines = [
+    `${position.symbol} ${position.side} ${position.leverage}X`,
+    `수량 ${position.positionAmt}  명목 ${Number(position.notional || 0).toFixed(2)} USDT`,
+    `평단 ${position.entryPrice}  현재가 ${position.markPrice}  청산가 ${position.liquidationPrice || "-"}`,
+    `미실현 ${Number(position.unRealizedProfit || 0).toFixed(4)} USDT  ROE ${position.roe}%`,
+    `체결 ${story?.fillCount || 0}건${story?.covered ? "" : " (일부만 확보)"}`,
+  ];
+  fills.forEach((f, i) => {
+    lines.push(
+      `${i === 0 ? "진입" : `추매${i}`} ${kstWhen(f.time)}  ${Number(f.price)}  수량 ${Number(f.qty)}`
+    );
+  });
+  return lines.join("\n");
 }
 
 /**

@@ -23,7 +23,7 @@ function normalizeHistory(history) {
   return out;
 }
 
-async function callModel(model, apiKey, system, contents, generationConfigOverrides = {}) {
+async function callModelOnce(model, apiKey, system, contents, generationConfigOverrides = {}) {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -52,14 +52,27 @@ async function callModel(model, apiKey, system, contents, generationConfigOverri
     throw err;
   }
 
-  const text = data?.candidates?.[0]?.content?.parts
+  const cand = data?.candidates?.[0];
+  const text = cand?.content?.parts
     ?.map((p) => p.text)
     .filter(Boolean)
     .join("")
     ?.trim();
 
   if (!text) throw new Error("답변을 생성하지 못했습니다.");
-  return text;
+  return { text, finishReason: cand?.finishReason || "" };
+}
+
+async function callModel(model, apiKey, system, contents, generationConfigOverrides = {}) {
+  try {
+    return await callModelOnce(model, apiKey, system, contents, generationConfigOverrides);
+  } catch (err) {
+    if (generationConfigOverrides.thinkingConfig) {
+      const { thinkingConfig, ...rest } = generationConfigOverrides;
+      return callModelOnce(model, apiKey, system, contents, rest);
+    }
+    throw err;
+  }
 }
 
 export function getGeminiModels() {
@@ -85,7 +98,7 @@ export async function askGeminiJson({ system, message, schema }) {
   let lastErr;
   for (const model of getGeminiModels()) {
     try {
-      const raw = await callModel(model, apiKey, system, contents, generationConfigOverrides);
+      const raw = (await callModel(model, apiKey, system, contents, generationConfigOverrides)).text;
       try {
         return JSON.parse(raw);
       } catch {
@@ -113,16 +126,32 @@ export async function askGemini({ system, history, message, maxOutputTokens, tem
 
   const contents = normalizeHistory(history);
   contents.push({ role: "user", parts: [{ text: message.trim() }] });
-  const overrides = {};
-  if (maxOutputTokens) overrides.maxOutputTokens = maxOutputTokens;
+  const overrides = {
+    maxOutputTokens: maxOutputTokens || 8192,
+    thinkingConfig: { thinkingBudget: 0 },
+  };
   if (temperature != null) overrides.temperature = temperature;
 
   let lastErr;
   for (const model of getGeminiModels()) {
     try {
-      const reply = await callModel(model, apiKey, system, contents, overrides);
+      let { text, finishReason } = await callModel(model, apiKey, system, contents, overrides);
+      if (finishReason === "MAX_TOKENS") {
+        const cont = await callModel(
+          model,
+          apiKey,
+          system,
+          [
+            ...contents,
+            { role: "model", parts: [{ text }] },
+            { role: "user", parts: [{ text: "끊겼다. 앞에서 이어 나머지 문단을 끝까지 쓰고 결정을 내려라. 앞부분을 반복하지 마라." }] },
+          ],
+          overrides
+        );
+        text = `${text}\n${cont.text || ""}`.trim();
+      }
       console.log(`[gemini] ok: ${model}`);
-      return reply;
+      return text;
     } catch (err) {
       lastErr = err;
       console.warn(`[gemini] ${model} failed:`, err.message);
