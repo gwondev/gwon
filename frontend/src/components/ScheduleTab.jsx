@@ -170,10 +170,7 @@ function formatDateDot(dateKey) {
 }
 
 const CAL_MAX_VISIBLE = 4;
-
-function weekSlotCount(maxEvents) {
-  return Math.min(Math.max(0, maxEvents), CAL_MAX_VISIBLE) + 1;
-}
+const CAL_WEEK_SLOTS = CAL_MAX_VISIBLE + 1;
 
 function SlotPads({ count }) {
   if (count <= 0) return null;
@@ -302,20 +299,6 @@ export default function ScheduleTab() {
     }
     return map;
   }, [displayEvents]);
-
-  const weekSlotCounts = useMemo(() => {
-    const counts = [];
-    for (let w = 0; w < grid.length; w += 7) {
-      let maxCount = 0;
-      for (let i = 0; i < 7; i++) {
-        const date = grid[w + i];
-        if (!date) continue;
-        maxCount = Math.max(maxCount, dedupeEventsBySeries(eventsByDate[toDateKey(date)] || []).length);
-      }
-      counts.push(weekSlotCount(maxCount));
-    }
-    return counts;
-  }, [grid, eventsByDate]);
 
   const seriesDateSet = useMemo(() => {
     const set = new Set();
@@ -733,7 +716,7 @@ export default function ScheduleTab() {
             </div>
             <div className="schedule__grid">
               {grid.map((date, idx) => {
-                const weekSlots = weekSlotCounts[Math.floor(idx / 7)] || 1;
+                const weekSlots = CAL_WEEK_SLOTS;
                 if (!date) {
                   return (
                     <div key={`empty-${idx}`} className="schedule__cell schedule__cell--empty">
@@ -887,7 +870,7 @@ function DayCell({
   date,
   dateKey,
   events,
-  weekSlots = 1,
+  weekSlots = CAL_WEEK_SLOTS,
   isToday,
   isWeekend,
   isSunday,

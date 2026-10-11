@@ -24,6 +24,7 @@
   padding-right: clamp(16px, 4vw, 48px);
   padding-bottom: 0.2rem;
   min-height: 0;
+  zoom: 0.9;
 }
 
 @media (min-width: 761px) {
