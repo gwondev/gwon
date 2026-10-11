@@ -844,6 +844,20 @@
   color: var(--text-dim);
 }
 
+@media (min-width: 901px) and (max-width: 1280px) {
+  .b-split {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+
+  .b-chat {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+    padding-top: 0.32rem;
+  }
+}
+
 @media (max-width: 900px) {
   .b-shell {
     height: auto;
@@ -892,8 +906,10 @@
   }
 
   .b-split {
+    flex: none;
     grid-template-columns: 1fr;
     max-height: none;
+    overflow: visible;
   }
 
   .b-chat {
@@ -911,7 +927,8 @@
   }
 
   .b-tvstage {
-    min-height: 200px;
+    flex: none;
+    height: clamp(280px, 70vw, 440px);
     contain: layout;
   }
 
