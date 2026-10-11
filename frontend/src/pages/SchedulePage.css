@@ -2,6 +2,17 @@
   position: fixed;
   left: 0;
   right: 0;
+  padding-bottom: 0.2rem;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: none;
+  box-shadow: none;
+}
+
+.app-shell:has(.schedule-page) .topbar.is-scrolled {
+  background: none;
+  border-bottom-color: transparent;
 }
 
 .page.schedule-page {

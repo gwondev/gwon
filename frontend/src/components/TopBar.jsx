@@ -20,7 +20,10 @@ export default function TopBar() {
   const isSchedule = location.pathname === "/schedule";
 
   useEffect(() => {
-    if (isSchedule) return;
+    if (isSchedule) {
+      setScrolled(false);
+      return;
+    }
     let raf = null;
     const onScroll = () => {
       if (raf) return;
