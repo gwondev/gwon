@@ -3,6 +3,7 @@ import gsap from "gsap";
 import { worldState } from "./worldState.js";
 import {
   CONNECT_START,
+  EXPERIENCE_SCENE,
   INTRO_END,
   JOURNEY_PROJECTS,
   PROFILE_START,
@@ -133,7 +134,13 @@ export default function WorldExperience() {
   goToRef.current = (nextScene) => {
     const clamped = Math.max(0, Math.min(SCENE_MAX, nextScene));
     const mid = Boolean(tweenRef.current?.isActive?.());
-    if (clamped === targetSceneRef.current && (clamped === sceneRef.current || mid)) return;
+    const inbound = worldState.progress < PROFILE_START - 0.012;
+    const target = sceneToProgress(clamped);
+    const alreadyThere = Math.abs(worldState.progress - target) < 0.002;
+
+    if (clamped === targetSceneRef.current && (clamped === sceneRef.current || mid) && (alreadyThere || mid)) {
+      return;
+    }
 
     const from = targetSceneRef.current;
     const fromProfile = isProfileScene(from);
@@ -145,18 +152,21 @@ export default function WorldExperience() {
     accRef.current = 0;
     setWorldEffect(clamped);
 
-    if (fromProfile && toProfile) {
+    if (fromProfile && toProfile && !inbound && alreadyThere) {
       tweenRef.current?.kill();
       settleRef.current?.kill();
+      worldState.progress = target;
+      setProgress(target);
       return;
     }
 
     const fromProgress = worldState.progress;
-    const target = sceneToProgress(clamped);
     const dist = Math.abs(target - fromProgress);
     const duration = worldState.reduced
       ? 0.2
-      : Math.max(0.38, Math.min(1.28, 0.36 + dist * 2.55));
+      : mid
+        ? Math.max(0.28, Math.min(0.78, 0.24 + dist * 1.45))
+        : Math.max(0.38, Math.min(1.28, 0.36 + dist * 2.55));
 
     tweenRef.current?.kill();
     settleRef.current?.kill();
@@ -172,8 +182,13 @@ export default function WorldExperience() {
           setProgress(worldState.progress);
         },
         onComplete: () => {
-          worldState.progress = target;
-          setProgress(target);
+          const live = targetSceneRef.current;
+          const liveTarget = sceneToProgress(live);
+          worldState.progress = liveTarget;
+          setProgress(liveTarget);
+          if (Math.abs(liveTarget - target) > 0.002) {
+            goToRef.current(live);
+          }
         },
       }
     );
@@ -203,7 +218,13 @@ export default function WorldExperience() {
     };
 
     const step = (dir) => {
-      goToRef.current(targetSceneRef.current + dir);
+      let next = targetSceneRef.current + dir;
+      const flyingToProfile =
+        isProfileScene(targetSceneRef.current) && worldState.progress < PROFILE_START - 0.012;
+      if (dir > 0 && flyingToProfile) {
+        next = EXPERIENCE_SCENE;
+      }
+      goToRef.current(next);
     };
 
     const onWheel = (e) => {
