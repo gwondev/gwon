@@ -78,6 +78,12 @@ export function mediaCoverImage(raw) {
   return pick?.image || "";
 }
 
+export function mediaCoverVideo(raw) {
+  const list = parseMedia(raw);
+  const pick = list.find((m) => m.video && isMediaVisible(m)) || list.find((m) => m.video);
+  return pick?.video || "";
+}
+
 export function splitTags(raw) {
   return String(raw || "")
     .split(/[,，]/)

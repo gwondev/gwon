@@ -219,7 +219,8 @@
   pointer-events: none;
 }
 
-.world-proj__visual img {
+.world-proj__visual img,
+.world-proj__visual video {
   display: block;
   width: 100%;
   height: min(52vh, 560px);

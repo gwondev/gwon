@@ -51,7 +51,7 @@ export default function App() {
         <Route path="/data" element={<DataPage />} />
         <Route path="/BINANCE" element={<BinancePage />} />
         <Route path="/binance" element={<BinancePage />} />
-        <Route path="/admin/chat" element={<Navigate to="/admin" replace />} />
+        <Route path="/admin/chat" element={<Navigate to="/mypage?tab=admin" replace />} />
         <Route path="*" element={<RootPage />} />
       </Routes>
       <SiteFooter />

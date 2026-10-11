@@ -48,7 +48,7 @@ export default function TopBar() {
 
   return (
     <>
-      <header className={`topbar ${scrolled ? "is-scrolled" : ""}`}>
+      <header className={`topbar ${scrolled ? "is-scrolled" : ""} ${isSchedule ? "topbar--tight" : ""}`}>
         <div className="topbar__left">
           <div className="topbar__adminlinks">
             <button
@@ -59,7 +59,6 @@ export default function TopBar() {
               title="홈"
             >
               <IconHome width={15} height={15} />
-              <span>HOME</span>
             </button>
             {isAdmin && (
               <>
@@ -70,7 +69,7 @@ export default function TopBar() {
                   aria-label="바이낸스"
                   title="바이낸스"
                 >
-                  B
+                  🪙
                 </button>
                 <button
                   type="button"
@@ -127,15 +126,6 @@ export default function TopBar() {
               <span className="topbar__dot" aria-hidden />
               {greeting}
             </motion.span>
-          </button>
-          <button
-            className={`hamburger ${open ? "is-open" : ""}`}
-            onClick={() => setOpen(true)}
-            aria-label="메뉴 열기"
-          >
-            <span />
-            <span />
-            <span />
           </button>
         </div>
       </header>

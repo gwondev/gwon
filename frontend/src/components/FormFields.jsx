@@ -411,7 +411,7 @@ function MediaEditor({ value, onChange }) {
         ))}
       </div>
       <label className="media-editor__upload">
-        {busy ? "미디어 처리 중…" : "＋ 사진·영상·PDF 추가 (여러 개 가능)"}
+        {busy ? "미디어 처리 중…" : "＋ 사진·영상·PDF 직접 추가"}
         <input
           type="file"
           accept="image/*,video/mp4,video/webm,video/quicktime,application/pdf"

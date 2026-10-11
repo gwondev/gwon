@@ -79,9 +79,12 @@ async function loadMarketCaps() {
   const data = await res.json();
   const map = new Map();
   if (Array.isArray(data)) {
-    for (const c of data) {
-      map.set(String(c.symbol || "").toUpperCase(), Number(c.market_cap) || 0);
-    }
+    data.forEach((c, i) => {
+      map.set(String(c.symbol || "").toUpperCase(), {
+        marketCap: Number(c.market_cap) || 0,
+        rank: Number(c.market_cap_rank) || i + 1,
+      });
+    });
   }
   mcapCache = { at: Date.now(), bySymbol: map };
   return map;
@@ -95,8 +98,15 @@ async function withMarketCap(picks) {
     console.warn("[binance-picks] 시가총액 조회 실패:", err.message);
   }
   return picks.map((p) => {
-    const cap = caps.get(coinKey(p.symbol)) || 0;
-    return { ...p, marketCap: cap, marketCapFormatted: formatMcap(cap) };
+    const info = caps.get(coinKey(p.symbol));
+    const cap = info?.marketCap || 0;
+    const rank = info?.rank || 0;
+    return {
+      ...p,
+      marketCap: cap,
+      marketCapRank: rank,
+      marketCapFormatted: formatMcap(cap),
+    };
   });
 }
 

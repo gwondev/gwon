@@ -182,22 +182,15 @@ export function warpEase(u) {
 
 /** Slow → accelerate → peak → decelerate → settle. GSAP ease(t). */
 export function cinematicEase(t) {
+  return waterEase(t);
+}
+
+/** 처음 0.1초부터 움직이고, 중간은 물처럼 이어진다. */
+export function waterEase(t) {
   const x = Math.min(1, Math.max(0, t));
-  if (x < 0.1) return x * x * 0.7;
-  if (x < 0.36) {
-    const k = (x - 0.1) / 0.26;
-    return 0.007 + k * k * 0.4;
-  }
-  if (x < 0.58) {
-    const k = (x - 0.36) / 0.22;
-    return 0.407 + k * 0.33;
-  }
-  if (x < 0.82) {
-    const k = (x - 0.58) / 0.24;
-    return 0.737 + (1 - (1 - k) * (1 - k)) * 0.2;
-  }
-  const k = (x - 0.82) / 0.18;
-  return 0.937 + (1 - (1 - k) * (1 - k)) * 0.063;
+  if (x < 0.08) return x * 1.4;
+  const k = (x - 0.08) / 0.92;
+  return 0.112 + (1 - Math.pow(1 - k, 1.75)) * 0.888;
 }
 
 export function matchLive(item, project) {

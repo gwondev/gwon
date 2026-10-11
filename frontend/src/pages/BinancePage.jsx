@@ -33,6 +33,7 @@ const DEFAULT_RULES = {
 };
 
 const SUMMARY_CHIP = "전체 요약";
+const ACTION_CHIP = "동작 추천";
 
 function formatWhen(ms) {
   const n = Number(ms);
@@ -253,7 +254,7 @@ export default function BinancePage() {
     }
   };
 
-  const sendChat = async (text, { summary = false } = {}) => {
+  const sendChat = async (text, { summary = false, action = false } = {}) => {
     const message = (text || draft).trim();
     if (!message || busy === "ai") return;
     const next = [...messages, { role: "user", text: message }];
@@ -273,11 +274,13 @@ export default function BinancePage() {
           history,
           symbol: activeSymbol,
           interval: tvInterval,
-          mode: summary ? "summary" : "ask",
+          mode: summary ? "summary" : action ? "action" : "ask",
           picks: (picks?.picks || []).map((p) => ({
             symbol: p.symbol,
             side: p.side,
             marketCapFormatted: p.marketCapFormatted,
+            marketCapRank: p.marketCapRank,
+            score: p.score,
           })),
         },
       });
@@ -518,16 +521,30 @@ export default function BinancePage() {
               {pickError && <p className="b-err">{pickError}</p>}
             </div>
             <ol className="b-picks__list">
-              {(picks?.picks || []).map((row, i) => (
-                <li key={`${row.symbol}-${row.side}-${i}`}>
-                  <button type="button" onClick={() => setActiveSymbol(row.symbol)}>
-                    <span className="b-rank">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="b-sym">{row.symbol.replace("USDT", "")}</span>
-                    <em className={`b-side is-${String(row.side).toLowerCase()}`}>{row.side === "LONG" ? "롱" : "숏"}</em>
-                    <span className="b-mcap">{row.marketCapFormatted || "-"}</span>
-                  </button>
-                </li>
-              ))}
+              {(picks?.picks || []).map((row, i) => {
+                const score = Math.max(0, Math.min(100, Math.round(Number(row.score) || 0)));
+                const rank = Number(row.marketCapRank) || 0;
+                return (
+                  <li key={`${row.symbol}-${row.side}-${i}`}>
+                    <button
+                      type="button"
+                      className={row.symbol === chartSymbol ? "is-on" : ""}
+                      onClick={() => setActiveSymbol(row.symbol)}
+                    >
+                      <span className="b-pick__no">{String(i + 1).padStart(2, "0")}</span>
+                      <span className="b-pick__main">
+                        <span className="b-pick__name">{row.symbol.replace("USDT", "")}</span>
+                        <span className="b-pick__cap">{rank ? `시총 ${rank}위` : row.marketCapFormatted || "시총 -"}</span>
+                      </span>
+                      <em className={`b-side is-${String(row.side).toLowerCase()}`}>{row.side === "LONG" ? "롱" : "숏"}</em>
+                      <span className="b-pick__score" title={`추천점수 ${score}`}>
+                        <b>{score}</b>
+                        <i style={{ width: `${score}%` }} />
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
               {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
             </ol>
             </div>
@@ -612,6 +629,9 @@ export default function BinancePage() {
               <div className="b-seg b-chat__chips">
                 <button type="button" className="is-on" onClick={() => sendChat(SUMMARY_CHIP, { summary: true })} disabled={busy === "ai"}>
                   {SUMMARY_CHIP}
+                </button>
+                <button type="button" onClick={() => sendChat(ACTION_CHIP, { action: true })} disabled={busy === "ai"}>
+                  {ACTION_CHIP}
                 </button>
               </div>
             </div>

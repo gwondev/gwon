@@ -23,15 +23,16 @@ import {
   matchLive,
 } from "../../lib/journey.js";
 import { usePortfolioPreview } from "../../lib/usePortfolioPreview.js";
-import { mediaCoverImage } from "../../lib/media.js";
+import { mediaCoverImage, mediaCoverVideo } from "../../lib/media.js";
 import { formatCareerPeriodPreview } from "../../lib/format.js";
 import { isProjectRecord } from "../../lib/sections.js";
 import "./WorldExperience.css";
 
 const NeuralCanvas = lazy(() => import("./neural/NeuralCanvas.jsx"));
 
-const WHEEL_THRESHOLD = 36;
+const WHEEL_THRESHOLD = 8;
 const SWIPE_THRESHOLD = 56;
+const MEDIA_PLAY_DELAY = 420;
 
 function detectEnv() {
   worldState.mobile = window.innerWidth < 768;
@@ -47,7 +48,7 @@ function hasWebGL() {
   }
 }
 
-function useResolvedImages(liveProjects) {
+function useResolvedMedia(liveProjects) {
   const [map, setMap] = useState({});
   useEffect(() => {
     let alive = true;
@@ -55,11 +56,12 @@ function useResolvedImages(liveProjects) {
     const jobs = JOURNEY_PROJECTS.map((p) => {
       const live = (liveProjects || []).find((it) => matchLive(it, p));
       const fromDb = mediaCoverImage(live?.media);
+      const video = mediaCoverVideo(live?.media);
       const candidates = fromDb
         ? [fromDb, p.image, p.image.replace(".png", ".webp")]
         : [p.image, p.image.replace(".png", ".webp")];
       return probe(candidates).then((url) => {
-        next[p.id] = url;
+        next[p.id] = { image: url, video };
       });
     });
     Promise.all(jobs).then(() => {
@@ -108,7 +110,7 @@ export default function WorldExperience() {
   const root = useRef(null);
   const { preview } = usePortfolioPreview();
   const liveProjects = useMemo(() => (preview.projects || []).filter(isProjectRecord), [preview.projects]);
-  const images = useResolvedImages(liveProjects);
+  const media = useResolvedMedia(liveProjects);
   const [progress, setProgress] = useState(() => sceneToProgress(0));
   const [scene, setScene] = useState(0);
   const [webgl, setWebgl] = useState(true);
@@ -177,10 +179,10 @@ export default function WorldExperience() {
     }
 
     const duration = worldState.reduced
-      ? 0.4
+      ? 0.28
       : toProfile || fromProfile
-        ? 2.55
-        : Math.min(3.55, 3.12 + Math.max(0, dist - 1) * 0.14);
+        ? 1.68
+        : Math.min(1.85, 1.42 + Math.max(0, dist - 1) * 0.12);
 
     tweenRef.current?.kill();
     settleRef.current?.kill();
@@ -190,7 +192,7 @@ export default function WorldExperience() {
       {
         progress: target,
         duration,
-        ease: toProfile || fromProfile ? "power2.inOut" : cinematicEase,
+        ease: cinematicEase,
         overwrite: true,
         onUpdate: () => {
           setProgress(worldState.progress);
@@ -198,7 +200,7 @@ export default function WorldExperience() {
         onComplete: () => {
           worldState.progress = target;
           setProgress(target);
-          settleRef.current = gsap.delayedCall(worldState.reduced ? 0.04 : 0.22, () => {
+          settleRef.current = gsap.delayedCall(worldState.reduced ? 0.04 : 0.08, () => {
             lockRef.current = false;
             coolRef.current = true;
             accRef.current = 0;
@@ -257,7 +259,7 @@ export default function WorldExperience() {
         e.preventDefault();
         if (lockRef.current) return;
         if (coolRef.current) {
-          if (gap > 140 || Math.abs(e.deltaY) < 8) coolRef.current = false;
+          if (gap > 100 || Math.abs(e.deltaY) < 4) coolRef.current = false;
           else return;
         }
         accRef.current += e.deltaY;
@@ -273,7 +275,7 @@ export default function WorldExperience() {
       if (lockRef.current) return;
 
       if (coolRef.current) {
-        if (gap > 140 || Math.abs(e.deltaY) < 8) {
+        if (gap > 100 || Math.abs(e.deltaY) < 4) {
           coolRef.current = false;
         } else {
           return;
@@ -412,11 +414,12 @@ export default function WorldExperience() {
                 transform: `scale(${1.05 - imageReveal * 0.05})`,
               }}
             >
-              {images[project.id] ? (
-                <img src={images[project.id]} alt={project.imageAlt} />
-              ) : (
-                <div className="world-proj__void" aria-hidden />
-              )}
+              <ProjectVisual
+                image={media[project.id]?.image}
+                video={media[project.id]?.video}
+                reveal={imageReveal}
+                alt={project.imageAlt}
+              />
             </div>
             <div className="world-proj__copy" style={{ opacity: Math.max(textReveal, imageReveal * 0.4) }}>
               <p className="world-kicker">
@@ -548,6 +551,24 @@ export default function WorldExperience() {
       </nav>
     </main>
   );
+}
+
+function ProjectVisual({ image, video, reveal, alt }) {
+  const [play, setPlay] = useState(false);
+  useEffect(() => {
+    if (!video || reveal < 0.82) {
+      setPlay(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setPlay(true), MEDIA_PLAY_DELAY);
+    return () => window.clearTimeout(timer);
+  }, [video, reveal]);
+
+  if (play && video) {
+    return <video src={video} autoPlay muted loop playsInline />;
+  }
+  if (image) return <img src={image} alt={alt} />;
+  return <div className="world-proj__void" aria-hidden />;
 }
 
 function FileList({ items, titleOf, subOf, empty = "—" }) {

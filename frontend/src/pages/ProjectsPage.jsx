@@ -27,7 +27,7 @@ const FIELDS = [
   { name: "url", label: "접속주소", placeholder: "예: https://devsign.co.kr", span: true },
   { name: "github_url", label: "깃허브 주소", placeholder: "예: https://github.com/username/repo", span: true },
   { name: "description", label: "설명", type: "textarea", span: true, placeholder: "프로젝트 개요, 역할, 기술 스택 등 (클릭 시 팝업으로 표시)" },
-  { name: "media", label: "사진·영상 + 설명 (클릭 시 팝업으로 표시)", type: "media", span: true },
+  { name: "media", label: "사진·영상 직접 추가 (파일 선택)", type: "media", span: true },
 ];
 
 // 버블(격자): 사진 · 프로젝트명(크게) · 분야(아래, 작게)

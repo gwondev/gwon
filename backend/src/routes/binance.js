@@ -405,6 +405,7 @@ router.post("/position-advice", async (req, res, next) => {
     const userText = String(body.message || "").trim() || "지금 내 포지션에 대한 매매 추천을 해줘.";
     const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
     const fullSummary = body.mode === "summary" || /전체\s*요약/.test(userText);
+    const actionMode = !fullSummary && (body.mode === "action" || /동작\s*추천/.test(userText));
     const focusSymbol = String(body.symbol || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
     const chartInterval = String(body.interval || "240");
     const ordered = [...positions].sort((a, b) => {
@@ -501,6 +502,14 @@ router.post("/position-advice", async (req, res, next) => {
 4) 지금부터 할 일. HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나를 결정하고 이유를 설명한다
 5) 추매·익절·손절을 한다면 어디 부근인지. 모르는 값은 추정하지 말고 조건으로만 말한다
 중간에 끊지 마라.`
+      : actionMode
+        ? `당신은 이 계정의 현재 포지션 비서다.
+답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
+이번 요청은 동작 추천이다. 이 코인의 체결 역사, 차트 봉, 최근 움직임을 근거로 지금부터 어떻게 할지 알려라.
+체결 전체를 나열하지 마라. 전체 요약 양식을 쓰지 마라.
+반드시 한 가지 동작을 고른다: HOLD / ADD / REDUCE / CLOSE / REVERSE
+이유, 지금 차트가 그 동작을 지지하는지, 다음으로 볼 가격대를 짧게 말한다.
+없는 숫자와 없는 체결을 만들지 마라. 2~4문단으로 끝낸다.`
       : `당신은 이 계정의 현재 포지션 비서다.
 답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
 사용자가 물은 질문에만 답한다. 체결 전체를 나열하지 마라. 전체 요약 양식을 쓰지 마라.

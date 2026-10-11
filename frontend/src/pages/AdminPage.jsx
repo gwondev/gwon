@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import PageTransition from "../components/PageTransition";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import "./AdminPage.css";
@@ -27,7 +26,7 @@ const MOCK_USERS = [
   { id: 3, name: "홍길동", nickname: "길동", email: "hong@example.com", role: "GUEST" },
 ];
 
-export default function AdminPage() {
+export function AdminDashboard() {
   const { isAdmin, loading, token, user, localMode } = useAuth();
   const navigate = useNavigate();
 
@@ -199,7 +198,7 @@ export default function AdminPage() {
   if (!isAdmin) return null;
 
   return (
-    <PageTransition className="page admin">
+    <div className="admin admin--embedded">
       <motion.header
         className="admin__head"
         initial={{ opacity: 0, y: 18 }}
@@ -493,6 +492,10 @@ export default function AdminPage() {
           )}
         </div>
       </section>
-    </PageTransition>
+    </div>
   );
+}
+
+export default function AdminPage() {
+  return <Navigate to="/mypage?tab=admin" replace />;
 }
