@@ -513,6 +513,7 @@ async function runMigrations(conn) {
     "ALTER TABLE todo_items ADD COLUMN description TEXT DEFAULT NULL AFTER text",
     "ALTER TABLE binance_income_ledger DROP INDEX uniq_tran",
     "ALTER TABLE binance_income_ledger ADD UNIQUE KEY uniq_tran_type (binance_tran_id, income_type)",
+    "ALTER TABLE calendar_events ADD COLUMN is_done TINYINT(1) NOT NULL DEFAULT 0 AFTER income_type",
   ];
   for (const sql of migrations) {
     try {

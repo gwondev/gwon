@@ -181,12 +181,16 @@ export default function ScheduleChecklist({ ownerId, calendarVersion = 0, onCale
     }
   };
 
-  // 달력 TODO 항목 삭제 → 왼쪽 본 캘린더의 해당 일정도 함께 삭제
-  const deleteCalendarItem = async (item) => {
+  // 달력 TODO 완료 → 오른쪽 목록에서만 빠지고, 왼쪽 달력에는 해결 표시로 남긴다
+  const completeCalendarItem = async (item) => {
     setCalItems((prev) => prev.filter((it) => it.id !== item.id));
     if (localMode) return;
     try {
-      await api(`/calendar/events/${item.id}`, { method: "DELETE", token });
+      await api(`/calendar/events/${item.id}/todo-done`, {
+        method: "PUT",
+        token,
+        body: { done: true },
+      });
       onCalendarChanged?.();
     } catch (e) {
       setErr(e.message);
@@ -284,7 +288,7 @@ export default function ScheduleChecklist({ ownerId, calendarVersion = 0, onCale
                 key={`${item.source}-${item.id}`}
                 item={item}
                 onAction={() =>
-                  item.source === "calendar" ? deleteCalendarItem(item) : toggleDone(item)
+                  item.source === "calendar" ? completeCalendarItem(item) : toggleDone(item)
                 }
               />
             ))
@@ -353,7 +357,7 @@ function ChecklistItem({ item, onAction }) {
         type="button"
         className={`todo__check ${checking ? "is-checked" : ""}`}
         onClick={handleClick}
-        aria-label={isCal ? "달력 일정 삭제" : "완료 처리"}
+        aria-label="완료 처리"
       >
         {checking && (
           <motion.span

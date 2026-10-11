@@ -816,7 +816,7 @@ function EventBubble({
   const showCheck = deleteMode && selectable && showLabel;
   return (
     <span
-      className={`schedule__bubble ${connectedPrev ? "is-cont-prev" : ""} ${connectedNext ? "is-cont-next" : ""} ${isAllDay ? "is-all-day" : ""} ${deleteMode && selected ? "is-pick-selected" : ""} ${showCheck ? "is-pickable" : ""} ${showLabel ? "" : "is-continuation"}`}
+      className={`schedule__bubble ${connectedPrev ? "is-cont-prev" : ""} ${connectedNext ? "is-cont-next" : ""} ${isAllDay ? "is-all-day" : ""} ${deleteMode && selected ? "is-pick-selected" : ""} ${showCheck ? "is-pickable" : ""} ${showLabel ? "" : "is-continuation"} ${event.isDone ? "is-done" : ""}`}
       style={{ "--cal-accent": bubbleTheme.accent }}
       onClick={onClick}
       role="presentation"
@@ -833,6 +833,11 @@ function EventBubble({
       )}
       {showLabel && showTime && event.startTime && (
         <span className="schedule__bubble-time">{formatEventTime(event)}</span>
+      )}
+      {event.isDone && showLabel && (
+        <span className="schedule__bubble-done" title="해결된 할 일" aria-hidden>
+          ✓
+        </span>
       )}
     </span>
   );
@@ -1788,7 +1793,7 @@ function DayEventCard({ ev, onEdit, onDelete }) {
   const keywords = useKeywords();
   const keyword = keywordBadge(keywords, resolveKeywordId(ev));
   return (
-    <div className="schedule__day-item">
+    <div className={`schedule__day-item ${ev.isDone ? "is-done" : ""}`}>
       <span className="schedule__day-item-dot" style={{ background: eventAccent(ev, keywords) }} aria-hidden />
       <div className="schedule__day-item-main">
         <strong>
@@ -1829,6 +1834,11 @@ function DayEventCard({ ev, onEdit, onDelete }) {
           삭제
         </button>
       </div>
+      {ev.isDone && (
+        <span className="schedule__day-item-done" title="해결된 할 일" aria-hidden>
+          ✓
+        </span>
+      )}
     </div>
   );
 }
@@ -1860,7 +1870,7 @@ function TimelineBlock({ ev, slotH }) {
   );
   return (
     <div
-      className={`schedule__tl-block ${compact ? "is-compact" : ""} ${tiny ? "is-tiny" : ""}`}
+      className={`schedule__tl-block ${compact ? "is-compact" : ""} ${tiny ? "is-tiny" : ""} ${ev.isDone ? "is-done" : ""}`}
       style={{ top: `${top}px`, height: `${height}px`, "--tl-accent": eventAccent(ev, keywords) }}
       title={`${kw?.emoji ? `${kw.emoji} ` : ""}${ev.title} ${timeLabel}`}
     >
@@ -1903,7 +1913,7 @@ function DayTimeline({ events, expanded, onToggleExpand }) {
                 .map((ev) => (
                   <span
                     key={eventSeriesKey(ev)}
-                    className="schedule__tl-allday-chip"
+                    className={`schedule__tl-allday-chip ${ev.isDone ? "is-done" : ""}`}
                     style={{ "--tl-accent": eventAccent(ev, keywords) }}
                     title={ev.title}
                   >

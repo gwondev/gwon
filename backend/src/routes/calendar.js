@@ -102,6 +102,7 @@ function publicEvent(row) {
     startTime: row.start_time ? String(row.start_time).slice(0, 5) : null,
     endTime: row.end_time ? String(row.end_time).slice(0, 5) : null,
     incomeType: row.income_type || null,
+    isDone: Boolean(row.is_done),
     locationName: row.location_name || null,
     locationLat: row.location_lat != null ? Number(row.location_lat) : null,
     locationLng: row.location_lng != null ? Number(row.location_lng) : null,
@@ -909,6 +910,7 @@ router.get("/todo-events", requireCalendarAdmin, async (req, res, next) => {
       `SELECT id, owner_id, series_id, title, description, event_date, start_time, end_time, theme_color
        FROM calendar_events
        WHERE owner_id IN (${placeholders}) AND appointment_type = 'TODO'
+         AND COALESCE(is_done, 0) = 0
        ORDER BY event_date ASC, id ASC`,
       ownerIds
     );
@@ -1468,6 +1470,39 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
     });
   } catch (err) {
     console.error(`[calendar] PUT /events/${req.params.id} error: ${err.code || err.message}`);
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// PUT /api/calendar/events/:id/todo-done — 오른쪽 할 일에서 완료. 달력에서는 남기고 해결 표시만 한다.
+router.put("/events/:id/todo-done", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const [existingRows] = await pool.query("SELECT * FROM calendar_events WHERE id = ?", [
+      req.params.id,
+    ]);
+    const existing = existingRows[0];
+    if (!existing) {
+      return res.status(404).json({ error: "일정을 찾을 수 없습니다." });
+    }
+
+    const actorId = req.auth.uid;
+    const actorRole = req.userRole || (await getUserRole(actorId));
+    if (!(await canManageEvent(actorId, actorRole, existing))) {
+      return res.status(403).json({ error: "이 일정을 수정할 권한이 없습니다." });
+    }
+
+    const done = req.body?.done === false ? 0 : 1;
+    const seriesId = existing.series_id;
+    if (seriesId) {
+      await pool.query("UPDATE calendar_events SET is_done = ? WHERE series_id = ?", [done, seriesId]);
+    } else {
+      await pool.query("UPDATE calendar_events SET is_done = ? WHERE id = ?", [done, existing.id]);
+    }
+
+    const [updatedRows] = await pool.query("SELECT * FROM calendar_events WHERE id = ?", [existing.id]);
+    res.json({ ok: true, item: publicEvent(updatedRows[0]) });
+  } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
   }
