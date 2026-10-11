@@ -105,22 +105,27 @@
 }
 
 .topbar__greet {
+  --gold: #d8c19a;
+  --gold-soft: rgba(216, 193, 154, 0.13);
+  --gold-line: rgba(216, 193, 154, 0.32);
   display: inline-flex;
   align-items: center;
   cursor: pointer;
   padding: 0.4rem 0.78rem 0.4rem 0.62rem;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line);
-  background:
-    radial-gradient(120% 180% at 20% 0%, var(--accent-soft), transparent 62%),
-    linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
-  color: var(--accent);
-  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+  background: var(--bg-soft);
+  color: var(--text-dim);
+  transition: border-color 0.3s var(--ease), color 0.3s var(--ease), background 0.3s var(--ease);
 }
-.topbar__greet:hover,
+.topbar__greet:hover {
+  border-color: var(--gold-line);
+  color: var(--gold);
+}
 .topbar__greet.is-active {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
+  border-color: var(--gold-line);
+  background: var(--gold-soft);
+  color: var(--gold);
 }
 .topbar__greet-text {
   display: inline-flex;
@@ -129,14 +134,17 @@
   font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--accent);
+  color: inherit;
+}
+.topbar__greet.is-active .topbar__greet-text {
+  color: var(--gold);
 }
 .topbar__dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 12px 2px var(--accent-soft);
+  background: var(--gold);
+  box-shadow: 0 0 12px 2px var(--gold-soft);
 }
 
 /* 인사말 오른쪽에 붙는 "관리자 / 사용자 시점" 토글 */

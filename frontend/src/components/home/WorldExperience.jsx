@@ -31,6 +31,7 @@ import "./WorldExperience.css";
 const NeuralCanvas = lazy(() => import("./neural/NeuralCanvas.jsx"));
 
 const WHEEL_THRESHOLD = 8;
+const WHEEL_STEP_GAP_MS = 72;
 const SWIPE_THRESHOLD = 56;
 const MEDIA_PLAY_DELAY = 420;
 
@@ -117,9 +118,8 @@ export default function WorldExperience() {
   const [tab, setTab] = useState("experience");
 
   const sceneRef = useRef(0);
-  const lockRef = useRef(false);
+  const targetSceneRef = useRef(0);
   const accRef = useRef(0);
-  const coolRef = useRef(false);
   const lastWheelRef = useRef(0);
   const tweenRef = useRef(null);
   const settleRef = useRef(null);
@@ -133,56 +133,31 @@ export default function WorldExperience() {
 
   goToRef.current = (nextScene) => {
     const clamped = Math.max(0, Math.min(SCENE_MAX, nextScene));
-    if (clamped === sceneRef.current) return;
+    const mid = Boolean(tweenRef.current?.isActive?.());
+    if (clamped === targetSceneRef.current && (clamped === sceneRef.current || mid)) return;
 
-    const from = sceneRef.current;
+    const from = targetSceneRef.current;
     const fromProfile = isProfileScene(from);
     const toProfile = isProfileScene(clamped);
-
-    if (fromProfile && toProfile) {
-      if (lockRef.current) return;
-      lockRef.current = true;
-      sceneRef.current = clamped;
-      setScene(clamped);
-      setTab(profileTabFromScene(clamped) || "experience");
-      setWorldEffect(clamped);
-      settleRef.current?.kill();
-      settleRef.current = gsap.delayedCall(0.28, () => {
-        lockRef.current = false;
-        coolRef.current = true;
-        accRef.current = 0;
-      });
-      return;
-    }
-
-    if (lockRef.current) return;
-
-    const dist = Math.abs(clamped - from);
-    lockRef.current = true;
+    targetSceneRef.current = clamped;
     sceneRef.current = clamped;
     setScene(clamped);
-    if (toProfile) setTab(profileTabFromScene(clamped) || "experience");
+    if (toProfile || fromProfile) setTab(profileTabFromScene(clamped) || "experience");
     accRef.current = 0;
     setWorldEffect(clamped);
 
-    let fromProgress = worldState.progress;
-    const target = sceneToProgress(clamped);
-    if (toProfile && fromProgress < CONNECT_START) {
-      fromProgress = CONNECT_START;
-      worldState.progress = CONNECT_START;
-      setProgress(CONNECT_START);
-    }
-    if (fromProfile && !toProfile && clamped >= 1 && clamped <= PROJECT_COUNT) {
-      fromProgress = INTRO_END + (clamped - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.12;
-      worldState.progress = fromProgress;
-      setProgress(fromProgress);
+    if (fromProfile && toProfile) {
+      tweenRef.current?.kill();
+      settleRef.current?.kill();
+      return;
     }
 
+    const fromProgress = worldState.progress;
+    const target = sceneToProgress(clamped);
+    const dist = Math.abs(target - fromProgress);
     const duration = worldState.reduced
-      ? 0.28
-      : toProfile || fromProfile
-        ? 1.68
-        : Math.min(1.85, 1.42 + Math.max(0, dist - 1) * 0.12);
+      ? 0.2
+      : Math.max(0.38, Math.min(1.28, 0.36 + dist * 2.55));
 
     tweenRef.current?.kill();
     settleRef.current?.kill();
@@ -192,7 +167,7 @@ export default function WorldExperience() {
       {
         progress: target,
         duration,
-        ease: cinematicEase,
+        ease: mid ? "power2.out" : cinematicEase,
         overwrite: true,
         onUpdate: () => {
           setProgress(worldState.progress);
@@ -200,11 +175,6 @@ export default function WorldExperience() {
         onComplete: () => {
           worldState.progress = target;
           setProgress(target);
-          settleRef.current = gsap.delayedCall(worldState.reduced ? 0.04 : 0.08, () => {
-            lockRef.current = false;
-            coolRef.current = true;
-            accRef.current = 0;
-          });
         },
       }
     );
@@ -234,56 +204,49 @@ export default function WorldExperience() {
     };
 
     const step = (dir) => {
-      goToRef.current(sceneRef.current + dir);
+      goToRef.current(targetSceneRef.current + dir);
     };
 
     const onWheel = (e) => {
       const now = performance.now();
+      const dy = e.deltaY;
       const gap = now - lastWheelRef.current;
-      lastWheelRef.current = now;
 
-      if (isProfileScene(sceneRef.current)) {
+      if (isProfileScene(targetSceneRef.current)) {
         const panel = inProfilePanel(e.target);
         if (panel && panel.scrollHeight > panel.clientHeight + 2) {
           const atTop = panel.scrollTop <= 0;
           const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1;
           if (e.deltaY < 0 && atTop) {
             e.preventDefault();
-            if (!lockRef.current) step(-1);
+            if (gap >= WHEEL_STEP_GAP_MS) {
+              lastWheelRef.current = now;
+              step(-1);
+            }
           } else if (e.deltaY > 0 && atBottom) {
             e.preventDefault();
-            if (!lockRef.current && sceneRef.current < SCENE_MAX) step(1);
+            if (gap >= WHEEL_STEP_GAP_MS && targetSceneRef.current < SCENE_MAX) {
+              lastWheelRef.current = now;
+              step(1);
+            }
           }
           return;
         }
-        e.preventDefault();
-        if (lockRef.current) return;
-        if (coolRef.current) {
-          if (gap > 100 || Math.abs(e.deltaY) < 4) coolRef.current = false;
-          else return;
-        }
-        accRef.current += e.deltaY;
-        if (Math.abs(accRef.current) < WHEEL_THRESHOLD) return;
-        const dir = accRef.current > 0 ? 1 : -1;
-        accRef.current = 0;
-        if (dir > 0 && sceneRef.current >= SCENE_MAX) return;
-        step(dir);
-        return;
       }
 
       e.preventDefault();
-      if (lockRef.current) return;
-
-      if (coolRef.current) {
-        if (gap > 100 || Math.abs(e.deltaY) < 4) {
-          coolRef.current = false;
-        } else {
-          return;
-        }
+      if (Math.abs(dy) >= 40) {
+        if (gap < WHEEL_STEP_GAP_MS) return;
+        lastWheelRef.current = now;
+        accRef.current = 0;
+        step(dy > 0 ? 1 : -1);
+        return;
       }
 
-      accRef.current += e.deltaY;
+      accRef.current += dy;
       if (Math.abs(accRef.current) < WHEEL_THRESHOLD) return;
+      if (gap < WHEEL_STEP_GAP_MS) return;
+      lastWheelRef.current = now;
       const dir = accRef.current > 0 ? 1 : -1;
       accRef.current = 0;
       step(dir);
@@ -296,8 +259,7 @@ export default function WorldExperience() {
       const prev = e.key === "ArrowUp" || e.key === "PageUp";
       if (!next && !prev) return;
       e.preventDefault();
-      if (lockRef.current) return;
-      if (next && sceneRef.current >= SCENE_MAX) return;
+      if (next && targetSceneRef.current >= SCENE_MAX) return;
       step(next ? 1 : -1);
     };
 
@@ -311,9 +273,8 @@ export default function WorldExperience() {
       const y = e.changedTouches[0]?.clientY ?? touchYRef.current;
       const dy = touchYRef.current - y;
       if (Math.abs(dy) < SWIPE_THRESHOLD) return;
-      if (lockRef.current) return;
       const dir = dy > 0 ? 1 : -1;
-      if (dir > 0 && sceneRef.current >= SCENE_MAX) return;
+      if (dir > 0 && targetSceneRef.current >= SCENE_MAX) return;
       step(dir);
     };
 
@@ -334,7 +295,6 @@ export default function WorldExperience() {
       window.removeEventListener("touchend", onTouchEnd);
       tweenRef.current?.kill();
       settleRef.current?.kill();
-      lockRef.current = false;
     };
   }, []);
 
