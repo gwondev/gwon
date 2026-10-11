@@ -175,6 +175,10 @@
   min-height: 0;
 }
 
+.schedule__calendar.is-busy .schedule__bubbles {
+  opacity: 0.55;
+}
+
 .schedule__weekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));

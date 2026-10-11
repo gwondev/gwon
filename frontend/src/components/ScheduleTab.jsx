@@ -259,13 +259,13 @@ export default function ScheduleTab() {
   const [emojiHistory, setEmojiHistory] = useState(DEFAULT_EMOJI_HISTORY);
   const [themeColor, setThemeColor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [eventsBusy, setEventsBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [dayOpen, setDayOpen] = useState(null);
   const [form, setForm] = useState(blankForm);
   const [busy, setBusy] = useState(false);
-  const [monthDir, setMonthDir] = useState(0);
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedSeriesKeys, setSelectedSeriesKeys] = useState(() => new Set());
   // 이벤트가 갱신될 때마다 오른쪽 할 일 목록(달력 TODO)도 다시 불러오게 하는 신호
@@ -321,17 +321,22 @@ export default function ScheduleTab() {
   }, [token, localMode]);
 
   const loadEvents = useCallback(async () => {
-    if (localMode) {
-      setEvents(MOCK_EVENTS.map((e) => enrichEvent(e)));
+    setEventsBusy(true);
+    try {
+      if (localMode) {
+        setEvents(MOCK_EVENTS.map((e) => enrichEvent(e)));
+        setCalVersion((v) => v + 1);
+        return;
+      }
+      const data = await api(
+        `/calendar/events?ownerIds=${ownerId}&year=${viewYear}&month=${viewMonth}`,
+        { token }
+      );
+      setEvents((data.items || []).map((e) => enrichEvent(e)));
       setCalVersion((v) => v + 1);
-      return;
+    } finally {
+      setEventsBusy(false);
     }
-    const data = await api(
-      `/calendar/events?ownerIds=${ownerId}&year=${viewYear}&month=${viewMonth}`,
-      { token }
-    );
-    setEvents((data.items || []).map((e) => enrichEvent(e)));
-    setCalVersion((v) => v + 1);
   }, [token, localMode, ownerId, viewYear, viewMonth]);
 
   const loadKeywords = useCallback(async () => {
@@ -440,7 +445,6 @@ export default function ScheduleTab() {
   }, [ownerId, viewYear, viewMonth, loadEvents]);
 
   const shiftMonth = (delta) => {
-    setMonthDir(delta > 0 ? 1 : -1);
     let m = viewMonth + delta;
     let y = viewYear;
     if (m < 1) {
@@ -660,7 +664,6 @@ export default function ScheduleTab() {
   };
 
   const monthLabel = `${viewYear}년 ${viewMonth}월`;
-  const monthKey = `${viewYear}-${String(viewMonth).padStart(2, "0")}`;
   const todayKey = toDateKey(today);
 
   return (
@@ -679,17 +682,8 @@ export default function ScheduleTab() {
       </div>
 
       {err && <p className="schedule__err">{err}</p>}
-      {loading ? (
-        <div className="state">일정을 불러오는 중…</div>
-      ) : (
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={monthKey}
-            className="schedule__calendar"
-            initial={{ x: monthDir >= 0 ? 80 : -80, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: monthDir >= 0 ? -80 : 80, opacity: 0 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+      <div
+            className={`schedule__calendar${eventsBusy || loading ? " is-busy" : ""}`}
             onTouchStart={(e) => {
               const t = e.touches[0];
               touchStartRef.current = { x: t.clientX, y: t.clientY };
@@ -761,9 +755,7 @@ export default function ScheduleTab() {
                 );
               })}
             </div>
-          </motion.div>
-        </AnimatePresence>
-      )}
+      </div>
       </div>
 
       <ScheduleChecklist
