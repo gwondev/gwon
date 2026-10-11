@@ -412,6 +412,77 @@ export async function getKlines(symbol, interval = "240", limit = 48) {
   };
 }
 
+const CONTEXT_FRAMES = [
+  { tf: "15m", limit: 96, label: "15분봉(최근 24시간)" },
+  { tf: "1h", limit: 72, label: "1시간봉(최근 3일)" },
+  { tf: "4h", limit: 60, label: "4시간봉(최근 10일)" },
+  { tf: "1d", limit: 45, label: "일봉(최근 45일)" },
+];
+
+/** 좌우 span 개 봉보다 높/낮은 봉을 스윙 고점·저점으로 본다. */
+function findSwings(rows, span = 3) {
+  const highs = [];
+  const lows = [];
+  for (let i = span; i < rows.length - span; i++) {
+    const win = rows.slice(i - span, i + span + 1);
+    if (rows[i].high >= Math.max(...win.map((r) => r.high))) highs.push(rows[i]);
+    if (rows[i].low <= Math.min(...win.map((r) => r.low))) lows.push(rows[i]);
+  }
+  return { highs: highs.slice(-4), lows: lows.slice(-4) };
+}
+
+/**
+ * 비서용 멀티 타임프레임 차트 요약.
+ * 타임프레임마다 등락·범위·최근 스윙 고점/저점을 주고, 보고 있는 타임프레임만 최근 봉을 덧붙인다.
+ */
+export async function getChartContext(symbol, focusInterval = "240") {
+  const focusTf = TV_TO_BINANCE[focusInterval] || "4h";
+  const specs = CONTEXT_FRAMES.some((f) => f.tf === focusTf)
+    ? CONTEXT_FRAMES
+    : [{ tf: focusTf, limit: 60, label: `${focusTf}봉` }, ...CONTEXT_FRAMES];
+  const frames = await Promise.all(
+    specs.map(async (f) => {
+      try {
+        const raw = await publicFuturesRequest("/fapi/v1/klines", { symbol, interval: f.tf, limit: String(f.limit) });
+        const rows = (Array.isArray(raw) ? raw : []).map((k) => ({
+          time: kstWhen(k[0]),
+          open: Number(k[1]),
+          high: Number(k[2]),
+          low: Number(k[3]),
+          close: Number(k[4]),
+        }));
+        return { ...f, rows };
+      } catch {
+        return { ...f, rows: [] };
+      }
+    })
+  );
+
+  const lines = [];
+  for (const f of frames) {
+    if (!f.rows.length) continue;
+    const first = f.rows[0].open;
+    const last = f.rows[f.rows.length - 1].close;
+    const hi = Math.max(...f.rows.map((r) => r.high));
+    const lo = Math.min(...f.rows.map((r) => r.low));
+    const pct = first ? (((last - first) / first) * 100).toFixed(2) : "-";
+    const { highs, lows } = findSwings(f.rows);
+    lines.push(
+      `■ ${f.label}${f.tf === focusTf ? " ← 사용자가 보는 차트" : ""}`,
+      `  등락 ${pct}%  구간 고가 ${hi}  저가 ${lo}  마지막 종가 ${last}`,
+      `  스윙 고점: ${highs.map((r) => `${r.time} ${r.high}`).join(" / ") || "-"}`,
+      `  스윙 저점: ${lows.map((r) => `${r.time} ${r.low}`).join(" / ") || "-"}`
+    );
+    if (f.tf === focusTf) {
+      lines.push(
+        "  최근 봉:",
+        ...f.rows.slice(-12).map((r) => `   ${r.time} O${r.open} H${r.high} L${r.low} C${r.close}`)
+      );
+    }
+  }
+  return lines.length ? lines.join("\n") : "(차트 데이터를 가져오지 못했습니다)";
+}
+
 /**
  * 최신 체결부터 현재 포지션 수량을 채워 진입/추매를 나눈다.
  * 없는 체결을 만들지 않는다.

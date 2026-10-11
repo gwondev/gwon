@@ -12,7 +12,7 @@ import {
   summarizePositionFills,
   formatPositionDossier,
   formatCompactDossier,
-  getKlines,
+  getChartContext,
   publicFuturesRequest,
 } from "../lib/binance-api.js";
 import { getUsdKrwRate } from "../lib/fx-rate.js";
@@ -480,14 +480,9 @@ router.post("/position-advice", async (req, res, next) => {
     const chartSym = focusSymbol || ordered[0]?.symbol;
     if (chartSym) {
       try {
-        const k = await getKlines(chartSym, chartInterval, 48);
-        chartBrief = [
-          `${chartSym} ${k.interval} 최근 ${k.candles.length}봉`,
-          `구간 등락 ${k.changePct == null ? "-" : `${k.changePct}%`}  마지막 종가 ${k.last ?? "-"}`,
-          ...(k.candles || []),
-        ].join("\n");
+        chartBrief = `${chartSym}\n${await getChartContext(chartSym, chartInterval)}`;
       } catch (err) {
-        console.warn("[binance] klines skip:", err.message);
+        console.warn("[binance] chart context skip:", err.message);
       }
     }
 
@@ -510,11 +505,24 @@ router.post("/position-advice", async (req, res, next) => {
 반드시 한 가지 동작을 고른다: HOLD / ADD / REDUCE / CLOSE / REVERSE
 이유, 지금 차트가 그 동작을 지지하는지, 다음으로 볼 가격대를 짧게 말한다.
 없는 숫자와 없는 체결을 만들지 마라. 2~4문단으로 끝낸다.`
-      : `당신은 이 계정의 현재 포지션 비서다.
+      : `당신은 이 계정 주인의 옆자리에 앉은 노련한 트레이더 동료다. 주인은 반말·사투리·줄임말로 짧게 묻는다.
 답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
-사용자가 물은 질문에만 답한다. 체결 전체를 나열하지 마라. 전체 요약 양식을 쓰지 마라.
-[차트 봉]과 [현재 포지션 요약]을 보고, 방금 움직임이 어떤 신호인지, 지금 봉·추세가 포지션에 유리한지 구체적으로 말한다.
-없는 숫자를 만들지 마라. 1~4문단으로 질문에 답하고, 필요하면 마지막에 한 줄로 HOLD / ADD / REDUCE / CLOSE 만 덧붙인다.`;
+
+먼저 속으로 질문의 진짜 의도를 파악하라. 예:
+- "쌍탑 찍은거여?" → 쌍탑이 맞는지 아닌지 판정 + 근거가 되는 두 고점과 넥라인 + 그게 내 포지션에 무슨 뜻인지
+- "더 갈까?" → 지금 방향으로 더 갈 가능성과 근거, 막히는 가격
+- "물타기 해?" / "던질까?" → 해라/하지 마라 결론과 조건
+- "왜 빠져?" → 움직임의 원인으로 볼 수 있는 차트상 이유
+질문이 패턴·지지·저항·추세처럼 특정 개념을 물으면 그 개념에 대해서만 판정한다.
+
+답변 규칙:
+1. 첫 문장에서 질문에 바로 답한다. "네/아니요/아직 아니다/반쯤 맞다" 같은 결론부터. 서론, 데이터 낭독, 면책 문구 금지.
+2. 근거는 질문에 맞는 타임프레임을 골라 쓴다. [차트]에는 15분·1시간·4시간·일봉 요약과 스윙 고점/저점이 있다. 한 타임프레임만 고집하지 말고, 단기 질문이면 15분·1시간, 추세 질문이면 4시간·일봉을 쓴다. 타임프레임 이름을 매 문장 반복하지 마라.
+3. 가격은 근거로 필요한 핵심 2~4개만 인용한다. 봉 시가·고가·저가·종가를 줄줄이 나열하지 마라.
+4. 마지막에 이게 내 포지션(방향·평단·청산가)에 어떤 의미인지 한두 문장으로 연결한다.
+5. 체결 전체를 나열하지 마라. 전체 요약 양식을 쓰지 마라. 이전 대화와 같은 말을 반복하지 마라.
+6. 없는 숫자를 만들지 마라. 데이터로 판단이 안 되면 무엇이 확인되면 판단할 수 있는지 조건으로 말한다.
+7. 전체 2~3문단, 짧고 단호하게. 행동 추천을 묻지 않았으면 HOLD/ADD 같은 단어를 붙이지 마라.`;
 
     const analysis = await askGemini({
       system: `${systemPrompt}
@@ -526,7 +534,7 @@ ${criteria}
 ${focusSymbol ? `지금 보고 있는 심볼: ${focusSymbol}` : ""}
 ${dossiers.length ? dossiers.map((d) => (fullSummary ? d.full : d.compact)).join("\n\n") : "(없음)"}
 
-[차트 봉]
+[차트]
 ${chartBrief}
 
 [실현손익·펀딩·수수료]
@@ -540,8 +548,9 @@ ${fullSummary && dossiers.some((d) => d.income?.length)
 ${pickBrief || "(없음)"}`,
       history,
       message: userText,
-      maxOutputTokens: fullSummary ? 8192 : 2048,
+      maxOutputTokens: fullSummary ? 8192 : 4096,
       temperature: 0.35,
+      thinkingBudget: fullSummary ? 0 : 1024,
     });
     const plain = String(analysis || "")
       .replace(/\*\*([^*]+)\*\*/g, "$1")

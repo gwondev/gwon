@@ -186,6 +186,24 @@
   font-style: normal;
 }
 
+.b-mini__no {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.b-mini button.is-on .b-mini__no {
+  color: var(--accent);
+}
+
+.b-tvstage--wait {
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
 .b-asset .b-facts {
   margin-top: 0;
   flex: 1;

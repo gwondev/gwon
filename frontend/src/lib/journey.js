@@ -139,6 +139,24 @@ export function sceneToProgress(scene) {
   return Math.min(0.985, PROFILE_START + 0.045);
 }
 
+/** 프로젝트 장면(1..N)의 워프 시작/끝 진행도. 이 구간에서는 프로젝트 내용이 보이지 않는다. */
+export function warpStartOf(scene) {
+  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.14;
+}
+
+export function warpEndOf(scene) {
+  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.579;
+}
+
+/** 진행도가 속한 장면. 0 인트로, 1..N 프로젝트, -1 CONNECT/프로필 구간. */
+export function regionSceneAt(p) {
+  if (p >= CONNECT_START) return -1;
+  for (let s = PROJECT_COUNT; s >= 1; s--) {
+    if (p >= warpStartOf(s)) return s;
+  }
+  return 0;
+}
+
 export function projectIndexFromScene(scene) {
   if (scene >= 1 && scene <= PROJECT_COUNT) return scene - 1;
   return -1;
@@ -169,15 +187,10 @@ export function projectStage(t) {
   return { id: "leave", u: (t - 0.9) / 0.1 };
 }
 
+/** 첫 프레임부터 움직이고(선형 성분), 가운데서 가속했다가 도착하며 감속한다. */
 export function warpEase(u) {
   const x = Math.min(1, Math.max(0, u));
-  if (x < 0.22) return (x / 0.22) * (x / 0.22) * 0.12;
-  if (x < 0.55) {
-    const k = (x - 0.22) / 0.33;
-    return 0.12 + k * k * 0.7;
-  }
-  const k = (x - 0.55) / 0.45;
-  return 0.82 + (1 - (1 - k) * (1 - k)) * 0.18;
+  return 0.3 * x + 0.7 * (0.5 - 0.5 * Math.cos(Math.PI * x));
 }
 
 /** Slow → accelerate → peak → decelerate → settle. GSAP ease(t). */

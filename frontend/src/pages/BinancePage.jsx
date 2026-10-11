@@ -34,6 +34,20 @@ const DEFAULT_RULES = {
 
 const SUMMARY_CHIP = "전체 요약";
 const ACTION_CHIP = "동작 추천";
+const LAST_SYMBOL_KEY = "gwon.binance.lastSymbol";
+
+function readLastSymbol() {
+  try {
+    return localStorage.getItem(LAST_SYMBOL_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function positionSize(p) {
+  const notional = Math.abs(Number(p.notional) || 0);
+  return notional || Math.abs((Number(p.positionAmt) || 0) * (Number(p.markPrice) || 0));
+}
 
 function formatWhen(ms) {
   const n = Number(ms);
@@ -136,10 +150,14 @@ export default function BinancePage() {
   const { isAuthed, loading: authLoading, isSuperAdmin, token } = useAuth();
   const navigate = useNavigate();
   const chatLog = useRef(null);
-  const symbolRef = useRef("BTCUSDT");
+  const symbolRef = useRef("");
+  // 사용자가 직접 고른 심볼(추천 코인 등)은 포지션 목록에 없어도 유지한다.
+  const userPickedRef = useRef(false);
+  const loadedRef = useRef(false);
   const [asset, setAsset] = useState(null);
   const [positions, setPositions] = useState([]);
-  const [activeSymbol, setActiveSymbol] = useState("BTCUSDT");
+  const [positionsReady, setPositionsReady] = useState(false);
+  const [activeSymbol, setActiveSymbol] = useState(readLastSymbol);
   const [picks, setPicks] = useState(null);
   const [rules, setRules] = useState(DEFAULT_RULES);
   const [period, setPeriod] = useState("1w");
@@ -177,20 +195,33 @@ export default function BinancePage() {
     }
   }, [token]);
 
+  // 실패하면 직전 포지션을 그대로 두고 false 를 돌려준다(일시 오류로 BTC 로 튀지 않게).
   const loadPositions = useCallback(async () => {
-    if (!token) return;
+    if (!token) return false;
     try {
       const data = await api("/binance/positions", { token });
-      const list = Array.isArray(data.positions) ? data.positions : [data.manual, data.bot].filter(Boolean);
+      if (data.ok === false) return false;
+      const raw = Array.isArray(data.positions) ? data.positions : [data.manual, data.bot].filter(Boolean);
+      const list = [...raw].sort((a, b) => positionSize(b) - positionSize(a));
+      const firstLoad = !loadedRef.current;
+      loadedRef.current = true;
       setPositions(list);
+      setPositionsReady(true);
       setActiveSymbol((cur) => {
-        if (list.some((p) => p.symbol === cur)) return cur;
-        return list[0]?.symbol || "BTCUSDT";
+        if (firstLoad && !userPickedRef.current) return list[0]?.symbol || cur || "BTCUSDT";
+        if (cur && (userPickedRef.current || list.some((p) => p.symbol === cur))) return cur;
+        return list[0]?.symbol || cur || "BTCUSDT";
       });
+      return true;
     } catch {
-      setPositions([]);
+      return false;
     }
   }, [token]);
+
+  const pickSymbol = useCallback((symbol, { fromPosition = false } = {}) => {
+    userPickedRef.current = !fromPosition;
+    setActiveSymbol(symbol);
+  }, []);
 
   const loadBot = useCallback(async () => {
     if (!token) return;
@@ -272,7 +303,7 @@ export default function BinancePage() {
         body: {
           message,
           history,
-          symbol: activeSymbol,
+          symbol: activeSymbol || positions[0]?.symbol || "",
           interval: tvInterval,
           mode: summary ? "summary" : action ? "action" : "ask",
           picks: (picks?.picks || []).map((p) => ({
@@ -313,16 +344,29 @@ export default function BinancePage() {
 
   useEffect(() => {
     if (!token || !isSuperAdmin) return;
+    let cancelled = false;
     loadAsset();
-    loadPositions();
     loadBot();
     loadPicks(false);
+    (async () => {
+      for (let attempt = 0; attempt < 6 && !cancelled; attempt++) {
+        if (await loadPositions()) return;
+        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+      }
+      if (!cancelled) {
+        setPositionsReady(true);
+        setActiveSymbol((cur) => cur || "BTCUSDT");
+      }
+    })();
     const timer = setInterval(() => {
       loadAsset();
       loadPositions();
       if (symbolRef.current) loadStory(symbolRef.current);
     }, 30000);
-    return () => clearInterval(timer);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [token, isSuperAdmin, loadAsset, loadPositions, loadBot, loadPicks, loadStory]);
 
   useEffect(() => {
@@ -332,14 +376,20 @@ export default function BinancePage() {
 
   useEffect(() => {
     symbolRef.current = activeSymbol;
+    if (!activeSymbol) return;
+    try {
+      localStorage.setItem(LAST_SYMBOL_KEY, activeSymbol);
+    } catch {
+      /* ignore */
+    }
     if (!token || !isSuperAdmin) return;
     loadStory(activeSymbol);
   }, [token, isSuperAdmin, activeSymbol, loadStory]);
 
   if (authLoading || !isAuthed || !isSuperAdmin) return null;
 
-  const active = positions.find((p) => p.symbol === activeSymbol) || positions[0] || null;
-  const chartSymbol = active?.symbol || activeSymbol;
+  const chartSymbol = activeSymbol || positions[0]?.symbol || "";
+  const active = positions.find((p) => p.symbol === chartSymbol) || null;
   const fut = asset?.futures;
   const fills = story?.symbol === chartSymbol ? story.story : null;
   const chartLevels = [];
@@ -529,7 +579,7 @@ export default function BinancePage() {
                     <button
                       type="button"
                       className={row.symbol === chartSymbol ? "is-on" : ""}
-                      onClick={() => setActiveSymbol(row.symbol)}
+                      onClick={() => pickSymbol(row.symbol)}
                     >
                       <span className="b-pick__no">{String(i + 1).padStart(2, "0")}</span>
                       <span className="b-pick__main">
@@ -557,11 +607,18 @@ export default function BinancePage() {
               <p className="b-card__kicker">현재 포지션 요약</p>
               {positions.length ? (
                 <div className="b-mini">
-                  {positions.map((p) => {
+                  {positions.map((p, i) => {
                     const on = p.symbol === chartSymbol;
                     const up = Number(p.unRealizedProfit) >= 0;
                     return (
-                      <button key={`${p.symbol}-${p.side}`} type="button" className={on ? "is-on" : ""} onClick={() => setActiveSymbol(p.symbol)}>
+                      <button
+                        key={`${p.symbol}-${p.side}`}
+                        type="button"
+                        className={on ? "is-on" : ""}
+                        onClick={() => pickSymbol(p.symbol, { fromPosition: true })}
+                        title={`명목 ${formatNumber(positionSize(p), 2)} USDT`}
+                      >
+                        <span className="b-mini__no">포지션{i + 1}</span>
                         <b>{p.symbol.replace("USDT", "")}</b>
                         <em className={`b-side is-${String(p.side).toLowerCase()}`}>{p.side === "LONG" ? "롱" : "숏"}</em>
                         <span className={up ? "is-up" : "is-down"}>{formatPct(p.roe)}</span>
@@ -570,7 +627,7 @@ export default function BinancePage() {
                   })}
                 </div>
               ) : (
-                <p className="b-muted">열린 포지션 없음</p>
+                <p className="b-muted">{positionsReady ? "열린 포지션 없음" : "포지션 불러오는 중…"}</p>
               )}
             </div>
             {active ? (
@@ -620,7 +677,13 @@ export default function BinancePage() {
                 </div>
               )}
             </div>
-            <TradingViewChart symbol={chartSymbol} interval={tvInterval} levels={chartLevels} />
+            {chartSymbol ? (
+              <TradingViewChart symbol={chartSymbol} interval={tvInterval} levels={chartLevels} />
+            ) : (
+              <div className="b-tvstage b-tvstage--wait">
+                <p className="b-muted">포지션 불러오는 중…</p>
+              </div>
+            )}
           </div>
 
           <div className="b-chat">

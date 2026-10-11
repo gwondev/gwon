@@ -17,10 +17,13 @@ import {
   projectLocal,
   projectStage,
   profileTabFromScene,
+  regionSceneAt,
   sceneFromProfileTab,
   sceneFromProjectIndex,
   sceneToProgress,
   matchLive,
+  warpEndOf,
+  warpStartOf,
 } from "../../lib/journey.js";
 import { usePortfolioPreview } from "../../lib/usePortfolioPreview.js";
 import { mediaCoverImage, mediaCoverVideo } from "../../lib/media.js";
@@ -30,7 +33,9 @@ import "./WorldExperience.css";
 
 const NeuralCanvas = lazy(() => import("./neural/NeuralCanvas.jsx"));
 
-const WHEEL_THRESHOLD = 8;
+const WHEEL_THRESHOLD = 30;
+const WHEEL_REPEAT_THRESHOLD = 280;
+const WHEEL_GESTURE_IDLE_MS = 160;
 const WHEEL_STEP_GAP_MS = 72;
 const SWIPE_THRESHOLD = 56;
 const MEDIA_PLAY_DELAY = 420;
@@ -125,11 +130,60 @@ export default function WorldExperience() {
   const settleRef = useRef(null);
   const touchYRef = useRef(0);
   const goToRef = useRef(() => {});
+  const driveRef = useRef(() => {});
+  const wheelRef = useRef({ unit: 0, gestureSteps: 0 });
 
   useEffect(() => {
     worldState.progress = sceneToProgress(0);
     setWorldEffect(0);
   }, []);
+
+  // 인트로·프로젝트 구간 전용. 진행도만 보고 다음 한 걸음을 정한다.
+  // 앞으로: 즉시 다음 워프 시작점으로 점프(내용이 바로 사라짐) → 워프로 진입.
+  // 뒤로: 즉시 워프 끝점으로 점프(내용이 바로 사라짐) → 워프를 거꾸로 빠져나와 이전 장면에 안착.
+  driveRef.current = () => {
+    tweenRef.current?.kill();
+    settleRef.current?.kill();
+    const tgt = targetSceneRef.current;
+    const p = worldState.progress;
+    const k = regionSceneAt(p);
+    if (k < 0 || isProfileScene(tgt)) return;
+
+    const set = (v) => {
+      worldState.progress = v;
+      setProgress(v);
+    };
+    const run = (to, duration, then) => {
+      tweenRef.current = gsap.to(worldState, {
+        progress: to,
+        duration: worldState.reduced ? 0.2 : duration,
+        ease: "power2.out",
+        overwrite: true,
+        onUpdate: () => setProgress(worldState.progress),
+        onComplete: () => {
+          set(to);
+          then?.();
+        },
+      });
+    };
+    const rush = Math.abs(tgt - k) >= 2;
+
+    if (tgt > k) {
+      set(warpStartOf(k + 1));
+      run(sceneToProgress(k + 1), rush ? 0.42 : 0.95, () => driveRef.current());
+      return;
+    }
+    if (tgt < k) {
+      set(Math.min(p, warpEndOf(k)));
+      run(warpStartOf(k), rush ? 0.32 : 0.7, () => {
+        set(sceneToProgress(k - 1));
+        driveRef.current();
+      });
+      return;
+    }
+    const settle = sceneToProgress(k);
+    if (Math.abs(p - settle) > 0.0005) run(settle, 0.5);
+  };
 
   goToRef.current = (nextScene) => {
     const clamped = Math.max(0, Math.min(SCENE_MAX, nextScene));
@@ -151,6 +205,11 @@ export default function WorldExperience() {
     if (toProfile || fromProfile) setTab(profileTabFromScene(clamped) || "experience");
     accRef.current = 0;
     setWorldEffect(clamped);
+
+    if (!toProfile && regionSceneAt(worldState.progress) >= 0) {
+      driveRef.current();
+      return;
+    }
 
     if (fromProfile && toProfile && !inbound && alreadyThere) {
       tweenRef.current?.kill();
@@ -255,20 +314,37 @@ export default function WorldExperience() {
       }
 
       e.preventDefault();
-      if (Math.abs(dy) >= 40) {
-        if (gap < WHEEL_STEP_GAP_MS) return;
-        lastWheelRef.current = now;
+      const px = e.deltaMode === 1 ? dy * 40 : e.deltaMode === 2 ? dy * 800 : dy;
+      if (!px) return;
+      const dir = px > 0 ? 1 : -1;
+      const abs = Math.abs(px);
+      const w = wheelRef.current;
+      lastWheelRef.current = now;
+
+      // 마우스 휠 한 칸: 크고 매번 같은 크기(또는 빠르게 굴리면 그 배수로 합쳐져) 들어온다
+      // → 연타해도 한 칸 = 한 장면, 하나도 버리지 않는다.
+      const ratio = w.unit ? abs / w.unit : 0;
+      const multiple = ratio >= 0.98 && Math.abs(ratio - Math.round(ratio)) < 0.03;
+      const fresh = abs >= 50 && gap > WHEEL_GESTURE_IDLE_MS;
+      const notch = e.deltaMode === 1 || fresh || (abs >= 50 && multiple);
+      if (notch) {
+        if (fresh && e.deltaMode !== 1) w.unit = abs;
+        const count = e.deltaMode === 1 ? 1 : multiple ? Math.round(ratio) : 1;
         accRef.current = 0;
-        step(dy > 0 ? 1 : -1);
+        w.gestureSteps = 1;
+        for (let i = 0; i < Math.min(count, 4); i++) step(dir);
         return;
       }
 
-      accRef.current += dy;
-      if (Math.abs(accRef.current) < WHEEL_THRESHOLD) return;
-      if (gap < WHEEL_STEP_GAP_MS) return;
-      lastWheelRef.current = now;
-      const dir = accRef.current > 0 ? 1 : -1;
+      // 트랙패드·고해상도 휠: 작은 값이 관성으로 길게 이어진다 → 누적해서 넘기고,
+      // 한 제스처 안에서 두 번째부터는 훨씬 많이 밀어야 넘어가게 해 관성으로 여러 장 넘어가지 않게 한다.
+      if (gap > WHEEL_GESTURE_IDLE_MS) w.gestureSteps = 0;
+      if (Math.sign(accRef.current) !== dir) accRef.current = 0;
+      accRef.current += px;
+      const need = w.gestureSteps === 0 ? WHEEL_THRESHOLD : WHEEL_REPEAT_THRESHOLD;
+      if (Math.abs(accRef.current) < need) return;
       accRef.current = 0;
+      w.gestureSteps += 1;
       step(dir);
     };
 
