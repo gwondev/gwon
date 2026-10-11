@@ -1,5 +1,6 @@
 .schedule {
   --cal-accent: #ef4444;
+  --cal-slot-h: 1.02rem;
   display: flex;
   flex-direction: column;
   gap: 0.18rem;
@@ -169,7 +170,8 @@
   display: flex;
   flex-direction: column;
   flex: none;
-  height: min(82vh, calc(100dvh - 7.2rem));
+  height: auto;
+  max-height: min(82vh, calc(100dvh - 7.2rem));
   min-height: 0;
 }
 
@@ -200,15 +202,16 @@
 .schedule__grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-auto-rows: minmax(0, 1fr);
-  flex: 1;
+  grid-auto-rows: auto;
+  align-content: start;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
 .schedule__cell {
   --cell-pad-x: 0.28rem;
   min-height: 0;
-  height: 100%;
+  height: auto;
   /* 좌우 패딩 0: 버블이 칸 경계 끝까지 닿아야 옆 칸과 이어진다.
      안쪽 여백은 버블/날짜 요소의 margin 으로 따로 준다. */
   padding: 0.3rem 0 0.36rem;
@@ -343,7 +346,7 @@
   border: 1px solid color-mix(in srgb, var(--cal-accent) 52%, transparent);
   font-size: 0.7rem;
   line-height: 1;
-  height: 1.02rem;
+  height: var(--cal-slot-h);
   color: var(--text);
   overflow: hidden;
   flex: none;
@@ -485,8 +488,11 @@
   align-self: stretch;
   margin: 0 var(--cell-pad-x);
   box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  height: var(--cal-slot-h);
   text-align: center;
-  padding: 0.05rem 0.4rem;
+  padding: 0;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   font-size: 0.57rem;
@@ -494,6 +500,13 @@
   color: var(--text-dim);
   cursor: pointer;
   flex: none;
+}
+
+.schedule__slot-pad {
+  height: var(--cal-slot-h);
+  flex: none;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .schedule__overlay {
@@ -2037,10 +2050,14 @@
 }
 
 @media (max-width: 720px) {
+  .schedule {
+    --cal-slot-h: 0.98rem;
+  }
+
   .schedule__cell {
     /* 양옆 여백을 최대한 줄여 이모지+글자가 최소 3글자는 보이게 한다. */
     --cell-pad-x: 0.05rem;
-    min-height: 100px;
+    min-height: 0;
     padding: 0.22rem 0 0.26rem;
     gap: 0.1rem;
   }
@@ -2062,7 +2079,7 @@
 
   .schedule__bubble {
     font-size: 0.64rem;
-    height: 0.98rem;
+    height: var(--cal-slot-h);
     padding: 0 0.07rem;
     gap: 0.06rem;
   }
@@ -2122,13 +2139,17 @@
 }
 
 @media (max-width: 420px) {
+  .schedule {
+    --cal-slot-h: 0.88rem;
+  }
+
   .schedule__cell {
-    min-height: 88px;
+    min-height: 0;
   }
 
   .schedule__bubble {
     font-size: 0.58rem;
-    height: 0.88rem;
+    height: var(--cal-slot-h);
   }
 
   .schedule__month {
@@ -2159,7 +2180,7 @@
 
   .schedule__bubble {
     font-size: 0.7rem;
-    height: 0.92rem;
+    height: var(--cal-slot-h);
     padding: 0 0.32rem;
   }
 
@@ -2173,6 +2194,10 @@
    721px 이상(태블릿~데스크톱)에서 위 min-width:1024px 규칙보다 뒤에 와서
    덮어쓰도록 배치, 셀/버블 높이를 줄인다. */
 @media (min-width: 721px) {
+  .schedule {
+    --cal-slot-h: 0.92rem;
+  }
+
   .schedule__calendar-col {
     gap: 0.95rem;
   }
@@ -2194,7 +2219,7 @@
   }
 
   .schedule__bubble {
-    height: 0.92rem;
+    height: var(--cal-slot-h);
     font-size: 0.7rem;
     padding: 0 0.32rem;
   }

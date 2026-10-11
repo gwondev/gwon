@@ -169,6 +169,19 @@ function formatDateDot(dateKey) {
   return `${m}.${d}`;
 }
 
+const CAL_MAX_VISIBLE = 4;
+
+function weekSlotCount(maxEvents) {
+  return Math.min(Math.max(0, maxEvents), CAL_MAX_VISIBLE) + 1;
+}
+
+function SlotPads({ count }) {
+  if (count <= 0) return null;
+  return Array.from({ length: count }, (_, i) => (
+    <span key={`pad-${i}`} className="schedule__slot-pad" aria-hidden />
+  ));
+}
+
 function buildMonthGrid(year, month) {
   const first = new Date(year, month - 1, 1);
   const startOffset = first.getDay();
@@ -289,6 +302,20 @@ export default function ScheduleTab() {
     }
     return map;
   }, [displayEvents]);
+
+  const weekSlotCounts = useMemo(() => {
+    const counts = [];
+    for (let w = 0; w < grid.length; w += 7) {
+      let maxCount = 0;
+      for (let i = 0; i < 7; i++) {
+        const date = grid[w + i];
+        if (!date) continue;
+        maxCount = Math.max(maxCount, dedupeEventsBySeries(eventsByDate[toDateKey(date)] || []).length);
+      }
+      counts.push(weekSlotCount(maxCount));
+    }
+    return counts;
+  }, [grid, eventsByDate]);
 
   const seriesDateSet = useMemo(() => {
     const set = new Set();
@@ -706,8 +733,20 @@ export default function ScheduleTab() {
             </div>
             <div className="schedule__grid">
               {grid.map((date, idx) => {
+                const weekSlots = weekSlotCounts[Math.floor(idx / 7)] || 1;
                 if (!date) {
-                  return <div key={`empty-${idx}`} className="schedule__cell schedule__cell--empty" />;
+                  return (
+                    <div key={`empty-${idx}`} className="schedule__cell schedule__cell--empty">
+                      <div className="schedule__day-row" aria-hidden>
+                        <span className="schedule__day-num" style={{ visibility: "hidden" }}>
+                          0
+                        </span>
+                      </div>
+                      <div className="schedule__bubbles">
+                        <SlotPads count={weekSlots} />
+                      </div>
+                    </div>
+                  );
                 }
                 const key = toDateKey(date);
                 const dayEvents = eventsByDate[key] || [];
@@ -721,6 +760,7 @@ export default function ScheduleTab() {
                     key={key}
                     date={date}
                     events={dayEvents}
+                    weekSlots={weekSlots}
                     isToday={isToday}
                     isWeekend={isWeekend}
                     isSunday={isSunday}
@@ -847,6 +887,7 @@ function DayCell({
   date,
   dateKey,
   events,
+  weekSlots = 1,
   isToday,
   isWeekend,
   isSunday,
@@ -857,10 +898,11 @@ function DayCell({
   selectedSeriesKeys,
   onToggleSelect,
 }) {
-  const maxVisible = 4;
   const uniqueEvents = dedupeEventsBySeries(events);
-  const visible = uniqueEvents.slice(0, maxVisible);
-  const hiddenCount = Math.max(0, uniqueEvents.length - maxVisible);
+  const visible = uniqueEvents.slice(0, CAL_MAX_VISIBLE);
+  const hiddenCount = Math.max(0, uniqueEvents.length - CAL_MAX_VISIBLE);
+  const usedSlots = visible.length + (hiddenCount > 0 ? 1 : 0);
+  const padCount = Math.max(0, weekSlots - usedSlots);
   const { holidayNames, minorNames } = getDayInfo(dateKey);
   const isHolidayDay = holidayNames.length > 0;
   const holidayLabel = holidayNames.join(", ");
@@ -932,6 +974,7 @@ function DayCell({
             +{hiddenCount}
           </span>
         )}
+        <SlotPads count={padCount} />
       </div>
     </button>
   );
