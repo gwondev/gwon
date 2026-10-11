@@ -126,9 +126,14 @@ function lookFrom(planet, dist) {
   return [planet[0] * 0.15, planet[1] + 0.35, planet[2] + dist];
 }
 
+function introAmt(p) {
+  if (p >= INTRO_END) return 0;
+  return 1 - p / INTRO_END;
+}
+
 function Rig() {
   const last = useRef(0);
-  useFrame(({ camera }, delta) => {
+  useFrame(({ camera, clock }, delta) => {
     const p = worldState.progress;
     const tgt = cameraTarget(p);
     _cam.set(tgt.cam[0], tgt.cam[1], tgt.cam[2]);
@@ -138,6 +143,12 @@ function Rig() {
       const sway = 1 - Math.min(1, warp * 1.4);
       _cam.x += worldState.pointerX * 0.35 * sway;
       _cam.y += worldState.pointerY * 0.22 * sway;
+      const idle = introAmt(p);
+      if (idle > 0.05) {
+        const t = clock.elapsedTime;
+        _cam.x += Math.sin(t * 0.11) * 0.22 * idle;
+        _cam.y += Math.cos(t * 0.08) * 0.12 * idle;
+      }
     }
     const follow = warp > 0.35 ? 4.2 : 2.6;
     const k = 1 - Math.exp(-delta * follow);
@@ -232,9 +243,11 @@ function NeuralField({ count }) {
     if (!meshObj) return;
     const quiet = Math.min(1, Math.max(0, worldState.quiet || (worldState.progress >= PROFILE_START ? 0.85 : 0)));
     const live = 1 - quiet;
-    const breath = worldState.reduced || quiet > 0.6 ? 1 : 1 + Math.sin(clock.elapsedTime * 0.35) * 0.012 * live;
-    const warp = (worldState.warp || 0) * live;
     const p = worldState.progress;
+    const intro = introAmt(p);
+    const breathAmp = worldState.reduced || quiet > 0.6 ? 0 : (0.012 + intro * 0.028) * live;
+    const breath = 1 + Math.sin(clock.elapsedTime * (0.35 + intro * 0.12)) * breathAmp;
+    const warp = (worldState.warp || 0) * live;
     const idx = projectIndexAt(p);
     const active = idx >= 0 ? PLANET_POS[idx] : null;
     const hover = worldState.hoverIndex;
@@ -243,12 +256,20 @@ function NeuralField({ count }) {
     const effect = worldState.effect || "none";
     const t = clock.elapsedTime;
     const connect = p >= CONNECT_START;
+    const eventGate = Math.sin(t * 0.21) * Math.sin(t * 0.093 + 1.4);
+    const event = eventGate > 0.62 ? (eventGate - 0.62) / 0.38 : 0;
 
     for (let i = 0; i < count; i++) {
       const o = i * 3;
-      const baseX = net.pos[o] * breath;
-      const baseY = net.pos[o + 1] * breath;
-      const baseZ = net.pos[o + 2] * breath;
+      let baseX = net.pos[o] * breath;
+      let baseY = net.pos[o + 1] * breath;
+      let baseZ = net.pos[o + 2] * breath;
+      if (intro > 0.04 && !worldState.reduced) {
+        baseY += Math.sin(t * 0.48 + baseX * 0.32 + baseZ * 0.11) * 0.11 * intro;
+        baseX += Math.cos(t * 0.31 + baseZ * 0.18) * 0.06 * intro;
+        const travel = Math.sin(t * 0.38 - baseZ * 0.16 + i * 0.01);
+        baseY += event * Math.max(0, travel) * 0.16 * intro;
+      }
       const efx = applyEffect(i, t, baseX, baseY, baseZ, connect ? null : effectPlanet, connect ? "network" : effect, warp, live);
       dummy.position.set(efx.x, efx.y, efx.z);
       let s = efx.s;
@@ -258,6 +279,11 @@ function NeuralField({ count }) {
         const dz = dummy.position.z - highlight[2];
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (d < 3.2) s += (1 - d / 3.2) * 1.4 * live;
+      }
+      if (intro > 0.04 && !worldState.reduced) {
+        const spark = Math.pow(Math.max(0, Math.sin(t * 0.27 + i * 0.37)), 16);
+        s += spark * 1.8 * intro;
+        s += event * Math.max(0, Math.sin(t * 0.38 - dummy.position.z * 0.16)) * 0.9 * intro;
       }
       dummy.scale.set(s, s, s * efx.streak);
       dummy.updateMatrix();
@@ -275,7 +301,8 @@ function NeuralField({ count }) {
     if (meshObj.instanceColor) meshObj.instanceColor.needsUpdate = true;
     if (lines.current) {
       const pulse = quiet > 0.85 ? 0 : 0.5 + 0.5 * Math.sin(clock.elapsedTime * 0.45 * Math.max(0.15, live));
-      lines.current.material.opacity = 0.05 + 0.08 * pulse * live + warp * 0.16 + (worldState.velocity || 0) * 0.08;
+      const introPulse = intro * (0.05 + 0.08 * pulse + event * 0.1);
+      lines.current.material.opacity = 0.05 + 0.08 * pulse * live + warp * 0.16 + (worldState.velocity || 0) * 0.08 + introPulse;
     }
   });
 
@@ -340,15 +367,78 @@ function Planets() {
   );
 }
 
+function StarField({ count }) {
+  const points = useRef();
+  const colorAttr = useRef();
+  const { pos, phase, mix } = useMemo(() => {
+    const pos = new Float32Array(count * 3);
+    const phase = new Float32Array(count);
+    const mix = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      const far = i % 5 === 0;
+      pos[i * 3] = (Math.random() - 0.5) * (far ? 56 : 36);
+      pos[i * 3 + 1] = (Math.random() - 0.5) * (far ? 32 : 20);
+      pos[i * 3 + 2] = -6 - Math.random() * (far ? 88 : 52);
+      phase[i] = Math.random() * Math.PI * 2;
+      mix[i] = Math.random();
+    }
+    return { pos, phase, mix };
+  }, [count]);
+  const colors = useMemo(() => new Float32Array(count * 3), [count]);
+
+  useFrame(({ clock }) => {
+    const attr = colorAttr.current;
+    if (!attr) return;
+    const t = clock.elapsedTime;
+    const intro = Math.max(0.22, introAmt(worldState.progress));
+    const hush = worldState.reduced ? 0.35 : 1;
+    const eventGate = Math.sin(t * 0.19) * Math.sin(t * 0.077 + 0.8);
+    const event = eventGate > 0.68 ? (eventGate - 0.68) / 0.32 : 0;
+    for (let i = 0; i < count; i++) {
+      const a = Math.sin(t * (0.33 + (i % 7) * 0.05) + phase[i]);
+      const b = Math.sin(t * 0.16 + phase[i] * 1.9);
+      const product = a * b;
+      const flash = product > 0.86 ? Math.pow((product - 0.86) / 0.14, 1.6) : 0;
+      const glow = 0.14 + 0.1 * (a * 0.5 + 0.5);
+      const travel = Math.max(0, Math.sin(t * 0.34 - pos[i * 3 + 2] * 0.12 + phase[i]));
+      const bright = (glow + flash * 0.95 + event * travel * 0.55) * intro * hush;
+      tint.lerpColors(goldC, cyanC, mix[i] * 0.35);
+      colors[i * 3] = tint.r * bright;
+      colors[i * 3 + 1] = tint.g * bright;
+      colors[i * 3 + 2] = tint.b * bright;
+    }
+    attr.needsUpdate = true;
+  });
+
+  return (
+    <points ref={points} frustumCulled={false}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[pos, 3]} />
+        <bufferAttribute ref={colorAttr} attach="attributes-color" args={[colors, 3]} />
+      </bufferGeometry>
+      <pointsMaterial
+        size={worldState.mobile ? 0.055 : 0.07}
+        vertexColors
+        transparent
+        opacity={0.95}
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+        sizeAttenuation
+      />
+    </points>
+  );
+}
+
 function Scene({ count }) {
   return (
     <>
       <AdaptiveDpr />
       <color attach="background" args={["#050506"]} />
-      <fog attach="fog" args={["#050506", 8, 42]} />
+      <fog attach="fog" args={["#050506", 10, 48]} />
       <ambientLight intensity={0.32} />
       <pointLight position={[4, 6, 8]} intensity={8} color={GOLD} />
       <Rig />
+      <StarField count={worldState.mobile ? 140 : 260} />
       <NeuralField count={count} />
       <Planets />
     </>
