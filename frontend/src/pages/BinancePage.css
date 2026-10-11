@@ -64,13 +64,14 @@
   height: auto;
   max-height: 100%;
   display: grid;
-  grid-template-columns: minmax(300px, 0.36fr) minmax(0, 0.64fr);
+  grid-template-columns: minmax(380px, 0.36fr) minmax(0, 0.64fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 0.28rem;
   overflow: hidden;
 }
 
 .b-left {
+  container: bleft / inline-size;
   display: flex;
   flex-direction: column;
   gap: 0.28rem;
@@ -171,6 +172,7 @@
 }
 
 .b-asset__hero {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -282,6 +284,7 @@
 }
 
 .b-facts div {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.16rem 0.32rem;
@@ -294,6 +297,10 @@
 }
 
 .b-facts strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
 }
@@ -394,19 +401,19 @@
 }
 
 .b-seg--spread {
-  flex-wrap: nowrap;
   width: 100%;
 }
 
 .b-seg--spread button {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 0 auto;
   padding-left: 0.2rem;
   padding-right: 0.2rem;
   text-align: center;
 }
 
 .b-seg button {
+  white-space: nowrap;
+  word-break: keep-all;
   border: 1px solid var(--line);
   background: transparent;
   color: var(--text-dim);
@@ -966,6 +973,10 @@
   color: var(--text-faint);
 }
 
+.b-rep > * {
+  flex: none;
+}
+
 .b-rep__kpis {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1222,30 +1233,140 @@
   background: #f87171;
 }
 
-@media (max-width: 1280px) {
-  .b-rep__kpis {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  .b-rep {
-    overflow: visible;
-  }
-
-  .b-rep__kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
+@media (max-width: 1100px) {
   .b-rep__grid {
     grid-template-columns: 1fr;
   }
 }
 
-@media (min-width: 901px) and (max-width: 1280px) {
-  .b-split {
+@media (max-width: 1000px) {
+  .b-rep__kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .b-rep__kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .b-rep__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .b-rep__kpi {
+    padding: 0.5rem 0.6rem;
+  }
+
+  .b-rep__kpi strong {
+    font-size: 0.95rem;
+  }
+
+  .b-rep__card {
+    padding: 0.6rem 0.6rem 0.7rem;
+  }
+}
+
+/* 왼쪽 칼럼이 좁아질 때: 자산 요약은 위아래로, 추천 기준과 목록도 위아래로 */
+@container bleft (max-width: 470px) {
+  .b-asset__row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+  }
+
+  .b-asset .b-facts {
+    flex: none;
+  }
+
+  .b-desk__body {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .b-rules {
+    overflow: visible;
+  }
+
+  .b-desk .b-picks__list {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 0.25rem;
+  }
+}
+
+/* 1280px 이하: 고정 높이 2단을 풀고 페이지 전체를 위아래로 스크롤 */
+@media (max-width: 1280px) {
+  .page.binance-page {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .b-rep {
+    flex: none;
+    overflow: visible;
+  }
+
+  .b-shell {
+    flex: none;
+    height: auto;
+    max-height: none;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    overflow: visible;
+  }
+
+  .b-left,
+  .b-trade {
+    height: auto;
+    overflow: visible;
+  }
+
+  .b-desk {
+    flex: none;
+  }
+
+  .b-desk__body {
+    grid-template-rows: none;
+  }
+
+  .b-rules {
+    overflow: visible;
+  }
+
+  .b-desk .b-picks__list {
+    max-height: 340px;
+  }
+
+  .b-split {
+    flex: none;
+    height: clamp(420px, 64vh, 640px);
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+  }
+}
+
+/* 820px 이하: 차트와 AI 비서를 위아래로 */
+@media (max-width: 820px) {
+  .b-split {
+    height: auto;
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .b-tvwrap,
+  .b-chat {
+    flex: none;
+  }
+
+  .b-tvstage {
+    flex: none;
+    height: clamp(280px, 70vw, 440px);
+    contain: layout;
   }
 
   .b-chat {
@@ -1254,40 +1375,19 @@
     padding-left: 0;
     padding-top: 0.32rem;
   }
+
+  .b-chat__log {
+    flex: none;
+    max-height: 360px;
+    min-height: 120px;
+  }
+
+  .b-pos__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
-@media (max-width: 900px) {
-  .b-shell {
-    height: auto;
-    grid-template-columns: 1fr;
-    grid-template-rows: none;
-  }
-
-  .b-left,
-  .b-trade {
-    height: auto;
-  }
-
-  .b-pnl,
-  .b-desk,
-  .b-tvwrap,
-  .b-chat {
-    flex: none;
-    min-height: 0;
-  }
-
-  .b-stats,
-  .b-facts,
-  .b-facts--3,
-  .b-pos__grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .b-asset__row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
+@media (max-width: 560px) {
   .b-desk__body {
     grid-template-columns: 1fr;
   }
@@ -1296,38 +1396,17 @@
     border-left: 0;
     padding-left: 0;
     border-top: 1px solid var(--line);
-    padding-top: 0.2rem;
+    padding-top: 0.25rem;
   }
 
-  .b-rules__row {
-    grid-template-columns: 1fr;
+  .b-pos__grid,
+  .b-stats {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .b-split {
-    flex: none;
-    grid-template-columns: 1fr;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .b-chat {
-    border-left: 0;
-    border-top: 1px solid var(--line);
-    padding-left: 0;
-    padding-top: 0.32rem;
-    min-height: 280px;
-  }
-
-  .page.binance-page,
-  .b-shell {
-    height: auto;
-    max-height: none;
-  }
-
-  .b-tvstage {
-    flex: none;
-    height: clamp(280px, 70vw, 440px);
-    contain: layout;
+  .b-asset__row {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .b-buckets {

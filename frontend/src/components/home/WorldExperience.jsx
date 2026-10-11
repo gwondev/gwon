@@ -17,13 +17,13 @@ import {
   projectLocal,
   projectStage,
   profileTabFromScene,
-  arriveStartOf,
+  leaveHiddenOf,
   regionSceneAt,
+  reversedCinematicEase,
   sceneFromProfileTab,
   sceneFromProjectIndex,
   sceneToProgress,
   matchLive,
-  warpEndOf,
   warpStartOf,
 } from "../../lib/journey.js";
 import { usePortfolioPreview } from "../../lib/usePortfolioPreview.js";
@@ -40,6 +40,7 @@ const WHEEL_GESTURE_IDLE_MS = 160;
 const WHEEL_STEP_GAP_MS = 72;
 const SWIPE_THRESHOLD = 56;
 const MEDIA_PLAY_DELAY = 420;
+const WARP_SECONDS = 0.95;
 
 function detectEnv() {
   worldState.mobile = window.innerWidth < 768;
@@ -139,9 +140,10 @@ export default function WorldExperience() {
     setWorldEffect(0);
   }, []);
 
-  // 인트로·프로젝트 구간 전용. 진행도만 보고 다음 한 걸음을 정한다.
-  // 앞으로: 즉시 다음 워프 시작점으로 점프(내용이 바로 사라짐) → 워프로 진입.
-  // 뒤로: 즉시 워프 끝점으로 점프(내용이 바로 사라짐) → 워프를 거꾸로 빠져나와 이전 장면에 안착.
+  // 인트로·프로젝트 구간 전용. 몇 칸을 건너가든 워프는 한 번만 한다.
+  // 앞으로: 즉시 목표의 워프 시작점으로 점프(내용이 바로 사라짐) → 워프로 진입.
+  // 뒤로: 앞으로 가는 것을 그대로 역재생(워프를 거꾸로 빠져나옴) → 끝에서 목표 장면으로 점프.
+  // warpFrom 은 워프가 출발하는 장면이라, 여러 칸을 건너도 카메라가 현재 위치에서 곧장 날아간다.
   driveRef.current = () => {
     tweenRef.current?.kill();
     settleRef.current?.kill();
@@ -154,11 +156,11 @@ export default function WorldExperience() {
       worldState.progress = v;
       setProgress(v);
     };
-    const run = (to, duration, then) => {
+    const run = (to, duration, ease, then) => {
       tweenRef.current = gsap.to(worldState, {
         progress: to,
         duration: worldState.reduced ? 0.2 : duration,
-        ease: "power2.out",
+        ease,
         overwrite: true,
         onUpdate: () => setProgress(worldState.progress),
         onComplete: () => {
@@ -167,35 +169,30 @@ export default function WorldExperience() {
         },
       });
     };
-    const rush = Math.abs(tgt - k) >= 2;
-    const rev = worldState.reverse;
-    if (!(tgt < k && rev?.from === k)) worldState.reverse = null;
 
     if (tgt > k) {
-      set(warpStartOf(k + 1));
-      run(sceneToProgress(k + 1), rush ? 0.42 : 0.95, () => driveRef.current());
+      worldState.warpFrom = k;
+      set(warpStartOf(tgt));
+      run(sceneToProgress(tgt), WARP_SECONDS, "power2.out", () => {
+        worldState.warpFrom = null;
+        driveRef.current();
+      });
       return;
     }
     if (tgt < k) {
-      // 내용은 즉시 숨기고(워프 끝점), 카메라는 역방향 전용 경로로 빠져나온 뒤 이전 장면에 도착한다.
-      set(Math.min(p, warpEndOf(k)));
-      const back = rev?.from === k ? rev : { from: k, u: 0 };
-      worldState.reverse = back;
-      const full = rush ? 0.42 : 0.82;
-      tweenRef.current = gsap.to(back, {
-        u: 1,
-        duration: worldState.reduced ? 0.2 : Math.max(0.12, full * (1 - back.u)),
-        ease: "none",
-        onComplete: () => {
-          worldState.reverse = null;
-          set(k - 1 >= 1 ? arriveStartOf(k - 1) : sceneToProgress(0));
-          driveRef.current();
-        },
+      worldState.warpFrom = tgt;
+      const start = warpStartOf(k);
+      const span = sceneToProgress(k) - start;
+      const left = Math.min(1, Math.max(0, (p - start) / span));
+      run(start, Math.max(0.12, WARP_SECONDS * left), "power2.in", () => {
+        set(sceneToProgress(tgt));
+        worldState.warpFrom = null;
+        driveRef.current();
       });
       return;
     }
     const settle = sceneToProgress(k);
-    if (Math.abs(p - settle) > 0.0005) run(settle, 0.55);
+    if (Math.abs(p - settle) > 0.0005) run(settle, 0.55, "power2.out");
   };
 
   goToRef.current = (nextScene) => {
@@ -219,11 +216,12 @@ export default function WorldExperience() {
     accRef.current = 0;
     setWorldEffect(clamped);
 
-    if (!toProfile && regionSceneAt(worldState.progress) >= 0) {
+    const region = regionSceneAt(worldState.progress);
+    if (!toProfile && region >= 0) {
       driveRef.current();
       return;
     }
-    worldState.reverse = null;
+    worldState.warpFrom = null;
 
     if (fromProfile && toProfile && !inbound && alreadyThere) {
       tweenRef.current?.kill();
@@ -233,23 +231,34 @@ export default function WorldExperience() {
       return;
     }
 
+    tweenRef.current?.kill();
+    settleRef.current?.kill();
+
+    // 앞쪽 프로젝트에서 프로필로 곧장: 마지막 프로젝트가 퇴장하는 지점(내용이 이미 안 보이는 곳)으로 점프해 한 번에 넘어간다.
+    if (toProfile && region >= 0 && region < PROJECT_COUNT) {
+      worldState.progress = leaveHiddenOf(PROJECT_COUNT);
+      setProgress(worldState.progress);
+    }
+    // 프로필에서 앞쪽 프로젝트로 곧장: 위의 역순. 그 지점까지 역재생한 뒤 목표 장면으로 점프한다.
+    const farBack = !toProfile && region < 0 && clamped < PROJECT_COUNT;
+    const tweenTo = farBack ? leaveHiddenOf(PROJECT_COUNT) : target;
+
     const fromProgress = worldState.progress;
-    const dist = Math.abs(target - fromProgress);
+    const backward = tweenTo < fromProgress;
+    const dist = Math.abs(tweenTo - fromProgress);
     const duration = worldState.reduced
       ? 0.2
       : mid
         ? Math.max(0.28, Math.min(0.78, 0.24 + dist * 1.45))
         : Math.max(0.38, Math.min(1.28, 0.36 + dist * 2.55));
 
-    tweenRef.current?.kill();
-    settleRef.current?.kill();
     tweenRef.current = gsap.fromTo(
       worldState,
       { progress: fromProgress },
       {
-        progress: target,
+        progress: tweenTo,
         duration,
-        ease: mid ? "power2.out" : cinematicEase,
+        ease: mid ? "power2.out" : backward ? reversedCinematicEase : cinematicEase,
         overwrite: true,
         onUpdate: () => {
           setProgress(worldState.progress);
@@ -259,7 +268,7 @@ export default function WorldExperience() {
           const liveTarget = sceneToProgress(live);
           worldState.progress = liveTarget;
           setProgress(liveTarget);
-          if (Math.abs(liveTarget - target) > 0.002) {
+          if (!farBack && Math.abs(liveTarget - target) > 0.002) {
             goToRef.current(live);
           }
         },
@@ -403,7 +412,7 @@ export default function WorldExperience() {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchend", onTouchEnd);
-      worldState.reverse = null;
+      worldState.warpFrom = null;
       tweenRef.current?.kill();
       settleRef.current?.kill();
     };

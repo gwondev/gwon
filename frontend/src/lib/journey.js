@@ -144,12 +144,9 @@ export function warpStartOf(scene) {
   return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.14;
 }
 
-export function warpEndOf(scene) {
-  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.579;
-}
-
-export function arriveStartOf(scene) {
-  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.58;
+/** 프로젝트 퇴장 구간 중 내용이 이미 안 보이는 지점 */
+export function leaveHiddenOf(scene) {
+  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.96;
 }
 
 /** 진행도가 속한 장면. 0 인트로, 1..N 프로젝트, -1 CONNECT/프로필 구간. */
@@ -200,6 +197,11 @@ export function warpEase(u) {
 /** Slow → accelerate → peak → decelerate → settle. GSAP ease(t). */
 export function cinematicEase(t) {
   return waterEase(t);
+}
+
+/** cinematicEase 를 시간축으로 뒤집은 것. 뒤로 갈 때 앞으로 가는 움직임을 그대로 역재생한다. */
+export function reversedCinematicEase(t) {
+  return 1 - waterEase(1 - t);
 }
 
 /** 처음 0.1초부터 움직이고, 중간은 물처럼 이어진다. */
