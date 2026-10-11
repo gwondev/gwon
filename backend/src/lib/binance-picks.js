@@ -297,7 +297,14 @@ export async function getTopPicks({ force = false } = {}) {
     return cache.payload;
   }
 
-  const metrics = await loadMetrics();
+  let metrics;
+  try {
+    metrics = await loadMetrics();
+  } catch (err) {
+    console.warn("[binance-picks] 시세 실패:", err.message);
+    if (cache.payload) return { ...cache.payload, stale: true };
+    return { criteria, computedAt: new Date().toISOString(), source: "cache", picks: [] };
+  }
   let picks = [];
   let source = "rules";
   let error = null;

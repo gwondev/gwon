@@ -2,6 +2,14 @@ import crypto from "crypto";
 
 const SPOT_BASE = "https://api.binance.com";
 const FUTURES_BASE = "https://fapi.binance.com";
+const PUBLIC_HEADERS = {
+  Accept: "application/json",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+};
+
+const publicCache = new Map();
+const PUBLIC_CACHE_MS = 90 * 1000;
 
 export function getBinanceCredentials() {
   const apiKey = (process.env.BINANCE_API_KEY || "").trim();
@@ -23,7 +31,7 @@ let lastSyncTime = 0;
 async function syncTimeOffset(baseUrl) {
   try {
     const timePath = baseUrl.includes("fapi") ? "/fapi/v1/time" : "/api/v3/time";
-    const res = await fetch(`${baseUrl}${timePath}`);
+    const res = await fetch(`${baseUrl}${timePath}`, { headers: PUBLIC_HEADERS });
     if (res.ok) {
       const data = await res.json();
       if (data && data.serverTime) {
@@ -68,6 +76,7 @@ export async function signedRequest(baseUrl, path, method = "GET", params = {}, 
   const res = await fetch(url, {
     method,
     headers: {
+      ...PUBLIC_HEADERS,
       "X-MBX-APIKEY": apiKey,
       "Content-Type": "application/json",
     },
@@ -90,17 +99,58 @@ export async function signedRequest(baseUrl, path, method = "GET", params = {}, 
   return data;
 }
 
+function cacheKey(baseUrl, path, params) {
+  const q = new URLSearchParams(params || {}).toString();
+  return `${baseUrl}${path}${q ? `?${q}` : ""}`;
+}
+
+function readPublicCache(key, maxAge = PUBLIC_CACHE_MS) {
+  const hit = publicCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > maxAge) return null;
+  return hit.data;
+}
+
+async function fetchPublicJson(url) {
+  const res = await fetch(url, { headers: PUBLIC_HEADERS });
+  if (!res.ok) {
+    const err = new Error(`public ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
 /**
- * 공개 바이낸스 선물 API 호출
+ * 공개 시세. 418/차단이면 서명 호출 → 직전 성공값 순으로 넘어간다.
+ * 화면에 418을 올리지 않는다.
  */
 export async function publicFuturesRequest(path, params = {}) {
+  const key = cacheKey(FUTURES_BASE, path, params);
   const searchParams = new URLSearchParams(params);
   const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
-  const res = await fetch(`${FUTURES_BASE}${path}${query}`);
-  if (!res.ok) {
-    throw new Error(`바이낸스 공개 API 오류: ${res.status}`);
+  const fresh = readPublicCache(key, 20 * 1000);
+  if (fresh) return fresh;
+
+  try {
+    const data = await fetchPublicJson(`${FUTURES_BASE}${path}${query}`);
+    publicCache.set(key, { at: Date.now(), data });
+    return data;
+  } catch (err) {
+    console.warn("[binance] public", path, err.message);
   }
-  return await res.json();
+
+  try {
+    const data = await signedRequest(FUTURES_BASE, path, "GET", params);
+    publicCache.set(key, { at: Date.now(), data });
+    return data;
+  } catch (err) {
+    console.warn("[binance] signed public fallback", path, err.message);
+  }
+
+  const stale = publicCache.get(key)?.data;
+  if (stale) return stale;
+  throw new Error("시세를 잠시 가져오지 못했습니다.");
 }
 
 /**
@@ -159,11 +209,31 @@ export async function getFuturesBalances() {
 
 const USD_PEGGED = new Set(["USDT", "USDC", "FDUSD", "BUSD", "TUSD", "USDP", "DAI"]);
 
-/** 현물 잔고를 공개 시세로 USDT 환산 (지갑별 잔고 API 실패 시 폴백용) */
+async function loadSpotPrices() {
+  const key = cacheKey(SPOT_BASE, "/api/v3/ticker/price", {});
+  const fresh = readPublicCache(key, 20 * 1000);
+  if (fresh) return fresh;
+  try {
+    const data = await fetchPublicJson(`${SPOT_BASE}/api/v3/ticker/price`);
+    publicCache.set(key, { at: Date.now(), data });
+    return data;
+  } catch (err) {
+    console.warn("[binance] spot ticker public", err.message);
+  }
+  try {
+    const data = await signedRequest(SPOT_BASE, "/api/v3/ticker/price", "GET", {});
+    publicCache.set(key, { at: Date.now(), data });
+    return data;
+  } catch (err) {
+    console.warn("[binance] spot ticker signed", err.message);
+  }
+  return publicCache.get(key)?.data || [];
+}
+
+/** 현물 잔고를 시세로 USDT 환산. 시세가 막혀도 스테이블만으로 합친다. */
 async function valueSpotInUsdt(balances) {
-  const res = await fetch(`${SPOT_BASE}/api/v3/ticker/price`);
-  if (!res.ok) throw new Error(`바이낸스 공개 API 오류: ${res.status}`);
-  const prices = new Map((await res.json()).map((t) => [t.symbol, Number(t.price) || 0]));
+  const list = await loadSpotPrices();
+  const prices = new Map((Array.isArray(list) ? list : []).map((t) => [t.symbol, Number(t.price) || 0]));
   let total = 0;
   for (const b of balances) {
     const asset = b.asset.startsWith("LD") ? b.asset.slice(2) : b.asset;
@@ -172,6 +242,8 @@ async function valueSpotInUsdt(balances) {
   }
   return total;
 }
+
+let lastTotalAsset = null;
 
 /**
  * 계정 전체(현물·선물·펀딩·Earn 등 모든 지갑) 총자산을 USDT 기준으로 조회.
@@ -182,15 +254,23 @@ export async function getTotalAssetUsdt() {
     const rows = await signedRequest(SPOT_BASE, "/sapi/v1/asset/wallet/balance", "GET", { quoteAsset: "USDT" });
     if (Array.isArray(rows)) {
       const totalUsdt = rows.reduce((s, w) => s + (Number(w.balance) || 0), 0);
-      return { totalUsdt, source: "wallet-balance" };
+      lastTotalAsset = { totalUsdt, source: "wallet-balance" };
+      return lastTotalAsset;
     }
   } catch (err) {
     console.warn("[binance] wallet balance API 실패, 현물+선물 환산으로 폴백:", err.message);
   }
 
-  const [spot, futures] = await Promise.all([getSpotBalances(), getFuturesBalances()]);
-  const spotUsdt = await valueSpotInUsdt(spot.balances);
-  return { totalUsdt: spotUsdt + futures.totalMarginBalance, source: "spot+futures" };
+  try {
+    const [spot, futures] = await Promise.all([getSpotBalances(), getFuturesBalances()]);
+    const spotUsdt = await valueSpotInUsdt(spot.balances);
+    lastTotalAsset = { totalUsdt: spotUsdt + futures.totalMarginBalance, source: "spot+futures" };
+    return lastTotalAsset;
+  } catch (err) {
+    console.warn("[binance] 총자산 폴백 실패:", err.message);
+    if (lastTotalAsset) return lastTotalAsset;
+    throw err;
+  }
 }
 
 /**

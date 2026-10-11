@@ -174,9 +174,11 @@ export default function BinancePage() {
       if (data.ok) {
         setAsset(data);
         setError("");
-      } else setError(data.error || "총자산을 불러오지 못했습니다.");
+      } else if (!/418|공개 API/i.test(data.error || "")) {
+        setError(data.error || "총자산을 불러오지 못했습니다.");
+      }
     } catch (err) {
-      setError(err.message);
+      if (!/418|공개 API/i.test(err.message || "")) setError(err.message);
     }
   }, [token]);
 
@@ -211,10 +213,13 @@ export default function BinancePage() {
     try {
       const data = await api(`/binance/picks${refresh ? "?refresh=1" : ""}`, { token });
       setPicks(data);
-      if (!data.ok) setPickError(data.error || "추천 실패");
-      else if (data.error) setPickError("규칙 점수로 추천합니다.");
+      if (!data.ok) {
+        if (!/418|공개 API/i.test(data.error || "")) setPickError(data.error || "추천 실패");
+      } else if (data.error && !/418|공개 API/i.test(data.error)) {
+        setPickError("규칙 점수로 추천합니다.");
+      }
     } catch (err) {
-      setPickError(err.message);
+      if (!/418|공개 API/i.test(err.message || "")) setPickError(err.message);
     }
   }, [token]);
 
@@ -367,10 +372,10 @@ export default function BinancePage() {
       <div className="b-shell">
         <div className="b-left">
           <section className="b-card b-asset">
-            <p className="b-card__kicker">총자산</p>
             {asset ? (
               <div className="b-asset__row">
                 <div className="b-asset__hero">
+                  <p className="b-card__kicker">총자산</p>
                   <strong>
                     {formatNumber(asset.totalUsdt, 2)}
                     <small>USDT</small>
