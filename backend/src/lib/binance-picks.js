@@ -119,7 +119,10 @@ function formatRules(rules) {
     `레버리지 가정 ${leverage}X`,
     rules.allowLong !== false ? "롱 포함" : "롱 제외",
     rules.allowShort !== false ? "숏 포함" : "숏 제외",
-  ].join("\n");
+    String(rules.note || "").trim() ? `주관적 개입: ${String(rules.note).trim()}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function parseStructuredRules(raw) {
@@ -251,6 +254,7 @@ async function geminiRank(criteria, metrics) {
   const decision = await askGeminiJson({
     system: `당신은 바이낸스 USDT 무기한 선물 롱/숏을 평가한다.
 아래 [사용자 기준]을 최우선으로 각 심볼에 0~100점과 방향(LONG/SHORT)을 매긴다.
+주관적 개입이 있으면 슬라이더·기간보다 그걸 먼저 따른다.
 입력 목록에 있는 심볼만 쓰고, 상위 ${TOP_N}개만 반환한다.
 JSON만 출력한다.
 

@@ -29,6 +29,7 @@ const DEFAULT_RULES = {
   leverage: 1,
   allowLong: true,
   allowShort: true,
+  note: "",
 };
 
 const SUMMARY_CHIP = "전체 요약";
@@ -68,6 +69,7 @@ function parseRules(raw) {
         horizon,
         safety: Number(parsed.safety ?? parsed.shortSafety) || DEFAULT_RULES.safety,
         leverage: Number(parsed.leverage) || 1,
+        note: String(parsed.note || ""),
       };
     }
   } catch {
@@ -468,6 +470,7 @@ export default function BinancePage() {
                 </button>
               </div>
             </div>
+            <div className="b-desk__body">
             <div className="b-rules">
               <div className="b-rules__row">
                 <span className="b-rules__lab">기간</span>
@@ -508,6 +511,15 @@ export default function BinancePage() {
                 <span className="b-rules__lab">규모 {rules.minSize}</span>
                 <input type="range" min="20" max="95" value={rules.minSize} onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))} />
               </div>
+              <label className="b-rules__note">
+                <span className="b-rules__lab">주관</span>
+                <textarea
+                  value={rules.note || ""}
+                  onChange={(e) => setRules((r) => ({ ...r, note: e.target.value }))}
+                  placeholder="내 주관적 개입. 예: 알트 빼고 BTC·ETH 위주, 숏 선호"
+                  rows={3}
+                />
+              </label>
               {pickError && <p className="b-err">{pickError}</p>}
             </div>
             <ol className="b-picks__list">
@@ -523,6 +535,7 @@ export default function BinancePage() {
               ))}
               {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
             </ol>
+            </div>
           </section>
         </div>
 
