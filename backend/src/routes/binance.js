@@ -8,6 +8,8 @@ import {
   getFuturesPositions,
   getMarkPrice,
   getTotalAssetUsdt,
+  getUserTrades,
+  summarizePositionFills,
   publicFuturesRequest,
 } from "../lib/binance-api.js";
 import { getUsdKrwRate } from "../lib/fx-rate.js";
@@ -192,6 +194,35 @@ router.get("/positions", async (_req, res, next) => {
       : null;
 
     res.json({ ok: true, positions: live, manual, bot });
+  } catch (err) {
+    next(err);
+  }
+});
+
+async function loadPositionStory(symbol) {
+  const pair = String(symbol || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+  if (!pair) return { ok: false, error: "심볼이 필요합니다.", story: null };
+  const live = await getFuturesPositions();
+  const position = live.find((p) => p.symbol === pair) || null;
+  if (!position) {
+    return { ok: true, symbol: pair, position: null, story: { entry: null, addons: [], lastAdd: null, fillCount: 0, covered: false } };
+  }
+  const trades = await getUserTrades(pair, { limit: 200 });
+  const story = summarizePositionFills(trades, position);
+  return { ok: true, symbol: pair, position, story };
+}
+
+/**
+ * 현재 포지션의 진입/추매 체결 (차트·비서 공통)
+ */
+router.get("/position-story", async (req, res, next) => {
+  try {
+    const creds = getBinanceCredentials();
+    if (!creds.hasCredentials) {
+      return res.json({ ok: false, error: "바이낸스 API 키가 없습니다.", story: null });
+    }
+    const data = await loadPositionStory(req.query.symbol);
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -388,11 +419,29 @@ router.post("/position-advice", async (req, res, next) => {
       }
     }
 
-    const systemPrompt = `당신은 바이낸스 USDT 무기한 선물의 시니어 트레이더다.
+    const stories = [];
+    for (const p of positions.slice(0, 4)) {
+      try {
+        const trades = await getUserTrades(p.symbol, { limit: 200 });
+        stories.push({ symbol: p.symbol, side: p.side, ...summarizePositionFills(trades, p) });
+      } catch (err) {
+        console.warn("[binance] position fills skip:", p.symbol, err.message);
+        stories.push({ symbol: p.symbol, side: p.side, entry: null, addons: [], lastAdd: null, fillCount: 0 });
+      }
+    }
+
+    const systemPrompt = `당신은 이 계정의 현재 포지션 비서다. 챗봇처럼 한두 줄로 끝내지 마라.
 답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
 시가총액이 큰 메이저·대형 코인을 우선한다. 소형 알트는 사용자가 묻지 않으면 꺼내지 마라.
-문장은 짧고 단정하게. 액션은 HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나만 고른다.
-없는 포지션을 만들지 마라.`;
+없는 숫자·없는 체결·없는 포지션을 만들지 마라.
+
+반드시 이 순서로 구체적으로 쓴다.
+1) 지금 어떤 포지션을 얼마에, 몇 배로 들고 있는지
+2) 처음 진입 가격과 시점. 추매가 있으면 어디서 언제 추가했는지. 없으면 추매 없다고 말해라
+3) 현재가 대비 추세와 손익 상태
+4) 지금부터 할 일. HOLD / ADD / REDUCE / CLOSE / REVERSE 중 하나를 결정하고, 왜 그런지 설명한다
+5) 추매·익절·손절을 한다면 어디 부근인지. 모르는 값은 추정하지 말고 범위를 조건으로만 말한다
+문장은 단정하되 짧지 않게. 4~8문단으로 조언한다.`;
 
     const analysis = await askGemini({
       system: `${systemPrompt}
@@ -403,12 +452,15 @@ ${criteria}
 [현재 선물 포지션]
 ${positions.length ? JSON.stringify(positions, null, 2) : "(없음)"}
 
+[진입·추매 체결]
+${stories.length ? JSON.stringify(stories, null, 2) : "(체결 이력 없음)"}
+
 [현재 추천 상위(참고)]
 ${pickBrief || "(없음)"}`,
       history,
       message: userText,
-      maxOutputTokens: 480,
-      temperature: 0.25,
+      maxOutputTokens: 2048,
+      temperature: 0.4,
     });
     const plain = String(analysis || "")
       .replace(/\*\*([^*]+)\*\*/g, "$1")

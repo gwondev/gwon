@@ -222,9 +222,58 @@ export async function getFuturesPositions() {
         marginType: p.marginType,
         notional,
         roe: Number(roe.toFixed(2)),
+        updateTime: Number(p.updateTime) || 0,
       };
     })
     .filter((p) => Math.abs(p.positionAmt) > 0);
+}
+
+/** 심볼 체결 이력 (현재 포지션의 진입/추매 재구성용) */
+export async function getUserTrades(symbol, { limit = 200, startTime } = {}) {
+  const params = { symbol, limit: String(Math.min(limit, 1000)) };
+  if (startTime) params.startTime = String(startTime);
+  return signedRequest(FUTURES_BASE, "/fapi/v1/userTrades", "GET", params);
+}
+
+/**
+ * 최신 체결부터 현재 포지션 수량을 채워 진입/추매를 나눈다.
+ * 없는 체결을 만들지 않는다.
+ */
+export function summarizePositionFills(trades, position) {
+  const side = position?.side;
+  const target = Math.abs(Number(position?.positionAmt) || 0);
+  if (!side || !target) {
+    return { entry: null, addons: [], lastAdd: null, fillCount: 0, covered: false };
+  }
+  const wantBuy = side === "LONG";
+  const newestFirst = [...(trades || [])].sort((a, b) => Number(b.time) - Number(a.time));
+  const fills = [];
+  let remaining = target;
+  for (const t of newestFirst) {
+    const isBuy = String(t.side).toUpperCase() === "BUY";
+    if (wantBuy !== isBuy) continue;
+    const qty = Number(t.qty) || 0;
+    if (qty <= 0) continue;
+    const take = Math.min(qty, remaining);
+    fills.push({
+      price: Number(t.price) || 0,
+      qty: take,
+      time: Number(t.time) || 0,
+      quoteQty: Number(t.quoteQty) || 0,
+    });
+    remaining -= take;
+    if (remaining <= 1e-8) break;
+  }
+  fills.reverse();
+  const entry = fills[0] || null;
+  const addons = fills.slice(1);
+  return {
+    entry,
+    addons,
+    lastAdd: addons[addons.length - 1] || null,
+    fillCount: fills.length,
+    covered: remaining <= 1e-8,
+  };
 }
 
 /**

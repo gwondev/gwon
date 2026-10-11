@@ -31,7 +31,18 @@ const DEFAULT_RULES = {
   allowShort: true,
 };
 
-const CHAT_CHIPS = ["지금 홀드?", "익절·손절 라인", "방향 바꿀까?"];
+const CHAT_CHIPS = ["지금 어떻게 할까", "추매해도 되나", "익절·손절 어디", "추세 설명해줘"];
+
+function formatWhen(ms) {
+  const n = Number(ms);
+  if (!n) return "";
+  return new Date(n).toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function formatNumber(v, digits) {
   const n = Number(v);
@@ -130,6 +141,7 @@ export default function BinancePage() {
   const { isAuthed, loading: authLoading, isSuperAdmin, token } = useAuth();
   const navigate = useNavigate();
   const chatLog = useRef(null);
+  const symbolRef = useRef("BTCUSDT");
   const [asset, setAsset] = useState(null);
   const [positions, setPositions] = useState([]);
   const [activeSymbol, setActiveSymbol] = useState("BTCUSDT");
@@ -138,12 +150,16 @@ export default function BinancePage() {
   const [period, setPeriod] = useState("1w");
   const [chart, setChart] = useState(null);
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "포지션과 대형 코인 기준으로 짧게 제안합니다." },
+    {
+      role: "assistant",
+      text: "현재 포지션 비서입니다. 어디 진입했고 어디에 추매했는지, 지금 추세가 어떤지, 홀드·추매·익절·청산 중 무엇을 할지 구체적으로 적어 드립니다.",
+    },
   ]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [pickError, setPickError] = useState("");
+  const [story, setStory] = useState(null);
 
   useEffect(() => {
     if (!authLoading && (!isAuthed || !isSuperAdmin)) navigate("/", { replace: true });
@@ -212,6 +228,19 @@ export default function BinancePage() {
     }
   }, [token]);
 
+  const loadStory = useCallback(async (symbol) => {
+    if (!token || !symbol) {
+      setStory(null);
+      return;
+    }
+    try {
+      const data = await api(`/binance/position-story?symbol=${encodeURIComponent(symbol)}`, { token });
+      setStory(data.ok ? data : null);
+    } catch {
+      setStory(null);
+    }
+  }, [token]);
+
   const saveRules = async () => {
     setBusy("save");
     setPickError("");
@@ -273,49 +302,234 @@ export default function BinancePage() {
     const timer = setInterval(() => {
       loadAsset();
       loadPositions();
+      if (symbolRef.current) loadStory(symbolRef.current);
     }, 30000);
     return () => clearInterval(timer);
-  }, [token, isSuperAdmin, loadAsset, loadPositions, loadBot, loadPicks]);
+  }, [token, isSuperAdmin, loadAsset, loadPositions, loadBot, loadPicks, loadStory]);
 
   useEffect(() => {
     if (!token || !isSuperAdmin) return;
     loadChart(period);
   }, [token, isSuperAdmin, period, loadChart]);
 
+  useEffect(() => {
+    symbolRef.current = activeSymbol;
+    if (!token || !isSuperAdmin) return;
+    loadStory(activeSymbol);
+  }, [token, isSuperAdmin, activeSymbol, loadStory]);
+
   if (authLoading || !isAuthed || !isSuperAdmin) return null;
 
   const active = positions.find((p) => p.symbol === activeSymbol) || positions[0] || null;
   const chartSymbol = active?.symbol || activeSymbol;
   const fut = asset?.futures;
+  const fills = story?.symbol === chartSymbol ? story.story : null;
+  const chartLevels = [];
+  if (active) {
+    chartLevels.push({
+      id: "mark",
+      kind: "mark",
+      label: "현재",
+      price: Number(active.markPrice),
+      priceText: formatNumber(active.markPrice, 4),
+    });
+    chartLevels.push({
+      id: "entry",
+      kind: "entry",
+      label: "평단",
+      price: Number(active.entryPrice),
+      priceText: formatNumber(active.entryPrice, 4),
+      timeText: fills?.entry?.time ? formatWhen(fills.entry.time) : "",
+    });
+    if (fills?.lastAdd) {
+      chartLevels.push({
+        id: "add",
+        kind: "add",
+        label: "추매",
+        price: Number(fills.lastAdd.price),
+        priceText: formatNumber(fills.lastAdd.price, 4),
+        timeText: formatWhen(fills.lastAdd.time),
+      });
+    }
+    if (Number(active.liquidationPrice) > 0) {
+      chartLevels.push({
+        id: "liq",
+        kind: "liq",
+        label: "청산",
+        price: Number(active.liquidationPrice),
+        priceText: formatNumber(active.liquidationPrice, 4),
+      });
+    }
+  }
 
   return (
     <main className="page binance-page">
       <div className="b-shell">
-        <section className="b-card b-asset">
-          <p className="b-card__kicker">총자산</p>
-          {asset ? (
-            <>
-              <div className="b-asset__hero">
-                <strong>
-                  {formatNumber(asset.totalUsdt, 2)}
+        <div className="b-left">
+          <section className="b-card b-asset">
+            <p className="b-card__kicker">총자산</p>
+            {asset ? (
+              <div className="b-asset__row">
+                <div className="b-asset__hero">
+                  <strong>
+                    {formatNumber(asset.totalUsdt, 2)}
+                    <small>USDT</small>
+                  </strong>
+                  {asset.totalKrw != null && <span>≈ {formatNumber(asset.totalKrw, 0)}원</span>}
+                </div>
+                <div className="b-facts b-facts--3">
+                  <div>
+                    <span>지갑</span>
+                    <strong>{formatNumber(fut?.wallet, 2)}</strong>
+                  </div>
+                  <div>
+                    <span>가용</span>
+                    <strong>{formatNumber(fut?.available, 2)}</strong>
+                  </div>
+                  <div>
+                    <span>미실현</span>
+                    <strong className={(fut?.unrealized || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(fut?.unrealized, 2)}</strong>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              !error && <p className="b-muted">불러오는 중…</p>
+            )}
+            {error && <p className="b-err">{error}</p>}
+          </section>
+
+          <section className="b-card b-pnl">
+            <div className="b-chart__head">
+              <div>
+                <p className="b-card__kicker">수익금</p>
+                <strong className={`b-total ${(chart?.total || 0) >= 0 ? "is-up" : "is-down"}`}>
+                  {(chart?.total || 0) >= 0 ? "+" : ""}
+                  {formatNumber(chart?.total || 0, 2)}
                   <small>USDT</small>
                 </strong>
-                {asset.totalKrw != null && <span>≈ {formatNumber(asset.totalKrw, 0)}원</span>}
               </div>
-              <div className="b-facts b-facts--3">
-                <div>
-                  <span>지갑</span>
-                  <strong>{formatNumber(fut?.wallet, 2)}</strong>
-                </div>
-                <div>
-                  <span>가용</span>
-                  <strong>{formatNumber(fut?.available, 2)}</strong>
-                </div>
-                <div>
-                  <span>미실현</span>
-                  <strong className={(fut?.unrealized || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(fut?.unrealized, 2)}</strong>
+              <div className="b-seg">
+                {PERIODS.map((p) => (
+                  <button key={p.id} type="button" className={period === p.id ? "is-on" : ""} onClick={() => setPeriod(p.id)}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="b-stats">
+              <div>
+                <span>실현</span>
+                <strong className={(chart?.realized || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.realized || 0, 2)}</strong>
+              </div>
+              <div>
+                <span>펀딩</span>
+                <strong className={(chart?.funding || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.funding || 0, 2)}</strong>
+              </div>
+              <div>
+                <span>수수료</span>
+                <strong className={(chart?.commission || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.commission || 0, 2)}</strong>
+              </div>
+              <div>
+                <span>건수</span>
+                <strong>{chart?.trades || 0}</strong>
+              </div>
+            </div>
+            <div className="b-pnl__body">
+              <PnlChart points={chart?.points} total={chart?.total || 0} />
+              {!!chart?.buckets?.length && (
+                <ul className="b-buckets">
+                  {chart.buckets.map((b, i) => (
+                    <li key={i}>
+                      <span>{formatBucket(b.from)}</span>
+                      <strong className={b.pnl >= 0 ? "is-up" : "is-down"}>
+                        {b.pnl >= 0 ? "+" : ""}
+                        {formatNumber(b.pnl, 1)}
+                      </strong>
+                      <em className={b.returnPct >= 0 ? "is-up" : "is-down"}>
+                        {b.returnPct > 0 ? "+" : ""}
+                        {Number(b.returnPct).toFixed(1)}%
+                      </em>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          <section className="b-card b-desk">
+            <div className="b-card__head">
+              <p className="b-card__kicker">추천 기준 · 10</p>
+              <div className="b-desk__acts">
+                <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveRules}>
+                  {busy === "save" ? "저장…" : "저장·추천"}
+                </button>
+                <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
+                  새로고침
+                </button>
+              </div>
+            </div>
+            <div className="b-rules">
+              <div className="b-rules__row">
+                <span className="b-rules__lab">기간</span>
+                <div className="b-seg b-seg--spread">
+                  {HORIZONS.map((h) => (
+                    <button key={h.id} type="button" className={rules.horizon === h.id ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, horizon: h.id }))}>
+                      {h.label}
+                    </button>
+                  ))}
                 </div>
               </div>
+              <div className="b-rules__row">
+                <span className="b-rules__lab">레버</span>
+                <div className="b-seg b-seg--spread">
+                  {LEVERS.map((n) => (
+                    <button key={n} type="button" className={Number(rules.leverage) === n ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, leverage: n }))}>
+                      {n}X
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="b-rules__row">
+                <span className="b-rules__lab">방향</span>
+                <div className="b-seg b-seg--spread">
+                  <button type="button" className={rules.allowLong ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowLong: !r.allowLong }))}>
+                    롱
+                  </button>
+                  <button type="button" className={rules.allowShort ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowShort: !r.allowShort }))}>
+                    숏
+                  </button>
+                </div>
+              </div>
+              <div className="b-rules__row">
+                <span className="b-rules__lab">안전 {rules.safety}</span>
+                <input type="range" min="40" max="100" value={rules.safety} onChange={(e) => setRules((r) => ({ ...r, safety: Number(e.target.value) }))} />
+              </div>
+              <div className="b-rules__row">
+                <span className="b-rules__lab">규모 {rules.minSize}</span>
+                <input type="range" min="20" max="95" value={rules.minSize} onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))} />
+              </div>
+              {pickError && <p className="b-err">{pickError}</p>}
+            </div>
+            <ol className="b-picks__list">
+              {(picks?.picks || []).map((row, i) => (
+                <li key={`${row.symbol}-${row.side}-${i}`}>
+                  <button type="button" onClick={() => setActiveSymbol(row.symbol)}>
+                    <span className="b-rank">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="b-sym">{row.symbol.replace("USDT", "")}</span>
+                    <em className={`b-side is-${String(row.side).toLowerCase()}`}>{row.side === "LONG" ? "롱" : "숏"}</em>
+                    <span className="b-mcap">{row.marketCapFormatted || "-"}</span>
+                  </button>
+                </li>
+              ))}
+              {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
+            </ol>
+          </section>
+        </div>
+
+        <section className="b-card b-trade">
+          <div className="b-pos">
+            <div className="b-pos__head">
+              <p className="b-card__kicker">현재 포지션 요약</p>
               {positions.length ? (
                 <div className="b-mini">
                   {positions.map((p) => {
@@ -333,158 +547,71 @@ export default function BinancePage() {
               ) : (
                 <p className="b-muted">열린 포지션 없음</p>
               )}
-            </>
-          ) : (
-            !error && <p className="b-muted">불러오는 중…</p>
-          )}
-          {error && <p className="b-err">{error}</p>}
-        </section>
-
-        <section className="b-card b-pnl">
-          <div className="b-chart__head">
-            <div>
-              <p className="b-card__kicker">수익률</p>
-              <strong className={`b-total ${(chart?.total || 0) >= 0 ? "is-up" : "is-down"}`}>
-                {(chart?.total || 0) >= 0 ? "+" : ""}
-                {formatNumber(chart?.total || 0, 2)}
-                <small>USDT</small>
-              </strong>
             </div>
-            <div className="b-seg">
-              {PERIODS.map((p) => (
-                <button key={p.id} type="button" className={period === p.id ? "is-on" : ""} onClick={() => setPeriod(p.id)}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="b-stats">
-            <div>
-              <span>실현</span>
-              <strong className={(chart?.realized || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.realized || 0, 2)}</strong>
-            </div>
-            <div>
-              <span>펀딩</span>
-              <strong className={(chart?.funding || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.funding || 0, 2)}</strong>
-            </div>
-            <div>
-              <span>수수료</span>
-              <strong className={(chart?.commission || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(chart?.commission || 0, 2)}</strong>
-            </div>
-            <div>
-              <span>건수</span>
-              <strong>{chart?.trades || 0}</strong>
-            </div>
-          </div>
-          <div className="b-pnl__body">
-            <PnlChart points={chart?.points} total={chart?.total || 0} />
-            {!!chart?.buckets?.length && (
-              <ul className="b-buckets">
-                {chart.buckets.map((b, i) => (
-                  <li key={i}>
-                    <span>{formatBucket(b.from)}</span>
-                    <strong className={b.returnPct >= 0 ? "is-up" : "is-down"}>
-                      {b.returnPct > 0 ? "+" : ""}
-                      {Number(b.returnPct).toFixed(1)}%
-                    </strong>
-                    <em className={b.pnl >= 0 ? "is-up" : "is-down"}>
-                      {b.pnl >= 0 ? "+" : ""}
-                      {formatNumber(b.pnl, 1)}
-                    </em>
-                  </li>
-                ))}
-              </ul>
+            {active ? (
+              <div className="b-pos__grid">
+                <div>
+                  <span>방향</span>
+                  <strong className={`b-side is-${String(active.side).toLowerCase()}`}>
+                    {active.side === "LONG" ? "롱" : "숏"} {active.leverage}X
+                  </strong>
+                </div>
+                <div>
+                  <span>평단</span>
+                  <strong>{formatNumber(active.entryPrice, 4)}</strong>
+                </div>
+                <div>
+                  <span>현재가</span>
+                  <strong>{formatNumber(active.markPrice, 4)}</strong>
+                </div>
+                <div>
+                  <span>미실현</span>
+                  <strong className={Number(active.unRealizedProfit) >= 0 ? "is-up" : "is-down"}>{formatNumber(active.unRealizedProfit, 2)}</strong>
+                </div>
+                <div>
+                  <span>진입</span>
+                  <strong>{fills?.entry?.time ? formatWhen(fills.entry.time) : "-"}</strong>
+                </div>
+                <div>
+                  <span>추매 위치</span>
+                  <strong>{fills?.lastAdd ? formatNumber(fills.lastAdd.price, 4) : "없음"}</strong>
+                </div>
+                <div>
+                  <span>추매 시점</span>
+                  <strong>{fills?.lastAdd?.time ? formatWhen(fills.lastAdd.time) : "-"}</strong>
+                </div>
+                <div>
+                  <span>청산까지</span>
+                  <strong>{liqDistance(active) != null ? `${liqDistance(active).toFixed(1)}%` : "-"}</strong>
+                </div>
+              </div>
+            ) : (
+              <p className="b-muted">선택된 포지션이 없습니다.</p>
             )}
           </div>
-        </section>
 
-        <section className="b-card b-desk">
-          <div className="b-card__head">
-            <p className="b-card__kicker">추천 기준 · 10</p>
-            <div className="b-desk__acts">
-              <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveRules}>
-                {busy === "save" ? "저장…" : "저장·추천"}
-              </button>
-              <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
-                새로고침
-              </button>
+          <div className="b-tvwrap">
+            <div className="b-tvwrap__head">
+              <p className="b-card__kicker">{chartSymbol.replace("USDT", "")} 차트</p>
+              {active && (
+                <div className="b-avg">
+                  <span>현재</span>
+                  <strong>{formatNumber(active.markPrice, 4)}</strong>
+                  <span>평단 {formatNumber(active.entryPrice, 4)}</span>
+                  {fills?.lastAdd && (
+                    <span>
+                      추매 {formatNumber(fills.lastAdd.price, 4)} · {formatWhen(fills.lastAdd.time)}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
+            <TradingViewChart symbol={chartSymbol} interval={tvInterval} levels={chartLevels} />
           </div>
-          <div className="b-rules">
-            <div className="b-rules__row">
-              <span className="b-rules__lab">기간</span>
-              <div className="b-seg">
-                {HORIZONS.map((h) => (
-                  <button key={h.id} type="button" className={rules.horizon === h.id ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, horizon: h.id }))}>
-                    {h.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="b-rules__row">
-              <span className="b-rules__lab">레버</span>
-              <div className="b-seg">
-                {LEVERS.map((n) => (
-                  <button key={n} type="button" className={Number(rules.leverage) === n ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, leverage: n }))}>
-                    {n}X
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="b-rules__row">
-              <span className="b-rules__lab">방향</span>
-              <div className="b-seg">
-                <button type="button" className={rules.allowLong ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowLong: !r.allowLong }))}>
-                  롱
-                </button>
-                <button type="button" className={rules.allowShort ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowShort: !r.allowShort }))}>
-                  숏
-                </button>
-              </div>
-            </div>
-            <div className="b-rules__row">
-              <span className="b-rules__lab">안전 {rules.safety}</span>
-              <input type="range" min="40" max="100" value={rules.safety} onChange={(e) => setRules((r) => ({ ...r, safety: Number(e.target.value) }))} />
-            </div>
-            <div className="b-rules__row">
-              <span className="b-rules__lab">규모 {rules.minSize}</span>
-              <input type="range" min="20" max="95" value={rules.minSize} onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))} />
-            </div>
-            {pickError && <p className="b-err">{pickError}</p>}
-          </div>
-          <ol className="b-picks__list">
-            {(picks?.picks || []).map((row, i) => (
-              <li key={`${row.symbol}-${row.side}-${i}`}>
-                <button type="button" onClick={() => setActiveSymbol(row.symbol)}>
-                  <span className="b-rank">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="b-sym">{row.symbol.replace("USDT", "")}</span>
-                  <em className={`b-side is-${String(row.side).toLowerCase()}`}>{row.side === "LONG" ? "롱" : "숏"}</em>
-                  <span className="b-mcap">{row.marketCapFormatted || "-"}</span>
-                </button>
-              </li>
-            ))}
-            {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
-          </ol>
-        </section>
 
-        <section className="b-card b-trade">
-          <div className="b-tvwrap__head">
-            <p className="b-card__kicker">{chartSymbol.replace("USDT", "")} 차트</p>
-            {active && (
-              <div className="b-avg">
-                <span>평단</span>
-                <strong>{formatNumber(active.entryPrice, 4)}</strong>
-                <span>마크 {formatNumber(active.markPrice, 4)}</span>
-                <em className={`b-side is-${String(active.side).toLowerCase()}`}>
-                  {active.side === "LONG" ? "롱" : "숏"} {active.leverage}X
-                </em>
-              </div>
-            )}
-          </div>
-          <TradingViewChart symbol={chartSymbol} interval={tvInterval} />
           <div className="b-chat">
             <div className="b-chat__bar">
-              <p className="b-card__kicker">AI 매매추천</p>
+              <p className="b-card__kicker">AI 포지션 비서</p>
               <div className="b-seg b-chat__chips">
                 {CHAT_CHIPS.map((c) => (
                   <button key={c} type="button" onClick={() => sendChat(c)} disabled={busy === "ai"}>
@@ -499,7 +626,7 @@ export default function BinancePage() {
                   {m.text}
                 </div>
               ))}
-              {busy === "ai" && <div className="b-chat__bubble is-assistant">분석 중…</div>}
+              {busy === "ai" && <div className="b-chat__bubble is-assistant">포지션을 읽고 있습니다…</div>}
             </div>
             <form
               className="b-chat__form"
@@ -508,7 +635,7 @@ export default function BinancePage() {
                 sendChat();
               }}
             >
-              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="포지션에 대해 물어보기" />
+              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="지금 포지션, 추매, 추세를 물어보세요" />
               <button type="submit" className="b-btn" disabled={busy === "ai"}>
                 전송
               </button>
