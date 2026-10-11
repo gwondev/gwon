@@ -104,7 +104,8 @@ router.get("/total-asset", async (_req, res, next) => {
 
     const [assetResult, fxResult] = await Promise.allSettled([getTotalAssetUsdt(), getUsdKrwRate()]);
     if (assetResult.status === "rejected") {
-      return res.json({ ok: false, hasCredentials: true, error: assetResult.reason?.message || "총자산 조회 실패" });
+      console.warn("[binance] total-asset skip:", assetResult.reason?.message);
+      return res.json({ ok: false, hasCredentials: true, silent: true });
     }
 
     const { totalUsdt } = assetResult.value;
@@ -339,7 +340,7 @@ router.get("/picks", async (req, res, next) => {
     res.json({ ok: true, ...data });
   } catch (err) {
     console.error("[binance] picks error:", err);
-    res.json({ ok: false, error: err.message || "추천을 불러오지 못했습니다.", picks: [], criteria: "" });
+    res.json({ ok: false, silent: true, picks: [], criteria: "" });
   }
 });
 

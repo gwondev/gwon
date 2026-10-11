@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import TradingViewChart from "../components/binance/TradingViewChart";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../lib/api";
+import { api, isQuietNetworkError } from "../lib/api";
 import "./BinancePage.css";
 
 const PERIODS = [
@@ -168,11 +168,11 @@ export default function BinancePage() {
       if (data.ok) {
         setAsset(data);
         setError("");
-      } else if (!/418|공개 API/i.test(data.error || "")) {
-        setError(data.error || "총자산을 불러오지 못했습니다.");
+      } else if (!isQuietNetworkError({ message: data.error, status: data.status })) {
+        setError("");
       }
     } catch (err) {
-      if (!/418|공개 API/i.test(err.message || "")) setError(err.message);
+      if (!isQuietNetworkError(err)) setError("");
     }
   }, [token]);
 
@@ -207,13 +207,13 @@ export default function BinancePage() {
     try {
       const data = await api(`/binance/picks${refresh ? "?refresh=1" : ""}`, { token });
       setPicks(data);
-      if (!data.ok) {
-        if (!/418|공개 API/i.test(data.error || "")) setPickError(data.error || "추천 실패");
-      } else if (data.error && !/418|공개 API/i.test(data.error)) {
-        setPickError("규칙 점수로 추천합니다.");
+      if (data.ok) {
+        if (data.error && !isQuietNetworkError({ message: data.error })) {
+          setPickError("");
+        }
       }
     } catch (err) {
-      if (!/418|공개 API/i.test(err.message || "")) setPickError(err.message);
+      if (!isQuietNetworkError(err)) setPickError("");
     }
   }, [token]);
 
@@ -247,7 +247,7 @@ export default function BinancePage() {
       await api("/binance/bot", { method: "PUT", token, body: { scoringPrompt: JSON.stringify(rules) } });
       await loadPicks(true);
     } catch (err) {
-      setPickError(err.message);
+      if (!isQuietNetworkError(err)) setPickError("");
     } finally {
       setBusy("");
     }
@@ -281,9 +281,22 @@ export default function BinancePage() {
           })),
         },
       });
-      setMessages([...next, { role: "assistant", text: stripMd(data.analysis || data.error || "응답이 비었습니다.") }]);
+      const reply = stripMd(data.analysis || "");
+      setMessages([
+        ...next,
+        {
+          role: "assistant",
+          text: reply || (isQuietNetworkError({ message: data.error, status: data.status }) ? "잠시 연결이 불안정합니다. 다시 보내보세요." : "응답이 비었습니다."),
+        },
+      ]);
     } catch (err) {
-      setMessages([...next, { role: "assistant", text: err.message }]);
+      setMessages([
+        ...next,
+        {
+          role: "assistant",
+          text: isQuietNetworkError(err) ? "잠시 연결이 불안정합니다. 다시 보내보세요." : "지금은 답변을 만들지 못했습니다.",
+        },
+      ]);
     } finally {
       setBusy("");
     }
@@ -499,7 +512,7 @@ export default function BinancePage() {
                   value={rules.note || ""}
                   onChange={(e) => setRules((r) => ({ ...r, note: e.target.value }))}
                   placeholder="내 주관적 개입. 예: 알트 빼고 BTC·ETH 위주, 숏 선호"
-                  rows={3}
+                  rows={5}
                 />
               </label>
               {pickError && <p className="b-err">{pickError}</p>}
