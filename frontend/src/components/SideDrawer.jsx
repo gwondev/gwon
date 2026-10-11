@@ -105,7 +105,7 @@ export default function SideDrawer({ open, onClose }) {
                 <motion.button
                   variants={item}
                   className="drawer__link drawer__link--admin"
-                  onClick={() => go("/mypage?tab=admin")}
+                  onClick={() => go("/mypage?tab=users")}
                 >
                   <span className="drawer__link-no">★</span>
                   <span className="drawer__link-title">ADMIN 페이지</span>

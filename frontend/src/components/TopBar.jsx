@@ -48,7 +48,7 @@ export default function TopBar() {
 
   return (
     <>
-      <header className={`topbar ${scrolled ? "is-scrolled" : ""} ${isSchedule ? "topbar--tight" : ""}`}>
+      <header className={`topbar ${scrolled ? "is-scrolled" : ""}`}>
         <div className="topbar__left">
           <div className="topbar__adminlinks">
             <button
@@ -79,7 +79,6 @@ export default function TopBar() {
                   title="일정"
                 >
                   <IconCalendar width={16} height={16} />
-                  <span>일정</span>
                 </button>
               </>
             )}
@@ -112,7 +111,7 @@ export default function TopBar() {
         <div className="topbar__right">
           <button
             type="button"
-            className="topbar__greet"
+            className={`topbar__greet ${location.pathname === "/mypage" ? "is-active" : ""}`}
             onClick={handleGreetClick}
             aria-label={isAuthed ? "마이페이지" : "로그인"}
           >

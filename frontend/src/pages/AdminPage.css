@@ -5,12 +5,32 @@
 
 .admin--embedded {
   padding-top: 0;
-  padding-bottom: 1.4rem;
+  padding-bottom: 0.8rem;
 }
 
 .admin--embedded .admin__head {
-  margin-bottom: 1.1rem;
-  padding-bottom: 0.9rem;
+  display: none;
+}
+
+.admin--embedded .admin__section {
+  margin-bottom: 0.6rem;
+}
+
+.admin--embedded .admin__section-title {
+  display: none;
+}
+
+.admin--embedded .admin__section-head {
+  margin-bottom: 0.45rem;
+}
+
+.admin--embedded .admin__section-count {
+  font-size: 0.92rem;
+}
+
+.admin--embedded .admin__prompt-desc {
+  margin: 0 0 0.45rem;
+  font-size: 0.74rem;
 }
 .admin__bar {
   margin-bottom: 0.65rem;

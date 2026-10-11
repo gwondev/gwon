@@ -1,11 +1,23 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import { useAuth } from "../context/AuthContext";
 import { roleLabel } from "../lib/calendarTheme";
 import { AdminDashboard } from "./AdminPage";
 import "./MyPage.css";
+
+const TABS = [
+  { id: "me", label: "마이페이지" },
+  { id: "users", label: "회원관리" },
+  { id: "db", label: "DS관리" },
+  { id: "chat", label: "AI CHAT BOT 관리" },
+];
+
+function resolveTab(raw, isAdmin) {
+  const id = raw === "admin" ? "users" : raw || "me";
+  if (!isAdmin) return "me";
+  return TABS.some((t) => t.id === id) ? id : "me";
+}
 
 export default function MyPage() {
   const { user, isAuthed, loading, isAdmin, updateNickname, logout } = useAuth();
@@ -15,7 +27,7 @@ export default function MyPage() {
   const [nickname, setNickname] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
-  const adminTab = isAdmin && searchParams.get("tab") === "admin";
+  const tab = resolveTab(searchParams.get("tab"), isAdmin);
 
   useEffect(() => {
     if (!loading && !isAuthed) navigate("/");
@@ -47,48 +59,25 @@ export default function MyPage() {
 
   return (
     <PageTransition className="page mypage">
-      <motion.header
-        className="mypage__head"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <span className="eyebrow">{adminTab ? "ADMIN" : "MY PAGE"}</span>
-        <h1 className="section-title">{adminTab ? "관리" : "마이페이지"}</h1>
-      </motion.header>
-
       {isAdmin && (
         <div className="mypage__tabs" role="tablist" aria-label="계정 메뉴">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!adminTab}
-            className={`mypage__tab ${!adminTab ? "is-active" : ""}`}
-            onClick={() => setSearchParams({})}
-          >
-            마이페이지
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={adminTab}
-            className={`mypage__tab ${adminTab ? "is-active" : ""}`}
-            onClick={() => setSearchParams({ tab: "admin" })}
-          >
-            ADMIN
-          </button>
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              className={`mypage__tab ${tab === item.id ? "is-active" : ""}`}
+              onClick={() => setSearchParams(item.id === "me" ? {} : { tab: item.id })}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       )}
 
-      {adminTab ? (
-        <AdminDashboard />
-      ) : (
-        <motion.section
-          className="mypage__card"
-          initial={{ opacity: 0, y: 22 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
-        >
+      {tab === "me" ? (
+        <section className="mypage__card">
           <div className="mypage__profile">
             <div className="mypage__avatar">
               {(user.nickname || user.name || "?").slice(0, 1)}
@@ -147,7 +136,9 @@ export default function MyPage() {
               </button>
             </div>
           </form>
-        </motion.section>
+        </section>
+      ) : (
+        <AdminDashboard panel={tab} />
       )}
     </PageTransition>
   );

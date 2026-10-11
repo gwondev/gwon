@@ -24,10 +24,6 @@
   border-bottom-color: var(--line);
 }
 
-.topbar--tight {
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
 
 .topbar__left,
 .topbar__right {
@@ -90,12 +86,6 @@
   display: none;
 }
 
-@media (min-width: 720px) {
-  .topbar__adminlink span:last-child {
-    display: inline;
-  }
-}
-
 .topbar__logo-mark {
   font-size: 0.92rem;
   font-weight: 800;
@@ -117,20 +107,29 @@
 .topbar__greet {
   display: inline-flex;
   align-items: center;
-  border: none;
-  background: transparent;
-  padding: 0;
   cursor: pointer;
-  color: inherit;
+  padding: 0.4rem 0.78rem 0.4rem 0.62rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(120% 180% at 20% 0%, var(--accent-soft), transparent 62%),
+    linear-gradient(180deg, var(--bg-elev), var(--bg-soft));
+  color: var(--accent);
+  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+}
+.topbar__greet:hover,
+.topbar__greet.is-active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
 }
 .topbar__greet-text {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.84rem;
-  font-weight: 600;
+  font-size: 0.76rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--text);
+  color: var(--accent);
 }
 .topbar__dot {
   width: 7px;

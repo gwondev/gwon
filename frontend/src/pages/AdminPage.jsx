@@ -26,7 +26,7 @@ const MOCK_USERS = [
   { id: 3, name: "홍길동", nickname: "길동", email: "hong@example.com", role: "GUEST" },
 ];
 
-export function AdminDashboard() {
+export function AdminDashboard({ panel = "users" }) {
   const { isAdmin, loading, token, user, localMode } = useAuth();
   const navigate = useNavigate();
 
@@ -199,20 +199,7 @@ export function AdminDashboard() {
 
   return (
     <div className="admin admin--embedded">
-      <motion.header
-        className="admin__head"
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div>
-          <span className="eyebrow">ADMIN</span>
-          <h1 className="section-title">ADMIN 페이지</h1>
-          <p className="lead admin__desc">DB·회원 권한·AI 챗봇을 한곳에서 관리합니다.</p>
-        </div>
-        {stats && <span className="admin__db-badge">{stats.database}</span>}
-      </motion.header>
-
+      {panel === "db" && (
       <section className="admin__section">
         <h2 className="admin__section-title">DB 요약</h2>
         {stats ? (
@@ -336,7 +323,9 @@ export function AdminDashboard() {
           <div className="state">DB 요약을 불러오는 중…</div>
         )}
       </section>
+      )}
 
+      {panel === "users" && (
       <section className="admin__section">
         <div className="admin__section-head">
           <h2 className="admin__section-title">회원 관리</h2>
@@ -411,7 +400,9 @@ export function AdminDashboard() {
           </div>
         )}
       </section>
+      )}
 
+      {panel === "chat" && (
       <section className="admin__section admin__section--chat">
         <div className="admin__section-head">
           <h2 className="admin__section-title">AI CHAT BOT</h2>
@@ -492,10 +483,11 @@ export function AdminDashboard() {
           )}
         </div>
       </section>
+      )}
     </div>
   );
 }
 
 export default function AdminPage() {
-  return <Navigate to="/mypage?tab=admin" replace />;
+  return <Navigate to="/mypage?tab=users" replace />;
 }
