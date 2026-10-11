@@ -9,13 +9,59 @@
   color: var(--text);
   line-height: 1.25;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.b-tabs {
+  flex: none;
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0.2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.b-tabs button {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.32rem 0.8rem 0.42rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.b-tabs button:hover {
+  color: var(--text);
+}
+
+.b-tabs button.is-on {
+  color: var(--accent);
+}
+
+.b-tabs button.is-on::after {
+  content: "";
+  position: absolute;
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 .b-shell {
   width: 100%;
   max-width: 1560px;
   margin: 0 auto;
-  height: 100%;
+  flex: 1 1 0;
+  height: auto;
   max-height: 100%;
   display: grid;
   grid-template-columns: minmax(300px, 0.36fr) minmax(0, 0.64fr);
@@ -860,6 +906,340 @@
   font-size: 0.56rem;
   font-variant-numeric: tabular-nums;
   color: var(--text-dim);
+}
+
+/* ── 수익금 탭 ── */
+.b-rep {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.4rem 0.2rem 1.2rem;
+  box-sizing: border-box;
+}
+
+.b-rep__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+}
+
+.b-rep__head .b-seg button {
+  font-size: 0.74rem;
+  padding: 0.3rem 0.8rem;
+}
+
+.b-rep__net {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.b-rep__net small {
+  margin-left: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.b-rep__ret {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.b-rep__ret em {
+  margin-left: 0.3rem;
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.b-rep__kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.b-rep__kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-elev);
+  padding: 0.6rem 0.75rem;
+  min-width: 0;
+}
+
+.b-rep__kpi span {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+.b-rep__kpi strong {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.b-rep__kpi em {
+  font-style: normal;
+  font-size: 0.66rem;
+  color: var(--text-dim);
+}
+
+.b-rep__card {
+  padding: 0.7rem 0.9rem 0.8rem;
+  overflow: visible;
+}
+
+.b-rep__subhead {
+  margin-top: 0.9rem;
+}
+
+.b-rep__equity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.b-rep__readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.2rem;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.b-rep__readout span:first-child {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.b-rep__readout b {
+  margin-left: 0.25rem;
+}
+
+.b-rep__plot {
+  position: relative;
+  height: clamp(220px, 34vh, 380px);
+}
+
+.b-rep__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.b-rep__zero {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.b-rep__axis {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  font-size: 0.62rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.b-rep__hits {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  z-index: 2;
+}
+
+.b-rep__hits i.is-on {
+  background: linear-gradient(180deg, transparent, rgba(216, 193, 154, 0.08), transparent);
+  border-left: 1px dashed rgba(216, 193, 154, 0.35);
+}
+
+.b-rep__bars {
+  display: grid;
+  gap: 1px;
+  height: 64px;
+  align-items: end;
+}
+
+.b-rep__bars span {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.b-rep__bars i {
+  display: block;
+  width: 100%;
+  min-height: 1px;
+  border-radius: 2px 2px 0 0;
+  opacity: 0.75;
+}
+
+.b-rep__bars i.is-up {
+  background: #86efac;
+}
+
+.b-rep__bars i.is-down {
+  background: #f87171;
+}
+
+.b-rep__bars span.is-on i {
+  opacity: 1;
+}
+
+.b-rep__dates {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.b-rep__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.b-rep__tablewrap {
+  overflow: auto;
+  max-height: 420px;
+}
+
+.b-rep__tablewrap--tall {
+  max-height: 360px;
+}
+
+.b-rep__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.b-rep__table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-elev);
+  text-align: right;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.b-rep__table td {
+  text-align: right;
+  padding: 0.38rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.b-rep__table th:first-child,
+.b-rep__table td:first-child {
+  text-align: left;
+}
+
+.b-rep__table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.b-rep__attr {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.b-rep__attr div {
+  display: grid;
+  grid-template-columns: 5rem auto;
+  grid-template-rows: auto auto;
+  align-items: baseline;
+  gap: 0.2rem 0.6rem;
+}
+
+.b-rep__attr span {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.b-rep__attr strong {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.b-rep__attr i {
+  grid-column: 1 / -1;
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.b-rep__attr b {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.b-rep__attr b.is-up {
+  background: #86efac;
+}
+
+.b-rep__attr b.is-down {
+  background: #f87171;
+}
+
+@media (max-width: 1280px) {
+  .b-rep__kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .b-rep {
+    overflow: visible;
+  }
+
+  .b-rep__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .b-rep__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (min-width: 901px) and (max-width: 1280px) {

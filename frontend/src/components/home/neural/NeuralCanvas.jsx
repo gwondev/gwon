@@ -126,6 +126,36 @@ function lookFrom(planet, dist) {
   return [planet[0] * 0.15, planet[1] + 0.35, planet[2] + dist];
 }
 
+/**
+ * 역방향 이탈: 현재 행성 읽기 위치에서 이전 장면의 도착 위치로 빠르게 빠졌다가 감속한다.
+ * 시선은 항상 카메라 앞쪽에 두고 이전 행성 쪽으로 서서히 돌려, 끝에서 시선이 꺾이지 않게 한다.
+ */
+function reverseTarget(from, u) {
+  const e = 1 - Math.pow(1 - Math.min(1, Math.max(0, u)), 3);
+  const fromPlanet = PLANET_POS[from - 1] || PLANET_POS[0];
+  const start = lookFrom(fromPlanet, 2.35);
+  let end;
+  let endLook;
+  if (from >= 2) {
+    endLook = PLANET_POS[from - 2];
+    end = lookFrom(endLook, 3.15);
+  } else {
+    const intro = cameraTarget(0.018);
+    end = intro.cam;
+    endLook = intro.look;
+  }
+  _from.set(start[0], start[1], start[2]).lerp(_to.set(end[0], end[1], end[2]), e);
+  const cam = [_from.x, _from.y, _from.z];
+  const lookZ = Math.min(fromPlanet[2] + (endLook[2] - fromPlanet[2]) * e, cam[2] - 2.5);
+  const look = [
+    fromPlanet[0] + (endLook[0] - fromPlanet[0]) * e,
+    fromPlanet[1] + (endLook[1] - fromPlanet[1]) * e,
+    lookZ,
+  ];
+  const bump = Math.sin(Math.PI * Math.min(1, u));
+  return { cam, look, fov: 41 + bump * 6, warp: bump * 0.3 };
+}
+
 function introAmt(p) {
   if (p >= INTRO_END) return 0;
   return 1 - p / INTRO_END;
@@ -135,7 +165,8 @@ function Rig() {
   const last = useRef(0);
   useFrame(({ camera, clock }, delta) => {
     const p = worldState.progress;
-    const tgt = cameraTarget(p);
+    const rev = worldState.reverse;
+    const tgt = rev ? reverseTarget(rev.from, rev.u) : cameraTarget(p);
     _cam.set(tgt.cam[0], tgt.cam[1], tgt.cam[2]);
     _look.set(tgt.look[0], tgt.look[1], tgt.look[2]);
     const warp = tgt.warp;
@@ -150,7 +181,7 @@ function Rig() {
         _cam.y += Math.cos(t * 0.08) * 0.12 * idle;
       }
     }
-    const follow = warp > 0.35 ? 4.2 : 2.6;
+    const follow = rev ? 6.5 : warp > 0.35 ? 4.2 : 2.6;
     const k = 1 - Math.exp(-delta * follow);
     camera.position.lerp(_cam, k);
     camera.lookAt(_look);

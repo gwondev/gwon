@@ -19,7 +19,7 @@ import { getUsdKrwRate } from "../lib/fx-rate.js";
 import { askGemini } from "../lib/gemini.js";
 import { refreshOpportunityCacheIfStale } from "../lib/binance-scoring.js";
 import { loadBotSettings, updateBotSettings, getOpenBotPosition } from "../lib/binance-settings.js";
-import { getPnlSummary, getPaperPnlSummary, getPnlSeries, syncIncomeLedger } from "../lib/binance-income.js";
+import { getPnlSummary, getPaperPnlSummary, getPnlReport, getPnlSeries, syncIncomeLedger } from "../lib/binance-income.js";
 import { getTopPicks, invalidatePicksCache, criteriaTextOf } from "../lib/binance-picks.js";
 import { DEFAULT_RULES_PROMPT, DEFAULT_SCORING_PROMPT } from "../lib/binance-defaults.js";
 
@@ -341,6 +341,15 @@ router.get("/picks", async (req, res, next) => {
   } catch (err) {
     console.error("[binance] picks error:", err);
     res.json({ ok: false, silent: true, picks: [], criteria: "" });
+  }
+});
+
+router.get("/pnl-report", async (req, res, next) => {
+  try {
+    const period = String(req.query.period || "1m");
+    res.json({ ok: true, ...(await getPnlReport(period)) });
+  } catch (err) {
+    next(err);
   }
 });
 

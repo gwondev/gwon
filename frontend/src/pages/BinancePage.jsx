@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import TradingViewChart from "../components/binance/TradingViewChart";
+import PnlReport from "../components/binance/PnlReport";
 import { useAuth } from "../context/AuthContext";
 import { api, isQuietNetworkError } from "../lib/api";
 import "./BinancePage.css";
 
-const PERIODS = [
-  { id: "1d", label: "1일" },
-  { id: "1w", label: "1주" },
-  { id: "1m", label: "1개월" },
-  { id: "3m", label: "3개월" },
-  { id: "all", label: "전체" },
+const TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "pnl", label: "수익금" },
 ];
+const TAB_KEY = "gwon.binance.tab";
 
 const HORIZONS = [
   { id: "scalp", label: "초단기", interval: "5" },
@@ -102,50 +101,6 @@ function stripMd(text) {
     .trim();
 }
 
-function formatBucket(ms) {
-  return new Date(ms).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }).replace(/\s/g, "");
-}
-
-function PnlChart({ points, total }) {
-  const { path, area, min, max } = useMemo(() => {
-    const vals = (points || []).map((p) => p.cumulative);
-    if (!vals.length) return { path: "", area: "", min: 0, max: 0 };
-    const minV = Math.min(0, ...vals);
-    const maxV = Math.max(0, ...vals);
-    const span = maxV - minV || 1;
-    const xy = vals.map((v, i) => {
-      const x = vals.length === 1 ? 50 : (i / (vals.length - 1)) * 100;
-      const y = 8 + (1 - (v - minV) / span) * 84;
-      return [x, y];
-    });
-    const d = xy.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(" ");
-    const last = xy[xy.length - 1];
-    const first = xy[0];
-    return { path: d, area: `${d} L${last[0].toFixed(2)},100 L${first[0].toFixed(2)},100 Z`, min: minV, max: maxV };
-  }, [points]);
-
-  const up = total >= 0;
-  if (!points?.length) return <div className="b-chart__empty">실현손익 기록이 없습니다.</div>;
-  return (
-    <div className="b-chart__plot">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="b-chart__svg">
-        <defs>
-          <linearGradient id="bPnlFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={up ? "#d8c19a" : "#f87171"} stopOpacity="0.32" />
-            <stop offset="100%" stopColor={up ? "#d8c19a" : "#f87171"} stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#bPnlFill)" />
-        <path d={path} fill="none" stroke={up ? "#d8c19a" : "#f87171"} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
-      </svg>
-      <div className="b-chart__axis">
-        <span>{formatNumber(max, 2)}</span>
-        <span>{formatNumber(min, 2)}</span>
-      </div>
-    </div>
-  );
-}
-
 export default function BinancePage() {
   const { isAuthed, loading: authLoading, isSuperAdmin, token } = useAuth();
   const navigate = useNavigate();
@@ -160,8 +115,13 @@ export default function BinancePage() {
   const [activeSymbol, setActiveSymbol] = useState(readLastSymbol);
   const [picks, setPicks] = useState(null);
   const [rules, setRules] = useState(DEFAULT_RULES);
-  const [period, setPeriod] = useState("1w");
-  const [chart, setChart] = useState(null);
+  const [tab, setTab] = useState(() => {
+    try {
+      return localStorage.getItem(TAB_KEY) === "pnl" ? "pnl" : "overview";
+    } catch {
+      return "overview";
+    }
+  });
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -246,16 +206,6 @@ export default function BinancePage() {
       }
     } catch (err) {
       if (!isQuietNetworkError(err)) setPickError("");
-    }
-  }, [token]);
-
-  const loadChart = useCallback(async (p) => {
-    if (!token) return;
-    try {
-      const data = await api(`/binance/pnl-chart?period=${encodeURIComponent(p)}`, { token });
-      setChart(data.ok ? data : { points: [], total: 0, period: p });
-    } catch {
-      setChart({ points: [], total: 0, period: p });
     }
   }, [token]);
 
@@ -370,9 +320,12 @@ export default function BinancePage() {
   }, [token, isSuperAdmin, loadAsset, loadPositions, loadBot, loadPicks, loadStory]);
 
   useEffect(() => {
-    if (!token || !isSuperAdmin) return;
-    loadChart(period);
-  }, [token, isSuperAdmin, period, loadChart]);
+    try {
+      localStorage.setItem(TAB_KEY, tab);
+    } catch {
+      /* ignore */
+    }
+  }, [tab]);
 
   useEffect(() => {
     symbolRef.current = activeSymbol;
@@ -432,6 +385,17 @@ export default function BinancePage() {
 
   return (
     <main className="page binance-page">
+      <nav className="b-tabs" role="tablist">
+        {TABS.map((t) => (
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? "is-on" : ""} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "pnl" ? (
+        <PnlReport token={token} />
+      ) : (
       <div className="b-shell">
         <div className="b-left">
           <section className="b-card b-asset">
@@ -464,46 +428,6 @@ export default function BinancePage() {
               !error && <p className="b-muted">불러오는 중…</p>
             )}
             {error && <p className="b-err">{error}</p>}
-          </section>
-
-          <section className="b-card b-pnl">
-            <div className="b-chart__head">
-              <div>
-                <p className="b-card__kicker">수익금</p>
-                <strong className={`b-total ${(chart?.total || 0) >= 0 ? "is-up" : "is-down"}`}>
-                  {(chart?.total || 0) >= 0 ? "+" : ""}
-                  {formatNumber(chart?.total || 0, 2)}
-                  <small>USDT</small>
-                </strong>
-              </div>
-              <div className="b-seg">
-                {PERIODS.map((p) => (
-                  <button key={p.id} type="button" className={period === p.id ? "is-on" : ""} onClick={() => setPeriod(p.id)}>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="b-pnl__body">
-              <PnlChart points={chart?.points} total={chart?.total || 0} />
-              {!!chart?.buckets?.length && (
-                <ul className="b-buckets">
-                  {chart.buckets.map((b, i) => (
-                    <li key={i}>
-                      <span>{formatBucket(b.from)}</span>
-                      <strong className={b.pnl >= 0 ? "is-up" : "is-down"}>
-                        {b.pnl >= 0 ? "+" : ""}
-                        {formatNumber(b.pnl, 1)}
-                      </strong>
-                      <em className={b.returnPct >= 0 ? "is-up" : "is-down"}>
-                        {b.returnPct > 0 ? "+" : ""}
-                        {Number(b.returnPct).toFixed(1)}%
-                      </em>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
           </section>
 
           <section className="b-card b-desk">
@@ -722,6 +646,7 @@ export default function BinancePage() {
           </div>
         </section>
       </div>
+      )}
     </main>
   );
 }

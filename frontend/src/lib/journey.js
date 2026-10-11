@@ -148,6 +148,10 @@ export function warpEndOf(scene) {
   return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.579;
 }
 
+export function arriveStartOf(scene) {
+  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.58;
+}
+
 /** 진행도가 속한 장면. 0 인트로, 1..N 프로젝트, -1 CONNECT/프로필 구간. */
 export function regionSceneAt(p) {
   if (p >= CONNECT_START) return -1;

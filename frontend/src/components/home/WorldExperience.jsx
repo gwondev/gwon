@@ -17,6 +17,7 @@ import {
   projectLocal,
   projectStage,
   profileTabFromScene,
+  arriveStartOf,
   regionSceneAt,
   sceneFromProfileTab,
   sceneFromProjectIndex,
@@ -167,6 +168,8 @@ export default function WorldExperience() {
       });
     };
     const rush = Math.abs(tgt - k) >= 2;
+    const rev = worldState.reverse;
+    if (!(tgt < k && rev?.from === k)) worldState.reverse = null;
 
     if (tgt > k) {
       set(warpStartOf(k + 1));
@@ -174,15 +177,25 @@ export default function WorldExperience() {
       return;
     }
     if (tgt < k) {
+      // 내용은 즉시 숨기고(워프 끝점), 카메라는 역방향 전용 경로로 빠져나온 뒤 이전 장면에 도착한다.
       set(Math.min(p, warpEndOf(k)));
-      run(warpStartOf(k), rush ? 0.32 : 0.7, () => {
-        set(sceneToProgress(k - 1));
-        driveRef.current();
+      const back = rev?.from === k ? rev : { from: k, u: 0 };
+      worldState.reverse = back;
+      const full = rush ? 0.42 : 0.82;
+      tweenRef.current = gsap.to(back, {
+        u: 1,
+        duration: worldState.reduced ? 0.2 : Math.max(0.12, full * (1 - back.u)),
+        ease: "none",
+        onComplete: () => {
+          worldState.reverse = null;
+          set(k - 1 >= 1 ? arriveStartOf(k - 1) : sceneToProgress(0));
+          driveRef.current();
+        },
       });
       return;
     }
     const settle = sceneToProgress(k);
-    if (Math.abs(p - settle) > 0.0005) run(settle, 0.5);
+    if (Math.abs(p - settle) > 0.0005) run(settle, 0.55);
   };
 
   goToRef.current = (nextScene) => {
@@ -210,6 +223,7 @@ export default function WorldExperience() {
       driveRef.current();
       return;
     }
+    worldState.reverse = null;
 
     if (fromProfile && toProfile && !inbound && alreadyThere) {
       tweenRef.current?.kill();
@@ -389,6 +403,7 @@ export default function WorldExperience() {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchend", onTouchEnd);
+      worldState.reverse = null;
       tweenRef.current?.kill();
       settleRef.current?.kill();
     };

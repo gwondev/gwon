@@ -128,6 +128,148 @@ function ymdKst(ms) {
   return new Date(ms + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+async function periodBounds(period) {
+  const isAll = period === "all";
+  const lookback = isAll ? ALL_LOOKBACK_MS : Math.max(PERIOD_DAYS[period] || 7, 30) * DAY;
+  await syncIncomeLedger(lookback);
+  const endMs = Date.now();
+  let startMs = endMs - (PERIOD_DAYS[period] || 7) * DAY;
+  if (isAll) {
+    const [bounds] = await pool.query("SELECT MIN(income_time) AS min_t FROM binance_income_ledger");
+    const minT = Number(bounds[0]?.min_t);
+    startMs = Number.isFinite(minT) && minT > 0 ? minT : endMs - ALL_LOOKBACK_MS;
+  }
+  return { startMs, endMs };
+}
+
+const round4 = (v) => Number((Number(v) || 0).toFixed(4));
+
+/** 수익금 탭용 상세 리포트 (일별·코인별·수동/봇·체결 통계·최근 청산) */
+export async function getPnlReport(period = "1m") {
+  const { startMs, endMs } = await periodBounds(period);
+  const [rows] = await pool.query(
+    `SELECT symbol, income_type, income, attribution, income_time
+     FROM binance_income_ledger
+     WHERE income_time >= ? AND income_time <= ?
+     ORDER BY income_time ASC`,
+    [startMs, endMs]
+  );
+
+  const totals = { realized: 0, commission: 0, funding: 0, other: 0 };
+  const byDay = new Map();
+  const bySymbol = new Map();
+  const byAttr = { MANUAL: 0, BOT: 0, UNKNOWN: 0 };
+  const closes = [];
+
+  for (const r of rows) {
+    const amt = Number(r.income) || 0;
+    const t = Number(r.income_time);
+    const type = r.income_type;
+    const sym = r.symbol || "-";
+    const field =
+      type === "REALIZED_PNL" ? "realized" : type === "COMMISSION" ? "commission" : type === "FUNDING_FEE" ? "funding" : "other";
+    totals[field] += amt;
+
+    const dayKey = ymdKst(t);
+    const day = byDay.get(dayKey) || { realized: 0, commission: 0, funding: 0, other: 0 };
+    day[field] += amt;
+    byDay.set(dayKey, day);
+
+    const s = bySymbol.get(sym) || { symbol: sym, realized: 0, commission: 0, funding: 0, closes: 0, wins: 0 };
+    if (field !== "other") s[field] += amt;
+    if (type === "REALIZED_PNL") {
+      s.closes += 1;
+      if (amt > 0) s.wins += 1;
+      closes.push({ time: t, symbol: sym, pnl: amt, attribution: r.attribution || "UNKNOWN" });
+    }
+    bySymbol.set(sym, s);
+    byAttr[r.attribution in byAttr ? r.attribution : "UNKNOWN"] += amt;
+  }
+
+  const net = totals.realized + totals.commission + totals.funding + totals.other;
+
+  // 일별 시계열 (빈 날 포함) + 최대 낙폭
+  const days = [];
+  let cumulative = 0;
+  let peak = 0;
+  let maxDrawdown = 0;
+  for (let ms = startMs; ms <= endMs + DAY - 1; ms += DAY) {
+    const key = ymdKst(ms);
+    if (days.length && days[days.length - 1].date === key) continue;
+    const d = byDay.get(key) || { realized: 0, commission: 0, funding: 0, other: 0 };
+    const dayNet = d.realized + d.commission + d.funding + d.other;
+    cumulative += dayNet;
+    peak = Math.max(peak, cumulative);
+    maxDrawdown = Math.max(maxDrawdown, peak - cumulative);
+    days.push({
+      date: key,
+      realized: round4(d.realized),
+      fees: round4(d.commission + d.funding),
+      net: round4(dayNet),
+      cumulative: round4(cumulative),
+    });
+    if (key === ymdKst(endMs)) break;
+  }
+
+  const wins = closes.filter((c) => c.pnl > 0);
+  const losses = closes.filter((c) => c.pnl < 0);
+  const grossWin = wins.reduce((s, c) => s + c.pnl, 0);
+  const grossLoss = Math.abs(losses.reduce((s, c) => s + c.pnl, 0));
+  const activeDays = days.filter((d) => d.net !== 0);
+  const sortedDays = [...activeDays].sort((a, b) => b.net - a.net);
+  const sortedCloses = [...closes].sort((a, b) => b.pnl - a.pnl);
+
+  let currentAsset = 0;
+  try {
+    currentAsset = Number((await getTotalAssetUsdt())?.totalUsdt) || 0;
+  } catch {
+    /* 수익률 없이 */
+  }
+  const startEquity = currentAsset - net;
+  const returnPct = Math.abs(startEquity) > 1 ? (net / startEquity) * 100 : null;
+
+  return {
+    period,
+    rangeFrom: ymdKst(startMs),
+    rangeTo: ymdKst(endMs),
+    summary: {
+      net: round4(net),
+      realized: round4(totals.realized),
+      commission: round4(totals.commission),
+      funding: round4(totals.funding),
+      returnPct: returnPct == null ? null : Number(returnPct.toFixed(2)),
+      currentAsset: round4(currentAsset),
+      closes: closes.length,
+      wins: wins.length,
+      losses: losses.length,
+      winRate: closes.length ? Number(((wins.length / closes.length) * 100).toFixed(1)) : null,
+      avgWin: wins.length ? round4(grossWin / wins.length) : 0,
+      avgLoss: losses.length ? round4(-grossLoss / losses.length) : 0,
+      profitFactor: grossLoss > 0 ? Number((grossWin / grossLoss).toFixed(2)) : null,
+      maxDrawdown: round4(maxDrawdown),
+      profitDays: activeDays.filter((d) => d.net > 0).length,
+      lossDays: activeDays.filter((d) => d.net < 0).length,
+      bestDay: sortedDays[0] || null,
+      worstDay: sortedDays.length ? sortedDays[sortedDays.length - 1] : null,
+      bestClose: sortedCloses[0] || null,
+      worstClose: sortedCloses.length ? sortedCloses[sortedCloses.length - 1] : null,
+    },
+    days,
+    symbols: [...bySymbol.values()]
+      .map((s) => ({
+        ...s,
+        realized: round4(s.realized),
+        commission: round4(s.commission),
+        funding: round4(s.funding),
+        net: round4(s.realized + s.commission + s.funding),
+        winRate: s.closes ? Number(((s.wins / s.closes) * 100).toFixed(1)) : null,
+      }))
+      .sort((a, b) => b.net - a.net),
+    attribution: { manual: round4(byAttr.MANUAL), bot: round4(byAttr.BOT), unknown: round4(byAttr.UNKNOWN) },
+    recentCloses: closes.slice(-60).reverse().map((c) => ({ ...c, pnl: round4(c.pnl) })),
+  };
+}
+
 export async function getPnlSeries(period = "1w") {
   const isAll = period === "all";
   const lookback = isAll ? ALL_LOOKBACK_MS : Math.max(PERIOD_DAYS[period] || 7, 30) * DAY;
