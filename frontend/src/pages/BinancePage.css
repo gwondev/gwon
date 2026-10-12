@@ -70,6 +70,32 @@
   overflow: hidden;
 }
 
+.b-shell--overview {
+  grid-template-columns: minmax(280px, 0.28fr) minmax(0, 0.72fr);
+}
+
+.b-shell--picks {
+  grid-template-columns: minmax(380px, 0.44fr) minmax(0, 0.56fr);
+}
+
+.b-shell--picks .b-desk {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.b-chat--entry {
+  min-height: 0;
+  height: 100%;
+  border-left: 0;
+  padding-left: 0.5rem;
+}
+
+.b-shell--picks .b-desk,
+.b-shell--picks .b-chat--entry {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .b-left {
   container: bleft / inline-size;
   display: flex;

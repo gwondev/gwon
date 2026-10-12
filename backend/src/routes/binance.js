@@ -415,6 +415,9 @@ router.post("/position-advice", async (req, res, next) => {
     const history = Array.isArray(body.history) ? body.history.slice(-12) : [];
     const fullSummary = body.mode === "summary" || /전체\s*요약/.test(userText);
     const actionMode = !fullSummary && (body.mode === "action" || /동작\s*추천/.test(userText));
+    const entryScan = !fullSummary && !actionMode && (body.mode === "entry-scan" || /어디\s*들어갈까/.test(userText));
+    const entryFocus = !fullSummary && !actionMode && (body.mode === "entry-focus" || /이\s*코인\s*진입/.test(userText));
+    const entryMode = !fullSummary && !actionMode && (entryScan || entryFocus || body.mode === "entry");
     const focusSymbol = String(body.symbol || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
     const chartInterval = String(body.interval || "240");
     const ordered = [...positions].sort((a, b) => {
@@ -495,7 +498,17 @@ router.post("/position-advice", async (req, res, next) => {
       }
     }
 
-    const systemPrompt = fullSummary
+    const systemPrompt = entryMode
+      ? `당신은 아직 안 든 코인에 대한 진입 조언가다. 이미 든 포지션을 물타거나 청산하는 조언은 하지 마라.
+답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
+[현재 추천 상위]와 [차트]를 근거로 신규 진입만 다룬다. 없는 숫자와 없는 추천을 만들지 마라.
+${entryScan
+    ? `이번 요청은 어디 들어갈지 고르는 것이다. 추천 리스트를 보고 지금 가장 나은 1~2개를 고른다. 각 코인마다 롱/숏, 왜 지금인지, 대략 어느 가격대에서 볼지, 들어가면 안 되는 조건을 짧게 말한다. 리스트에 없는 코인을 만들지 마라. 2~4문단.`
+    : entryFocus
+      ? `이번 요청은 지금 보고 있는 한 코인의 진입 여부다. 첫 문장에서 들어가라/기다려라/패스 중 하나로 답한다. 방향, 근거가 되는 가격 2~3개, 손절·익절을 어디에 둘지, 레버는 기준을 넘지 말라는 선을 말한다. 2~3문단.`
+      : `질문이 진입·가격대·방향·타이밍이면 그 질문에 바로 답한다. 첫 문장이 결론이다. 서론과 면책 금지. 추천 리스트와 차트만 근거로 쓴다. 2~3문단.`}
+이미 든 포지션이 있어도 그건 참고만 하고, 이번 답의 주제는 신규 진입이다.`
+      : fullSummary
       ? `당신은 이 계정의 현재 포지션 비서다.
 답변은 한국어 평문만 사용한다. 마크다운, 별표 강조(**), 백틱, 이모지, 헤딩을 쓰지 마라.
 [현재 포지션 기록]에 있는 체결·손익만 근거로 쓴다. 없는 숫자와 없는 체결을 만들지 마라.

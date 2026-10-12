@@ -9,8 +9,10 @@ import "./BinancePage.css";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "pnl", label: "수익금" },
+  { id: "picks", label: "진입추천" },
 ];
 const TAB_KEY = "gwon.binance.tab";
+const TAB_IDS = TABS.map((t) => t.id);
 
 const HORIZONS = [
   { id: "scalp", label: "초단기", interval: "5" },
@@ -33,6 +35,8 @@ const DEFAULT_RULES = {
 
 const SUMMARY_CHIP = "전체 요약";
 const ACTION_CHIP = "동작 추천";
+const ENTRY_CHIP = "어디 들어갈까";
+const ENTRY_ONE_CHIP = "이 코인 진입";
 const LAST_SYMBOL_KEY = "gwon.binance.lastSymbol";
 
 function readLastSymbol() {
@@ -105,6 +109,7 @@ export default function BinancePage() {
   const { isAuthed, loading: authLoading, isSuperAdmin, token } = useAuth();
   const navigate = useNavigate();
   const chatLog = useRef(null);
+  const entryLog = useRef(null);
   const symbolRef = useRef("");
   // 사용자가 직접 고른 심볼(추천 코인 등)은 포지션 목록에 없어도 유지한다.
   const userPickedRef = useRef(false);
@@ -117,7 +122,8 @@ export default function BinancePage() {
   const [rules, setRules] = useState(DEFAULT_RULES);
   const [tab, setTab] = useState(() => {
     try {
-      return localStorage.getItem(TAB_KEY) === "pnl" ? "pnl" : "overview";
+      const saved = localStorage.getItem(TAB_KEY);
+      return TAB_IDS.includes(saved) ? saved : "overview";
     } catch {
       return "overview";
     }
@@ -128,7 +134,14 @@ export default function BinancePage() {
       text: "차트와 지금 포지션을 보고 질문에 답합니다. 체결 전체가 필요하면 전체 요약을 누르세요.",
     },
   ]);
+  const [entryMessages, setEntryMessages] = useState([
+    {
+      role: "assistant",
+      text: "추천 리스트와 차트를 보고 어디를, 어느 가격에 들어갈지 답합니다. 이미 든 포지션 관리는 Overview에서 물어보세요.",
+    },
+  ]);
   const [draft, setDraft] = useState("");
+  const [entryDraft, setEntryDraft] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [pickError, setPickError] = useState("");
@@ -235,6 +248,29 @@ export default function BinancePage() {
     }
   };
 
+  const askAdvice = async ({ message, history, mode, symbol }) => {
+    const data = await api("/binance/position-advice", {
+      method: "POST",
+      token,
+      body: {
+        message,
+        history,
+        symbol: symbol || "",
+        interval: tvInterval,
+        mode,
+        picks: (picks?.picks || []).map((p) => ({
+          symbol: p.symbol,
+          side: p.side,
+          marketCapFormatted: p.marketCapFormatted,
+          marketCapRank: p.marketCapRank,
+          score: p.score,
+        })),
+      },
+    });
+    const reply = stripMd(data.analysis || "");
+    return reply || (isQuietNetworkError({ message: data.error, status: data.status }) ? "잠시 연결이 불안정합니다. 다시 보내보세요." : "응답이 비었습니다.");
+  };
+
   const sendChat = async (text, { summary = false, action = false } = {}) => {
     const message = (text || draft).trim();
     if (!message || busy === "ai") return;
@@ -247,39 +283,46 @@ export default function BinancePage() {
         .filter((m) => m.role === "user" || m.role === "assistant")
         .slice(0, -1)
         .map((m) => ({ role: m.role, content: m.text }));
-      const data = await api("/binance/position-advice", {
-        method: "POST",
-        token,
-        body: {
-          message,
-          history,
-          symbol: activeSymbol || positions[0]?.symbol || "",
-          interval: tvInterval,
-          mode: summary ? "summary" : action ? "action" : "ask",
-          picks: (picks?.picks || []).map((p) => ({
-            symbol: p.symbol,
-            side: p.side,
-            marketCapFormatted: p.marketCapFormatted,
-            marketCapRank: p.marketCapRank,
-            score: p.score,
-          })),
-        },
+      const reply = await askAdvice({
+        message,
+        history,
+        mode: summary ? "summary" : action ? "action" : "ask",
+        symbol: activeSymbol || positions[0]?.symbol || "",
       });
-      const reply = stripMd(data.analysis || "");
-      setMessages([
-        ...next,
-        {
-          role: "assistant",
-          text: reply || (isQuietNetworkError({ message: data.error, status: data.status }) ? "잠시 연결이 불안정합니다. 다시 보내보세요." : "응답이 비었습니다."),
-        },
-      ]);
+      setMessages([...next, { role: "assistant", text: reply }]);
     } catch (err) {
       setMessages([
         ...next,
-        {
-          role: "assistant",
-          text: isQuietNetworkError(err) ? "잠시 연결이 불안정합니다. 다시 보내보세요." : "지금은 답변을 만들지 못했습니다.",
-        },
+        { role: "assistant", text: isQuietNetworkError(err) ? "잠시 연결이 불안정합니다. 다시 보내보세요." : "지금은 답변을 만들지 못했습니다." },
+      ]);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const sendEntryChat = async (text, { scan = false, focus = false } = {}) => {
+    const message = (text || entryDraft).trim();
+    if (!message || busy === "entry") return;
+    const next = [...entryMessages, { role: "user", text: message }];
+    setEntryMessages(next);
+    setEntryDraft("");
+    setBusy("entry");
+    try {
+      const history = next
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .slice(0, -1)
+        .map((m) => ({ role: m.role, content: m.text }));
+      const reply = await askAdvice({
+        message,
+        history,
+        mode: scan ? "entry-scan" : focus ? "entry-focus" : "entry",
+        symbol: activeSymbol || picks?.picks?.[0]?.symbol || "",
+      });
+      setEntryMessages([...next, { role: "assistant", text: reply }]);
+    } catch (err) {
+      setEntryMessages([
+        ...next,
+        { role: "assistant", text: isQuietNetworkError(err) ? "잠시 연결이 불안정합니다. 다시 보내보세요." : "지금은 답변을 만들지 못했습니다." },
       ]);
     } finally {
       setBusy("");
@@ -291,6 +334,12 @@ export default function BinancePage() {
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
+
+  useEffect(() => {
+    const el = entryLog.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [entryMessages, busy]);
 
   useEffect(() => {
     if (!token || !isSuperAdmin) return;
@@ -395,8 +444,137 @@ export default function BinancePage() {
 
       {tab === "pnl" ? (
         <PnlReport token={token} />
+      ) : tab === "picks" ? (
+      <div className="b-shell b-shell--picks">
+        <section className="b-card b-desk">
+          <div className="b-card__head">
+            <p className="b-card__kicker">추천 기준 · 10</p>
+            <div className="b-desk__acts">
+              <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveRules}>
+                {busy === "save" ? "저장…" : "저장·추천"}
+              </button>
+              <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
+                새로고침
+              </button>
+            </div>
+          </div>
+          <div className="b-desk__body">
+          <div className="b-rules">
+            <div className="b-rules__row">
+              <span className="b-rules__lab">기간</span>
+              <div className="b-seg b-seg--spread">
+                {HORIZONS.map((h) => (
+                  <button key={h.id} type="button" className={rules.horizon === h.id ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, horizon: h.id }))}>
+                    {h.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="b-rules__row">
+              <span className="b-rules__lab">레버</span>
+              <div className="b-seg b-seg--spread">
+                {LEVERS.map((n) => (
+                  <button key={n} type="button" className={Number(rules.leverage) === n ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, leverage: n }))}>
+                    {n}X
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="b-rules__row">
+              <span className="b-rules__lab">방향</span>
+              <div className="b-seg b-seg--spread">
+                <button type="button" className={rules.allowLong ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowLong: !r.allowLong }))}>
+                  롱
+                </button>
+                <button type="button" className={rules.allowShort ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowShort: !r.allowShort }))}>
+                  숏
+                </button>
+              </div>
+            </div>
+            <div className="b-rules__row">
+              <span className="b-rules__lab">안전 {rules.safety}</span>
+              <input type="range" min="40" max="100" value={rules.safety} onChange={(e) => setRules((r) => ({ ...r, safety: Number(e.target.value) }))} />
+            </div>
+            <div className="b-rules__row">
+              <span className="b-rules__lab">규모 {rules.minSize}</span>
+              <input type="range" min="20" max="95" value={rules.minSize} onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))} />
+            </div>
+            <label className="b-rules__note">
+              <span className="b-rules__lab">주관</span>
+              <textarea
+                value={rules.note || ""}
+                onChange={(e) => setRules((r) => ({ ...r, note: e.target.value }))}
+                placeholder="내 주관적 개입. 예: 알트 빼고 BTC·ETH 위주, 숏 선호"
+                rows={5}
+              />
+            </label>
+            {pickError && <p className="b-err">{pickError}</p>}
+          </div>
+          <ol className="b-picks__list">
+            {(picks?.picks || []).map((row, i) => {
+              const score = Math.max(0, Math.min(100, Math.round(Number(row.score) || 0)));
+              const rank = Number(row.marketCapRank) || 0;
+              return (
+                <li key={`${row.symbol}-${row.side}-${i}`}>
+                  <button
+                    type="button"
+                    className={row.symbol === chartSymbol ? "is-on" : ""}
+                    onClick={() => pickSymbol(row.symbol)}
+                  >
+                    <span className="b-pick__no">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="b-pick__main">
+                      <span className="b-pick__name">{row.symbol.replace("USDT", "")}</span>
+                      <span className="b-pick__cap">{rank ? `시총 ${rank}위` : row.marketCapFormatted || "시총 -"}</span>
+                    </span>
+                    <em className={`b-side is-${String(row.side).toLowerCase()}`}>{row.side === "LONG" ? "롱" : "숏"}</em>
+                    <span className="b-pick__score" title={`추천점수 ${score}`}>
+                      <b>{score}</b>
+                      <i style={{ width: `${score}%` }} />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
+          </ol>
+          </div>
+        </section>
+        <section className="b-card b-chat b-chat--entry">
+          <div className="b-chat__bar">
+            <p className="b-card__kicker">AI 진입 비서{activeSymbol ? ` · ${activeSymbol.replace("USDT", "")}` : ""}</p>
+            <div className="b-seg b-chat__chips">
+              <button type="button" className="is-on" onClick={() => sendEntryChat(ENTRY_CHIP, { scan: true })} disabled={busy === "entry"}>
+                {ENTRY_CHIP}
+              </button>
+              <button type="button" onClick={() => sendEntryChat(ENTRY_ONE_CHIP, { focus: true })} disabled={busy === "entry" || !activeSymbol}>
+                {ENTRY_ONE_CHIP}
+              </button>
+            </div>
+          </div>
+          <div className="b-chat__log" ref={entryLog}>
+            {entryMessages.map((m, i) => (
+              <div key={i} className={`b-chat__bubble is-${m.role}`}>
+                {m.text}
+              </div>
+            ))}
+            {busy === "entry" && <div className="b-chat__bubble is-assistant">추천과 차트를 읽고 있습니다…</div>}
+          </div>
+          <form
+            className="b-chat__form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendEntryChat();
+            }}
+          >
+            <input value={entryDraft} onChange={(e) => setEntryDraft(e.target.value)} placeholder="지금 들어가도 돼? 어디가 제일 괜찮아?" />
+            <button type="submit" className="b-btn" disabled={busy === "entry"}>
+              전송
+            </button>
+          </form>
+        </section>
+      </div>
       ) : (
-      <div className="b-shell">
+      <div className="b-shell b-shell--overview">
         <div className="b-left">
           <section className="b-card b-asset">
             {asset ? (
@@ -428,100 +606,6 @@ export default function BinancePage() {
               !error && <p className="b-muted">불러오는 중…</p>
             )}
             {error && <p className="b-err">{error}</p>}
-          </section>
-
-          <section className="b-card b-desk">
-            <div className="b-card__head">
-              <p className="b-card__kicker">추천 기준 · 10</p>
-              <div className="b-desk__acts">
-                <button type="button" className="b-btn" disabled={busy === "save"} onClick={saveRules}>
-                  {busy === "save" ? "저장…" : "저장·추천"}
-                </button>
-                <button type="button" className="b-btn" onClick={() => loadPicks(true)}>
-                  새로고침
-                </button>
-              </div>
-            </div>
-            <div className="b-desk__body">
-            <div className="b-rules">
-              <div className="b-rules__row">
-                <span className="b-rules__lab">기간</span>
-                <div className="b-seg b-seg--spread">
-                  {HORIZONS.map((h) => (
-                    <button key={h.id} type="button" className={rules.horizon === h.id ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, horizon: h.id }))}>
-                      {h.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="b-rules__row">
-                <span className="b-rules__lab">레버</span>
-                <div className="b-seg b-seg--spread">
-                  {LEVERS.map((n) => (
-                    <button key={n} type="button" className={Number(rules.leverage) === n ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, leverage: n }))}>
-                      {n}X
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="b-rules__row">
-                <span className="b-rules__lab">방향</span>
-                <div className="b-seg b-seg--spread">
-                  <button type="button" className={rules.allowLong ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowLong: !r.allowLong }))}>
-                    롱
-                  </button>
-                  <button type="button" className={rules.allowShort ? "is-on" : ""} onClick={() => setRules((r) => ({ ...r, allowShort: !r.allowShort }))}>
-                    숏
-                  </button>
-                </div>
-              </div>
-              <div className="b-rules__row">
-                <span className="b-rules__lab">안전 {rules.safety}</span>
-                <input type="range" min="40" max="100" value={rules.safety} onChange={(e) => setRules((r) => ({ ...r, safety: Number(e.target.value) }))} />
-              </div>
-              <div className="b-rules__row">
-                <span className="b-rules__lab">규모 {rules.minSize}</span>
-                <input type="range" min="20" max="95" value={rules.minSize} onChange={(e) => setRules((r) => ({ ...r, minSize: Number(e.target.value) }))} />
-              </div>
-              <label className="b-rules__note">
-                <span className="b-rules__lab">주관</span>
-                <textarea
-                  value={rules.note || ""}
-                  onChange={(e) => setRules((r) => ({ ...r, note: e.target.value }))}
-                  placeholder="내 주관적 개입. 예: 알트 빼고 BTC·ETH 위주, 숏 선호"
-                  rows={5}
-                />
-              </label>
-              {pickError && <p className="b-err">{pickError}</p>}
-            </div>
-            <ol className="b-picks__list">
-              {(picks?.picks || []).map((row, i) => {
-                const score = Math.max(0, Math.min(100, Math.round(Number(row.score) || 0)));
-                const rank = Number(row.marketCapRank) || 0;
-                return (
-                  <li key={`${row.symbol}-${row.side}-${i}`}>
-                    <button
-                      type="button"
-                      className={row.symbol === chartSymbol ? "is-on" : ""}
-                      onClick={() => pickSymbol(row.symbol)}
-                    >
-                      <span className="b-pick__no">{String(i + 1).padStart(2, "0")}</span>
-                      <span className="b-pick__main">
-                        <span className="b-pick__name">{row.symbol.replace("USDT", "")}</span>
-                        <span className="b-pick__cap">{rank ? `시총 ${rank}위` : row.marketCapFormatted || "시총 -"}</span>
-                      </span>
-                      <em className={`b-side is-${String(row.side).toLowerCase()}`}>{row.side === "LONG" ? "롱" : "숏"}</em>
-                      <span className="b-pick__score" title={`추천점수 ${score}`}>
-                        <b>{score}</b>
-                        <i style={{ width: `${score}%` }} />
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-              {!picks?.picks?.length && <li className="b-muted">추천을 불러오는 중…</li>}
-            </ol>
-            </div>
           </section>
         </div>
 

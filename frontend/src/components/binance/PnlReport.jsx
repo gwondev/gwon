@@ -137,7 +137,7 @@ function EquityChart({ days }) {
 }
 
 export default function PnlReport({ token }) {
-  const [period, setPeriod] = useState("1m");
+  const [period, setPeriod] = useState("all");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
