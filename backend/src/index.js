@@ -3,8 +3,6 @@ import cors from "cors";
 import { initDb, pingDb } from "./db.js";
 import authRouter from "./routes/auth.js";
 import adminRouter from "./routes/admin.js";
-import { crudRouter } from "./routes/crud.js";
-
 import chatRouter from "./routes/chat.js";
 import calendarRouter from "./routes/calendar.js";
 import todosRouter from "./routes/todos.js";
@@ -40,10 +38,6 @@ app.use("/api/todos", todosRouter);
 app.use("/api/tech-stack", techStackRouter);
 app.use("/api/portfolio", portfolioRouter);
 app.use("/api/binance", binanceRouter);
-app.use("/api/projects", crudRouter("projects"));
-app.use("/api/activities", crudRouter("activities"));
-app.use("/api/certifications", crudRouter("certifications"));
-app.use("/api/careers", crudRouter("careers"));
 
 // 공통 에러 핸들러
 app.use((err, _req, res, _next) => {

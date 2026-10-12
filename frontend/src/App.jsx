@@ -9,7 +9,6 @@ import NicknameSetupPage from "./pages/NicknameSetupPage";
 import MyPage from "./pages/MyPage";
 import SchedulePage from "./pages/SchedulePage";
 import AdminPage from "./pages/AdminPage";
-import DataPage from "./pages/DataPage";
 import BinancePage from "./pages/BinancePage";
 import ScrollToTop from "./components/ScrollToTop";
 import "./styles/cosmic.css";
@@ -45,7 +44,7 @@ export default function App() {
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/schedule" element={<SchedulePage />} />
         <Route path="/admin" element={<AdminPage />} />
-        <Route path="/data" element={<DataPage />} />
+        <Route path="/data" element={<Navigate to="/" replace />} />
         <Route path="/BINANCE" element={<BinancePage />} />
         <Route path="/binance" element={<BinancePage />} />
         <Route path="/admin/chat" element={<Navigate to="/" replace />} />

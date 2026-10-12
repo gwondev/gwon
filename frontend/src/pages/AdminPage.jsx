@@ -11,13 +11,9 @@ const MOCK_STATS = {
   database: "gwon",
   tables: [
     { key: "users", label: "회원", count: 3 },
-    { key: "projects", label: "프로젝트 & 공모전", count: 5 },
-    { key: "activities", label: "활동", count: 2 },
-    { key: "certifications", label: "자격증", count: 4 },
-    { key: "careers", label: "경력", count: 1 },
   ],
   roles: { GUEST: 2, ADMIN: 0, SUPER_ADMIN: 1 },
-  total: 15,
+  total: 3,
 };
 
 const MOCK_USERS = [

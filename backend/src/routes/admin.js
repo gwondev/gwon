@@ -11,10 +11,6 @@ const ROLES = ["GUEST", "ADMIN", "SUPER_ADMIN"];
 
 const TABLE_LABELS = {
   users: "회원",
-  projects: "프로젝트 & 공모전",
-  activities: "활동",
-  certifications: "자격증",
-  careers: "경력",
 };
 
 // GET /api/admin/stats  -> 전체 DB 테이블 요약
