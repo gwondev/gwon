@@ -144,6 +144,11 @@ export function warpStartOf(scene) {
   return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.14;
 }
 
+/** 워프가 끝나는 지점(도착 직전). 여기서부터는 행성에 붙어 내용이 보이기 시작한다. */
+export function warpEndOf(scene) {
+  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.579;
+}
+
 /** 프로젝트 퇴장 구간 중 내용이 이미 안 보이는 지점 */
 export function leaveHiddenOf(scene) {
   return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.96;

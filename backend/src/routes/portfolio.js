@@ -1,5 +1,6 @@
 import { Router } from "express";
 import pool from "../db.js";
+import { getSetting } from "../lib/settings.js";
 
 const router = Router();
 
@@ -54,6 +55,23 @@ router.get("/preview", async (_req, res, next) => {
       certifications,
       careers,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/home-layout", async (_req, res, next) => {
+  try {
+    const raw = await getSetting("home_layout", "");
+    let layout = null;
+    if (raw) {
+      try {
+        layout = JSON.parse(raw);
+      } catch {
+        layout = null;
+      }
+    }
+    res.json({ layout });
   } catch (err) {
     next(err);
   }

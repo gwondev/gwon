@@ -151,7 +151,7 @@ function Rig() {
         _cam.y += Math.cos(t * 0.08) * 0.12 * idle;
       }
     }
-    const follow = warp > 0.35 ? 4.2 : 2.6;
+    const follow = worldState.warpBack ? 7.2 : warp > 0.35 ? 4.2 : 2.6;
     const k = 1 - Math.exp(-delta * follow);
     camera.position.lerp(_cam, k);
     camera.lookAt(_look);

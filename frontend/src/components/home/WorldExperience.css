@@ -78,6 +78,75 @@
   pointer-events: none;
 }
 
+.world-rail {
+  position: fixed;
+  top: 50%;
+  right: clamp(18px, 3vw, 36px);
+  transform: translateY(-50%);
+  z-index: 30;
+  width: 18px;
+  height: min(46vh, 420px);
+  pointer-events: auto;
+}
+
+.world-rail__track {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, rgba(216, 193, 154, 0.18) 12%, rgba(216, 193, 154, 0.18) 88%, transparent);
+}
+
+.world-rail__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(216, 193, 154, 0.15), var(--accent));
+  box-shadow: 0 0 10px rgba(216, 193, 154, 0.35);
+}
+
+.world-rail__thumb {
+  position: absolute;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(216, 193, 154, 0.7);
+  transform: translate(-50%, -50%);
+}
+
+.world-rail__marks {
+  position: absolute;
+  inset: 0;
+}
+
+.world-rail__marks button {
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 1px solid rgba(243, 242, 239, 0.28);
+  border-radius: 50%;
+  background: #050506;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+.world-rail__marks button.is-on {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(216, 193, 154, 0.55);
+}
+
+.world-rail__marks button:hover {
+  border-color: rgba(243, 242, 239, 0.7);
+}
+
 .world-nav {
   position: fixed;
   left: max(22px, env(safe-area-inset-left, 0px) + 20px);
@@ -176,33 +245,19 @@
   z-index: 3;
   pointer-events: none;
   display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
   align-items: center;
-  padding: 5.5rem clamp(88px, 12vw, 180px) 3rem clamp(168px, 16vw, 220px);
-}
-
-.world-proj.is-0 {
-  grid-template-rows: auto minmax(0, 1fr) auto;
-}
-
-.world-proj.is-0 .world-proj__copy { order: 0; }
-.world-proj.is-0 .world-proj__visual { order: 1; }
-
-.world-proj.is-1 {
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
   gap: 2rem;
-}
-
-.world-proj.is-2 {
-  justify-items: center;
-  text-align: center;
+  padding: 5.5rem clamp(88px, 12vw, 180px) 3rem clamp(168px, 16vw, 220px);
 }
 
 .world-proj__visual {
   position: relative;
+  width: 100%;
+  height: min(var(--proj-media-h, 52vh), var(--proj-media-max, 560px));
   overflow: hidden;
   border: 1px solid rgba(216, 193, 154, 0.18);
   background: #0c0c0e;
-  max-height: min(52vh, 560px);
   will-change: opacity, transform, filter;
 }
 
@@ -223,13 +278,14 @@
 .world-proj__visual video {
   display: block;
   width: 100%;
-  height: min(52vh, 560px);
+  height: 100%;
   object-fit: cover;
+  object-position: center center;
 }
 
 .world-proj__void {
-  width: min(72vw, 720px);
-  height: min(38vh, 380px);
+  width: 100%;
+  height: 100%;
   background:
     radial-gradient(circle at 40% 40%, rgba(216, 193, 154, 0.18), transparent 55%),
     #0c0c0e;
@@ -249,11 +305,6 @@
   font-size: 0.86rem;
   line-height: 1.55;
   color: rgba(243, 242, 239, 0.7);
-}
-
-.world-proj.is-2 .world-desc {
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .world-meta {
@@ -285,7 +336,10 @@
 .world-file__tabs {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
   gap: 0.35rem 1.15rem;
+  width: 100%;
   margin-bottom: 1rem;
   pointer-events: auto;
 }
@@ -323,7 +377,7 @@
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--file-cols, 4), minmax(0, 1fr));
   gap: 0.7rem;
   max-height: min(64vh, 560px);
   overflow: auto;
@@ -331,7 +385,7 @@
 
 .world-cards li {
   min-width: 0;
-  height: min(52vh, 430px);
+  height: var(--file-card-h, 430px);
 }
 
 .world-card {
@@ -487,10 +541,21 @@
   }
 
   .world-proj,
-  .world-proj.is-1,
   .world-file {
     grid-template-columns: 1fr;
     padding: 5rem 1.1rem 4.2rem;
+  }
+
+  .world-proj {
+    align-content: center;
+  }
+
+  .world-proj__copy {
+    order: 1;
+  }
+
+  .world-proj__visual {
+    order: 0;
   }
 
   .world-counter {
@@ -498,13 +563,12 @@
     left: auto;
   }
 
-  .world-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-height: min(58vh, 520px);
+  .world-rail {
+    display: none;
   }
 
-  .world-cards li {
-    height: min(38vh, 280px);
+  .world-cards {
+    max-height: min(58vh, 520px);
   }
 }
 

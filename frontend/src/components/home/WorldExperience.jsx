@@ -20,6 +20,7 @@ import {
   leaveHiddenOf,
   regionSceneAt,
   reversedCinematicEase,
+  warpEndOf,
   sceneFromProfileTab,
   sceneFromProjectIndex,
   sceneToProgress,
@@ -30,6 +31,11 @@ import { usePortfolioPreview } from "../../lib/usePortfolioPreview.js";
 import { mediaCoverImage, mediaCoverVideo } from "../../lib/media.js";
 import { formatCareerPeriodPreview } from "../../lib/format.js";
 import { isProjectRecord } from "../../lib/sections.js";
+import { useAuth } from "../../context/AuthContext";
+import { useViewMode } from "../../context/ViewModeContext";
+import { useHomeLayout } from "../../lib/useHomeLayout.js";
+import { layoutCssVars } from "../../lib/homeLayout.js";
+import HomeLayoutEditor from "./HomeLayoutEditor.jsx";
 import "./WorldExperience.css";
 
 const NeuralCanvas = lazy(() => import("./neural/NeuralCanvas.jsx"));
@@ -117,6 +123,9 @@ function setWorldEffect(scene) {
 export default function WorldExperience() {
   const root = useRef(null);
   const { preview } = usePortfolioPreview();
+  const { isSuperAdmin } = useAuth();
+  const { viewAsUser } = useViewMode();
+  const homeLayout = useHomeLayout();
   const liveProjects = useMemo(() => (preview.projects || []).filter(isProjectRecord), [preview.projects]);
   const media = useResolvedMedia(liveProjects);
   const [progress, setProgress] = useState(() => sceneToProgress(0));
@@ -171,6 +180,7 @@ export default function WorldExperience() {
     };
 
     if (tgt > k) {
+      worldState.warpBack = false;
       worldState.warpFrom = k;
       set(warpStartOf(tgt));
       run(sceneToProgress(tgt), WARP_SECONDS, "power2.out", () => {
@@ -180,13 +190,19 @@ export default function WorldExperience() {
       return;
     }
     if (tgt < k) {
-      worldState.warpFrom = tgt;
+      // 앞으로 가기와 같은 구조의 역동작:
+      // 워프 끝으로 즉시 점프(내용이 바로 사라짐) → power2.out 으로 빠져나옴 → 목표 읽기 위치로 점프.
+      worldState.warpFrom = Math.max(0, tgt);
+      worldState.warpBack = true;
       const start = warpStartOf(k);
-      const span = sceneToProgress(k) - start;
-      const left = Math.min(1, Math.max(0, (p - start) / span));
-      run(start, Math.max(0.12, WARP_SECONDS * left), "power2.in", () => {
+      const end = warpEndOf(k);
+      const from = p > end ? end : Math.min(end, Math.max(start, p));
+      set(from);
+      const span = Math.max(0.0001, end - start);
+      run(start, Math.max(0.18, WARP_SECONDS * ((from - start) / span)), "power2.out", () => {
         set(sceneToProgress(tgt));
         worldState.warpFrom = null;
+        worldState.warpBack = false;
         driveRef.current();
       });
       return;
@@ -222,6 +238,7 @@ export default function WorldExperience() {
       return;
     }
     worldState.warpFrom = null;
+    worldState.warpBack = false;
 
     if (fromProfile && toProfile && !inbound && alreadyThere) {
       tweenRef.current?.kill();
@@ -413,6 +430,7 @@ export default function WorldExperience() {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchend", onTouchEnd);
       worldState.warpFrom = null;
+      worldState.warpBack = false;
       tweenRef.current?.kill();
       settleRef.current?.kill();
     };
@@ -463,7 +481,7 @@ export default function WorldExperience() {
   const profileActive = profileTabFromScene(scene);
 
   return (
-    <main className="page world-page" ref={root}>
+    <main className="page world-page" ref={root} style={layoutCssVars(homeLayout.breakpoint)}>
       <div className="world-pin">
         {webgl ? (
           <Suspense fallback={<div className="world-boot" />}>
@@ -483,7 +501,7 @@ export default function WorldExperience() {
 
         {showProject && project && (
           <section
-            className={`world-proj is-${idx % 3} is-${project.effect || "none"} ${stage.id === "leave" ? "is-out" : ""}`}
+            className={`world-proj is-${project.effect || "none"} ${stage.id === "leave" ? "is-out" : ""}`}
             aria-label={project.title}
             style={{ "--scan": imageReveal }}
           >
@@ -585,6 +603,27 @@ export default function WorldExperience() {
       <p className="world-counter" aria-live="polite">
         {counterLabel}
       </p>
+
+      <aside className="world-rail" aria-label="여정 위치">
+        <div className="world-rail__track">
+          <i className="world-rail__fill" style={{ height: `${Math.min(100, Math.max(0, progress * 100))}%` }} />
+          <b className="world-rail__thumb" style={{ top: `${Math.min(100, Math.max(0, progress * 100))}%` }} />
+        </div>
+        <div className="world-rail__marks">
+          {Array.from({ length: SCENE_MAX + 1 }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={i === scene ? "is-on" : ""}
+              style={{ top: `${(i / SCENE_MAX) * 100}%` }}
+              aria-label={i === 0 ? "INTRO" : i <= PROJECT_COUNT ? JOURNEY_PROJECTS[i - 1].title : PROFILE_TABS[i - PROJECT_COUNT - 1]?.label}
+              onClick={() => goToRef.current(i)}
+            />
+          ))}
+        </div>
+      </aside>
+
+      {isSuperAdmin && !viewAsUser && <HomeLayoutEditor homeLayout={homeLayout} />}
 
       <nav className="world-nav" aria-label="Site">
         <p className="world-nav__label">PROJECTS</p>
