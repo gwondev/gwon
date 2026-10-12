@@ -4,17 +4,40 @@ import { getSetting } from "../lib/settings.js";
 
 const router = Router();
 
-/** 홈/개요 미리보기용 — media(LONGTEXT) 제외한 경량 필드만 */
+/** 홈/개요 미리보기 — media 원문은 빼고 대표 사진·영상만 붙여 보낸다 */
 const PREVIEW_SELECT = {
   projects:
-    "id, title, category, host, team_name, members, award, period, url, github_url, description, home_featured, sort_order, created_at, updated_at",
+    "id, title, category, host, team_name, members, award, period, url, github_url, description, media, home_featured, sort_order, created_at, updated_at",
   activities:
-    "id, title, organization, role, period, description, sort_order, created_at, updated_at",
+    "id, title, organization, role, period, description, media, sort_order, created_at, updated_at",
   certifications:
-    "id, title, issuer, acquired, score, description, sort_order, created_at, updated_at",
+    "id, title, issuer, acquired, score, description, media, sort_order, created_at, updated_at",
   careers:
-    "id, title, category, position, period, description, sort_order, created_at, updated_at",
+    "id, title, category, position, period, description, media, sort_order, created_at, updated_at",
 };
+
+function mediaCovers(raw) {
+  let list = [];
+  if (Array.isArray(raw)) list = raw;
+  else if (typeof raw === "string" && raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) list = parsed;
+    } catch {
+      list = [];
+    }
+  }
+  const image = list.find((m) => m?.image)?.image || "";
+  const video = list.find((m) => m?.video)?.video || "";
+  return { coverImage: image, coverVideo: video };
+}
+
+function withCovers(rows) {
+  return (rows || []).map((row) => {
+    const { media, ...rest } = row;
+    return { ...rest, ...mediaCovers(media) };
+  });
+}
 
 async function listPreview(table, columns) {
   try {
@@ -28,7 +51,7 @@ async function listPreview(table, columns) {
       const fallbackCols = columns
         .split(",")
         .map((c) => c.trim())
-        .filter((c) => c !== "sort_order" && c !== "home_featured")
+        .filter((c) => c !== "sort_order" && c !== "home_featured" && c !== "media")
         .join(", ");
       const [rows] = await pool.query(
         `SELECT ${fallbackCols} FROM \`${table}\` ORDER BY id DESC`
@@ -50,10 +73,10 @@ router.get("/preview", async (_req, res, next) => {
     ]);
 
     res.json({
-      projects,
-      activities,
-      certifications,
-      careers,
+      projects: withCovers(projects),
+      activities: withCovers(activities),
+      certifications: withCovers(certifications),
+      careers: withCovers(careers),
     });
   } catch (err) {
     next(err);

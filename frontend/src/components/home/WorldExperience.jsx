@@ -59,16 +59,10 @@ function useResolvedMedia(projects, dbProjects) {
     let alive = true;
     const next = {};
     const jobs = (projects || []).map((p) => {
-      if (p.image || p.video) {
-        next[p.id] = { image: p.image || "", video: p.video || "" };
-        return Promise.resolve();
-      }
       const live = (dbProjects || []).find((it) => matchLive(it, p));
-      const fromDb = mediaCoverImage(live?.media);
-      const video = mediaCoverVideo(live?.media);
-      const candidates = fromDb
-        ? [fromDb, p.image, p.image?.replace(".png", ".webp")]
-        : [p.image, p.image?.replace(".png", ".webp")];
+      const fromDb = live?.coverImage || mediaCoverImage(live?.media);
+      const video = live?.coverVideo || mediaCoverVideo(live?.media) || p.video || "";
+      const candidates = [fromDb, p.image, p.image?.replace(".png", ".webp")];
       return probe(candidates).then((url) => {
         next[p.id] = { image: url, video };
       });
@@ -429,8 +423,8 @@ export default function WorldExperience() {
             style={{ "--scan": imageReveal, opacity: imageReveal }}
           >
             <ProjectVisual
-              image={media[project.id]?.image || project.image}
-              video={media[project.id]?.video || project.video}
+              image={media[project.id]?.image || ""}
+              video={media[project.id]?.video || ""}
               reveal={imageReveal}
               alt={project.imageAlt}
             />
