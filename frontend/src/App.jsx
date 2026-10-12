@@ -5,13 +5,6 @@ import Starfield from "./components/Starfield";
 import ScrollProgress from "./components/ScrollProgress";
 import ChatWidget from "./components/ChatWidget";
 import RootPage from "./pages/RootPage";
-import ProjectsPage from "./pages/ProjectsPage";
-import CompetitionsPage from "./pages/CompetitionsPage";
-import TechStackPage from "./pages/TechStackPage";
-import ActivitiesPage from "./pages/ActivitiesPage";
-import CertificationsPage from "./pages/CertificationsPage";
-import CareerPage from "./pages/CareerPage";
-import OverviewPage from "./pages/OverviewPage";
 import NicknameSetupPage from "./pages/NicknameSetupPage";
 import MyPage from "./pages/MyPage";
 import SchedulePage from "./pages/SchedulePage";
@@ -41,13 +34,13 @@ export default function App() {
       <TopBar />
       <Routes>
         <Route path="/" element={<RootPage />} />
-        <Route path="/tech-stack" element={<TechStackPage />} />
-        <Route path="/competitions" element={<CompetitionsPage />} />
-        <Route path="/projects" element={<ProjectsPage />} />
-        <Route path="/activities" element={<ActivitiesPage />} />
-        <Route path="/certifications" element={<CertificationsPage />} />
-        <Route path="/career" element={<CareerPage />} />
-        <Route path="/overview" element={<OverviewPage />} />
+        <Route path="/tech-stack" element={<Navigate to="/" replace />} />
+        <Route path="/competitions" element={<Navigate to="/" replace />} />
+        <Route path="/projects" element={<Navigate to="/" replace />} />
+        <Route path="/activities" element={<Navigate to="/" replace />} />
+        <Route path="/certifications" element={<Navigate to="/" replace />} />
+        <Route path="/career" element={<Navigate to="/" replace />} />
+        <Route path="/overview" element={<Navigate to="/" replace />} />
         <Route path="/setup-nickname" element={<NicknameSetupPage />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/schedule" element={<SchedulePage />} />

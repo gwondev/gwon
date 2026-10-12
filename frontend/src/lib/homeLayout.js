@@ -73,10 +73,30 @@ export function blankProject(index) {
   );
 }
 
+function cloneCard(it, i) {
+  return {
+    id: String(it?.id || `c-${i + 1}`),
+    title: String(it?.title || it?.name || ""),
+    subtitle: String(it?.subtitle || it?.period || ""),
+    description: String(it?.description || ""),
+  };
+}
+
+function cloneProfile(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  const pick = (key) => (Array.isArray(src[key]) ? src[key] : []).map((it, i) => cloneCard(it, i));
+  return {
+    experience: pick("experience"),
+    career: pick("career"),
+    certs: pick("certs"),
+  };
+}
+
 export const HOME_LAYOUT_DEFAULT = {
   units: { ...UNIT_DEFAULTS },
   media: {},
   projects: defaultProjects(),
+  profile: cloneProfile(null),
 };
 
 export function mergeHomeLayout(raw) {
@@ -93,7 +113,7 @@ export function mergeHomeLayout(raw) {
   }
   const incoming = Array.isArray(src.projects) && src.projects.length ? src.projects : defaultProjects();
   const projects = incoming.slice(0, 8).map((p, i) => cloneProject(p, i));
-  return { units, media, projects };
+  return { units, media, projects, profile: cloneProfile(src.profile) };
 }
 
 export function unitBox(layout, id, fallbackId = id) {

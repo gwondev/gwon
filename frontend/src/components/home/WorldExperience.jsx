@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { worldState } from "./worldState.js";
 import {
@@ -19,13 +19,12 @@ import {
   sceneFromProfileTab,
   sceneFromProjectIndex,
   sceneToProgress,
-  matchLive,
   warpStartOf,
 } from "../../lib/journey.js";
-import { usePortfolioPreview } from "../../lib/usePortfolioPreview.js";
-import { mediaCoverImage, mediaCoverVideo } from "../../lib/media.js";
-import { formatCareerPeriodPreview } from "../../lib/format.js";
-import { isProjectRecord } from "../../lib/sections.js";
+import { fileToCompressedDataUrl } from "../../lib/image.js";
+import { fileToVideoDataUrl } from "../../lib/video.js";
+import { useAuth } from "../../context/AuthContext";
+import { useViewMode } from "../../context/ViewModeContext";
 import { useHomeLayout } from "../../lib/useHomeLayout.js";
 import "./WorldExperience.css";
 
@@ -53,51 +52,6 @@ function hasWebGL() {
   }
 }
 
-function useResolvedMedia(projects, dbProjects) {
-  const [map, setMap] = useState({});
-  useEffect(() => {
-    let alive = true;
-    const next = {};
-    const jobs = (projects || []).map((p) => {
-      const live = (dbProjects || []).find((it) => matchLive(it, p));
-      const fromDb = live?.coverImage || mediaCoverImage(live?.media);
-      const video = live?.coverVideo || mediaCoverVideo(live?.media) || p.video || "";
-      const candidates = [fromDb, p.image, p.image?.replace(".png", ".webp")];
-      return probe(candidates).then((url) => {
-        next[p.id] = { image: url, video };
-      });
-    });
-    Promise.all(jobs).then(() => {
-      if (alive) setMap(next);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [projects, dbProjects]);
-  return map;
-}
-
-function probe(urls) {
-  return new Promise((resolve) => {
-    const tryAt = (i) => {
-      if (i >= urls.length) {
-        resolve("");
-        return;
-      }
-      const src = urls[i];
-      if (!src) {
-        tryAt(i + 1);
-        return;
-      }
-      const img = new Image();
-      img.onload = () => resolve(src);
-      img.onerror = () => tryAt(i + 1);
-      img.src = src;
-    };
-    tryAt(0);
-  });
-}
-
 function setWorldEffect(scene) {
   const i = projectIndexFromScene(scene);
   if (i >= 0) {
@@ -111,11 +65,12 @@ function setWorldEffect(scene) {
 
 export default function WorldExperience() {
   const root = useRef(null);
-  const { preview } = usePortfolioPreview();
+  const { isSuperAdmin } = useAuth();
+  const { viewAsUser } = useViewMode();
   const home = useHomeLayout();
-  const dbProjects = useMemo(() => (preview.projects || []).filter(isProjectRecord), [preview.projects]);
   const projects = home.projects;
-  const media = useResolvedMedia(projects, dbProjects);
+  const profile = home.profile;
+  const canEditHome = isSuperAdmin && !viewAsUser;
   const [progress, setProgress] = useState(() => sceneToProgress(0));
   const [scene, setScene] = useState(0);
   const [webgl, setWebgl] = useState(true);
@@ -352,16 +307,9 @@ export default function WorldExperience() {
           : 0;
   const textReveal = stage.id === "read" ? Math.min(1, stage.u * 1.4) : stage.id === "leave" ? 1 - stage.u : 0;
 
-  const activities = preview.activities || [];
-  const career = preview.career || [];
-  const certs = (preview.certifications || []).map((it) => ({
-    id: it.id,
-    name: it.title,
-    organization: it.issuer,
-    date: it.acquired,
-    status: it.score,
-    description: it.description,
-  }));
+  const activities = profile?.experience || [];
+  const career = profile?.career || [];
+  const certs = profile?.certs || [];
 
   const counterLabel =
     navIndex >= 0
@@ -423,10 +371,25 @@ export default function WorldExperience() {
             style={{ "--scan": imageReveal, opacity: imageReveal }}
           >
             <ProjectVisual
-              image={media[project.id]?.image || ""}
-              video={media[project.id]?.video || ""}
+              image={project.image}
+              video={project.video}
               reveal={imageReveal}
               alt={project.imageAlt}
+              canEdit={canEditHome}
+              onPick={async (file) => {
+                if (!file) return;
+                try {
+                  if (file.type.startsWith("video/")) {
+                    const video = await fileToVideoDataUrl(file);
+                    home.patchProject(project.id, { video, image: project.image || "" });
+                  } else {
+                    const image = await fileToCompressedDataUrl(file);
+                    home.patchProject(project.id, { image, video: "" });
+                  }
+                } catch (err) {
+                  window.alert(err.message || "미디어를 넣지 못했습니다.");
+                }
+              }}
             />
           </div>
           <p className="world-stage__bar">{project.description}</p>
@@ -449,30 +412,26 @@ export default function WorldExperience() {
               <FileCards
                 items={activities}
                 titleOf={(it) => it.title}
-                subOf={(it) => [it.organization, it.role, it.period].filter(Boolean).join(" · ")}
+                subOf={(it) => it.subtitle}
                 detailOf={(it) => it.description}
               />
             )}
             {profileTab.id === "career" && (
               <FileCards
-                items={career.length ? career : activities}
+                items={career}
                 titleOf={(it) => it.title}
-                subOf={(it) =>
-                  career.length
-                    ? [it.position || it.category, formatCareerPeriodPreview(it.period) || it.period].filter(Boolean).join(" · ")
-                    : [it.role, it.organization, it.period].filter(Boolean).join(" · ")
-                }
+                subOf={(it) => it.subtitle}
                 detailOf={(it) => it.description}
-                empty="등록된 경력이 없습니다."
+                empty="아직 없습니다."
               />
             )}
             {profileTab.id === "certs" && (
               <FileCards
                 items={certs}
-                titleOf={(it) => it.name}
-                subOf={(it) => [it.organization, it.date, it.status].filter(Boolean).join(" · ")}
+                titleOf={(it) => it.title}
+                subOf={(it) => it.subtitle}
                 detailOf={(it) => it.description}
-                empty="등록된 자격증이 없습니다."
+                empty="아직 없습니다."
               />
             )}
           </div>
@@ -574,7 +533,7 @@ function JourneyLever({ scene, stops, onScrub, onCommit }) {
   );
 }
 
-function ProjectVisual({ image, video, reveal, alt }) {
+function ProjectVisual({ image, video, reveal, alt, canEdit, onPick }) {
   const [play, setPlay] = useState(false);
   useEffect(() => {
     if (!video || reveal < 0.82) {
@@ -585,11 +544,42 @@ function ProjectVisual({ image, video, reveal, alt }) {
     return () => window.clearTimeout(timer);
   }, [video, reveal]);
 
+  const picker = canEdit ? (
+    <label className="world-stage__upload">
+      {image || video ? "사진·영상 바꾸기" : "사진·영상 넣기"}
+      <input
+        type="file"
+        accept="image/*,video/mp4,video/webm,video/quicktime"
+        hidden
+        onChange={(e) => {
+          onPick?.(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+    </label>
+  ) : null;
+
   if (play && video) {
-    return <video src={video} autoPlay muted loop playsInline />;
+    return (
+      <>
+        <video src={video} autoPlay muted loop playsInline />
+        {picker}
+      </>
+    );
   }
-  if (image) return <img src={image} alt={alt} />;
-  return <div className="world-proj__void" aria-hidden />;
+  if (image) {
+    return (
+      <>
+        <img src={image} alt={alt} />
+        {picker}
+      </>
+    );
+  }
+  return (
+    <div className="world-proj__void">
+      {picker}
+    </div>
+  );
 }
 
 function FileCards({ items, titleOf, subOf, detailOf, empty = "—" }) {

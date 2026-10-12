@@ -2,8 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { IconCalendar, IconUser, IconGrid } from "./ActionIcons";
-import { SECTIONS } from "../lib/sections";
+import { IconCalendar, IconUser } from "./ActionIcons";
 import "./SideDrawer.css";
 
 const panel = {
@@ -80,27 +79,9 @@ export default function SideDrawer({ open, onClose }) {
                 </span>
                 <span className="drawer__quick-label">일정</span>
               </button>
-              <button type="button" className="drawer__quick-btn" onClick={() => go("/overview")}>
-                <span className="drawer__quick-icon">
-                  <IconGrid width={16} height={16} />
-                </span>
-                <span className="drawer__quick-label">전체보기</span>
-              </button>
             </motion.div>
 
             <motion.nav className="drawer__nav" variants={stagger} initial="hidden" animate="show">
-              {SECTIONS.map((s) => (
-                <motion.button
-                  key={s.key}
-                  variants={item}
-                  className="drawer__link"
-                  onClick={() => go(s.path)}
-                >
-                  <span className="drawer__link-no">{s.no}</span>
-                  <span className="drawer__link-title">{s.title}</span>
-                  <span className="drawer__link-arrow">→</span>
-                </motion.button>
-              ))}
               {isAdmin && (
                 <motion.button
                   variants={item}

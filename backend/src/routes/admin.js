@@ -153,7 +153,8 @@ function sanitizeHomeLayout(raw) {
   const units = src.units && typeof src.units === "object" ? src.units : {};
   const media = src.media && typeof src.media === "object" ? src.media : {};
   const projects = Array.isArray(src.projects) ? src.projects.slice(0, 8) : [];
-  return { units, media, projects };
+  const profile = src.profile && typeof src.profile === "object" ? src.profile : { experience: [], career: [], certs: [] };
+  return { units, media, projects, profile };
 }
 
 router.get("/home-layout", requireSuperAdmin, async (_req, res) => {

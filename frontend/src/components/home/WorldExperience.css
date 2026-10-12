@@ -217,6 +217,22 @@
   overflow: hidden;
   border: 0;
   background: #0c0c0e;
+  pointer-events: auto;
+}
+
+.world-stage__upload {
+  position: absolute;
+  left: 50%;
+  bottom: 0.8rem;
+  z-index: 4;
+  transform: translateX(-50%);
+  padding: 0.38rem 0.85rem;
+  border: 1px solid rgba(216, 193, 154, 0.35);
+  background: rgba(12, 12, 14, 0.78);
+  color: var(--accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
 }
 
 .world-stage__media--cards {
