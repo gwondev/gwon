@@ -17,28 +17,29 @@ function parseHome() {
 
 export async function buildPortfolioContext() {
   const layout = await parseHome();
+  const hero = layout.hero && typeof layout.hero === "object" ? layout.hero : {};
   const projects = Array.isArray(layout.projects) ? layout.projects : [];
-  const profile = layout.profile && typeof layout.profile === "object" ? layout.profile : {};
-  const experience = Array.isArray(profile.experience) ? profile.experience : [];
-  const career = Array.isArray(profile.career) ? profile.career : [];
-  const certs = Array.isArray(profile.certs) ? profile.certs : [];
+  const tabs = Array.isArray(layout.profile?.tabs) ? layout.profile.tabs : [];
 
   return [
     "=== 소개 ===",
-    "이성권. 홈에 정리된 프로젝트와 프로필이 기준이다.",
+    [hero.kicker, hero.name, hero.line].filter(Boolean).join(" | ") || "이성권. 홈에 정리된 프로젝트와 프로필이 기준이다.",
     "",
     "=== 프로젝트 ===",
     lines(projects, (p) =>
-      [p.title, p.subtitle, p.period, p.role, p.description, p.result].filter(Boolean).join(" | ")
+      [
+        p.title,
+        p.subtitle,
+        p.description,
+        ...(Array.isArray(p.slides) ? p.slides.map((s) => s.caption).filter(Boolean) : []),
+      ]
+        .filter(Boolean)
+        .join(" | ")
     ),
-    "",
-    "=== EXPERIENCE ===",
-    lines(experience, (it) => [it.title, it.subtitle, it.description].filter(Boolean).join(" | ")),
-    "",
-    "=== CAREER ===",
-    lines(career, (it) => [it.title, it.subtitle, it.description].filter(Boolean).join(" | ")),
-    "",
-    "=== CERTIFICATIONS ===",
-    lines(certs, (it) => [it.title, it.subtitle, it.description].filter(Boolean).join(" | ")),
+    ...tabs.flatMap((tab) => [
+      "",
+      `=== ${tab.label || tab.id || "TAB"} ===`,
+      lines(tab.items, (it) => [it.title, it.subtitle, it.description].filter(Boolean).join(" | ")),
+    ]),
   ].join("\n");
 }

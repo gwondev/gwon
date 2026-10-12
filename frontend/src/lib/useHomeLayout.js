@@ -58,6 +58,16 @@ export function useHomeLayout() {
     [token]
   );
 
+  const patchHero = useCallback(
+    (fields) => persist({ ...layout, hero: { ...layout.hero, ...fields } }),
+    [layout, persist]
+  );
+
+  const patchNav = useCallback(
+    (fields) => persist({ ...layout, nav: { ...layout.nav, ...fields } }),
+    [layout, persist]
+  );
+
   const patchProject = useCallback(
     (id, fields) => {
       persist({
@@ -68,9 +78,64 @@ export function useHomeLayout() {
     [layout, persist]
   );
 
+  const patchProfileTab = useCallback(
+    (tabId, fields) => {
+      persist({
+        ...layout,
+        profile: {
+          tabs: (layout.profile?.tabs || []).map((tab) => (tab.id === tabId ? { ...tab, ...fields } : tab)),
+        },
+      });
+    },
+    [layout, persist]
+  );
+
+  const patchProfileItem = useCallback(
+    (tabId, itemId, fields) => {
+      persist({
+        ...layout,
+        profile: {
+          tabs: (layout.profile?.tabs || []).map((tab) =>
+            tab.id === tabId
+              ? { ...tab, items: tab.items.map((it) => (it.id === itemId ? { ...it, ...fields } : it)) }
+              : tab
+          ),
+        },
+      });
+    },
+    [layout, persist]
+  );
+
+  const addProfileItem = useCallback(
+    (tabId) => {
+      persist({
+        ...layout,
+        profile: {
+          tabs: (layout.profile?.tabs || []).map((tab) => {
+            if (tab.id !== tabId) return tab;
+            const i = tab.items.length;
+            return {
+              ...tab,
+              items: [...tab.items, { i, id: `c-${Date.now()}`, title: "새 항목", subtitle: "", description: "" }],
+            };
+          }),
+        },
+      });
+    },
+    [layout, persist]
+  );
+
   return {
+    layout,
+    hero: layout.hero,
+    nav: layout.nav,
     projects: layout.projects,
     profile: layout.profile,
+    patchHero,
+    patchNav,
     patchProject,
+    patchProfileTab,
+    patchProfileItem,
+    addProfileItem,
   };
 }

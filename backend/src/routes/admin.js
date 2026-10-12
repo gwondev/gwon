@@ -144,13 +144,20 @@ router.put("/tech-stack", requireSuperAdmin, async (req, res) => {
   res.json({ groups });
 });
 
+const HOME_LAYOUT_DOC = {
+  hero: "hero.i=0 — kicker, name, line",
+  nav: "nav.i=0 — projects, profile",
+  projects: "projects[i] — title, subtitle, description, slides[j] {i, kind:image|video, src, caption, name}",
+  profile: "profile.tabs[k] — id, label, one, items[n] {i, id, title, subtitle, description}",
+};
+
 function sanitizeHomeLayout(raw) {
   const src = raw && typeof raw === "object" ? raw : {};
-  const units = src.units && typeof src.units === "object" ? src.units : {};
-  const media = src.media && typeof src.media === "object" ? src.media : {};
+  const hero = src.hero && typeof src.hero === "object" ? src.hero : {};
+  const nav = src.nav && typeof src.nav === "object" ? src.nav : {};
   const projects = Array.isArray(src.projects) ? src.projects.slice(0, 8) : [];
-  const profile = src.profile && typeof src.profile === "object" ? src.profile : { experience: [], career: [], certs: [] };
-  return { units, media, projects, profile };
+  const profile = src.profile && typeof src.profile === "object" ? src.profile : { tabs: [] };
+  return { _doc: HOME_LAYOUT_DOC, hero, nav, projects, profile };
 }
 
 router.get("/home-layout", requireSuperAdmin, async (_req, res) => {

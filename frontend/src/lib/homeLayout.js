@@ -1,57 +1,73 @@
-import { JOURNEY_PROJECTS } from "./journey.js";
+import { JOURNEY_PROJECTS, PROFILE_TABS } from "./journey.js";
 
 export const HOME_LAYOUT_KEY = "gwon.homeLayout";
 
-export const UNIT_DEFAULTS = {
-  hero: { x: 18, y: 28, w: 64, h: 40 },
-  connect: { x: 18, y: 30, w: 64, h: 36 },
-  projCopy: { x: 15, y: 18, w: 34, h: 60 },
-  projMedia: { x: 51, y: 16, w: 36, h: 56, ox: 50, oy: 50 },
-  profileTabs: { x: 16, y: 9, w: 58, h: 8 },
-  profileCards: { x: 14, y: 18, w: 62, h: 66 },
-  nav: { x: 1.2, y: 18, w: 16, h: 62 },
-  counter: { x: 62, y: 6.4, w: 16, h: 5 },
-  rail: { x: 62, y: 16, w: 16, h: 62 },
+/**
+ * settings.home_layout JSON
+ * 모든 화면 글자·사진이 이 한 덩어리. 배열 순서가 곧 화면 순서이고, 각 객체 i 가 그 인덱스다.
+ *
+ * hero            i=0     kicker, name, line
+ * nav             i=0     projects, profile
+ * projects[i]             id, no, title, subtitle, description, slides
+ * projects[i].slides[j]   i, kind(image|video), src, caption, name
+ * profile.tabs[k]         i, id, label, one, items
+ * profile.tabs[k].items[n] i, id, title, subtitle, description
+ */
+export const HOME_LAYOUT_DOC = {
+  hero: "hero.i=0 — kicker, name, line",
+  nav: "nav.i=0 — projects, profile",
+  projects: "projects[i] — title, subtitle, description, slides[j] {i, kind:image|video, src, caption, name}",
+  profile: "profile.tabs[k] — id, label, one, items[n] {i, id, title, subtitle, description}",
 };
 
-function num(v, fallback, min, max) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(n * 10) / 10));
+function str(v, fallback = "") {
+  return v == null ? fallback : String(v);
 }
 
-export function clampBox(raw, fallback) {
-  const x = raw && typeof raw === "object" ? raw : {};
-  const box = {
-    x: num(x.x, fallback.x, 0, 96),
-    y: num(x.y, fallback.y, 0, 96),
-    w: num(x.w, fallback.w, 6, 100),
-    h: num(x.h, fallback.h, 4, 100),
-  };
-  if (fallback.ox != null || x.ox != null) {
-    box.ox = num(x.ox, fallback.ox ?? 50, 0, 100);
-    box.oy = num(x.oy, fallback.oy ?? 50, 0, 100);
-  }
-  return box;
-}
-
-function cloneProject(p, i) {
+function cloneSlide(s, i) {
+  const src = str(s?.src || s?.image || s?.video);
+  const kind = s?.kind === "video" || s?.video || src.startsWith("data:video") ? "video" : "image";
   return {
-    id: String(p.id || `p-${i + 1}`),
-    no: String(i + 1).padStart(2, "0"),
-    title: String(p.title || "NEW PROJECT"),
-    subtitle: String(p.subtitle || ""),
-    period: String(p.period || ""),
-    role: String(p.role || ""),
-    keywords: Array.isArray(p.keywords) ? p.keywords.map(String) : [],
-    stack: Array.isArray(p.stack) ? p.stack.map(String) : [],
-    description: String(p.description || ""),
-    result: String(p.result || ""),
-    image: String(p.image || ""),
-    video: String(p.video || ""),
-    imageAlt: String(p.imageAlt || p.title || ""),
-    match: Array.isArray(p.match) ? p.match.map(String) : [String(p.id || "")],
-    effect: String(p.effect || "none"),
+    i,
+    kind,
+    src,
+    caption: str(s?.caption),
+    name: str(s?.name),
+  };
+}
+
+function slidesOf(p) {
+  if (Array.isArray(p?.slides) && p.slides.length) {
+    return p.slides.slice(0, 12).map((s, i) => cloneSlide(s, i));
+  }
+  const slides = [];
+  if (p?.image) slides.push(cloneSlide({ kind: "image", src: p.image, caption: p.description }, 0));
+  if (p?.video) slides.push(cloneSlide({ kind: "video", src: p.video, caption: p.description }, slides.length));
+  return slides;
+}
+
+export function cloneProject(p, i) {
+  const slides = slidesOf(p);
+  const firstImg = slides.find((s) => s.kind === "image");
+  const firstVid = slides.find((s) => s.kind === "video");
+  return {
+    i,
+    id: str(p?.id, `p-${i + 1}`),
+    no: str(p?.no, String(i + 1).padStart(2, "0")),
+    title: str(p?.title, "NEW PROJECT"),
+    subtitle: str(p?.subtitle),
+    period: str(p?.period),
+    role: str(p?.role),
+    keywords: Array.isArray(p?.keywords) ? p.keywords.map(String) : [],
+    stack: Array.isArray(p?.stack) ? p.stack.map(String) : [],
+    description: str(p?.description),
+    result: str(p?.result),
+    image: firstImg?.src || "",
+    video: firstVid?.src || "",
+    imageAlt: str(p?.imageAlt || p?.title),
+    match: Array.isArray(p?.match) ? p.match.map(String) : [str(p?.id, `p-${i + 1}`)],
+    effect: str(p?.effect, "none"),
+    slides,
   };
 }
 
@@ -65,72 +81,107 @@ export function blankProject(index) {
       id: `p-${Date.now()}`,
       title: "NEW PROJECT",
       subtitle: "New work",
-      description: "설명을 입력하세요.",
+      description: "",
       keywords: ["Project"],
       effect: "none",
+      slides: [],
     },
     index
   );
 }
 
+export function blankSlide(index) {
+  return cloneSlide({ kind: "image", src: "", caption: "", name: `탭 ${index + 1}` }, index);
+}
+
 function cloneCard(it, i) {
   return {
-    id: String(it?.id || `c-${i + 1}`),
-    title: String(it?.title || it?.name || ""),
-    subtitle: String(it?.subtitle || it?.period || ""),
-    description: String(it?.description || ""),
+    i,
+    id: str(it?.id, `c-${i + 1}`),
+    title: str(it?.title || it?.name),
+    subtitle: str(it?.subtitle || it?.period),
+    description: str(it?.description),
   };
 }
 
-function cloneProfile(raw) {
-  const src = raw && typeof raw === "object" ? raw : {};
-  const pick = (key) => (Array.isArray(src[key]) ? src[key] : []).map((it, i) => cloneCard(it, i));
+function cloneProfileTab(tab, i, fallback) {
+  const src = tab && typeof tab === "object" ? tab : {};
+  const items = Array.isArray(src.items) ? src.items : [];
   return {
-    experience: pick("experience"),
-    career: pick("career"),
-    certs: pick("certs"),
+    i,
+    id: str(src.id, fallback.id),
+    label: str(src.label, fallback.label),
+    one: str(src.one, fallback.one),
+    items: items.map((it, j) => cloneCard(it, j)),
+  };
+}
+
+const PROFILE_ONES = {
+  experience: "Work and activities",
+  career: "Roles and periods",
+  certs: "Licenses and scores",
+};
+
+export function cloneProfile(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  if (Array.isArray(src.tabs) && src.tabs.length) {
+    return {
+      tabs: src.tabs.map((tab, i) =>
+        cloneProfileTab(tab, i, {
+          id: PROFILE_TABS[i]?.id || `tab-${i}`,
+          label: PROFILE_TABS[i]?.label || "TAB",
+          one: PROFILE_ONES[PROFILE_TABS[i]?.id] || "",
+        })
+      ),
+    };
+  }
+  return {
+    tabs: PROFILE_TABS.map((tab, i) =>
+      cloneProfileTab(
+        { ...tab, one: PROFILE_ONES[tab.id], items: src[tab.id] || [] },
+        i,
+        { id: tab.id, label: tab.label, one: PROFILE_ONES[tab.id] }
+      )
+    ),
+  };
+}
+
+export function cloneHero(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  return {
+    i: 0,
+    kicker: str(src.kicker, "ENGINEER"),
+    name: str(src.name, "이성권"),
+    line: str(src.line, "systems from hardware to infrastructure"),
+  };
+}
+
+export function cloneNav(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  return {
+    i: 0,
+    projects: str(src.projects, "PROJECTS"),
+    profile: str(src.profile, "PROFILE"),
   };
 }
 
 export const HOME_LAYOUT_DEFAULT = {
-  units: { ...UNIT_DEFAULTS },
-  media: {},
+  _doc: HOME_LAYOUT_DOC,
+  hero: cloneHero(null),
+  nav: cloneNav(null),
   projects: defaultProjects(),
   profile: cloneProfile(null),
 };
 
 export function mergeHomeLayout(raw) {
   const src = raw && typeof raw === "object" ? raw : {};
-  const units = {};
-  for (const [key, fallback] of Object.entries(UNIT_DEFAULTS)) {
-    units[key] = clampBox(src.units?.[key], fallback);
-  }
-  const media = {};
-  if (src.media && typeof src.media === "object") {
-    for (const [id, box] of Object.entries(src.media)) {
-      media[id] = clampBox(box, UNIT_DEFAULTS.projMedia);
-    }
-  }
   const incoming = Array.isArray(src.projects) && src.projects.length ? src.projects : defaultProjects();
-  const projects = incoming.slice(0, 8).map((p, i) => cloneProject(p, i));
-  return { units, media, projects, profile: cloneProfile(src.profile) };
-}
-
-export function unitBox(layout, id, fallbackId = id) {
-  return layout?.units?.[id] || UNIT_DEFAULTS[fallbackId];
-}
-
-export function mediaBox(layout, projectId) {
-  return layout?.media?.[projectId] || layout?.units?.projMedia || UNIT_DEFAULTS.projMedia;
-}
-
-export function boxStyle(box) {
-  if (!box) return undefined;
   return {
-    left: `${box.x}vw`,
-    top: `${box.y}vh`,
-    width: `${box.w}vw`,
-    height: `${box.h}vh`,
+    _doc: HOME_LAYOUT_DOC,
+    hero: cloneHero(src.hero),
+    nav: cloneNav(src.nav),
+    projects: incoming.slice(0, 8).map((p, i) => cloneProject(p, i)),
+    profile: cloneProfile(src.profile),
   };
 }
 
