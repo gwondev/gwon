@@ -78,8 +78,8 @@
 }
 
 .b-shell--overview {
-  width: min(1080px, 100%);
-  max-width: 1080px;
+  width: min(1188px, 100%);
+  max-width: 1188px;
   margin: 0 auto;
   flex: none;
   height: auto;
@@ -96,8 +96,8 @@
 
 .b-shell--overview .b-split {
   flex: none;
-  height: min(52vh, 560px);
-  min-height: 340px;
+  height: min(57vh, 616px);
+  min-height: 374px;
 }
 
 .b-shell--overview .b-pos__grid {
@@ -1454,8 +1454,8 @@
 
   .b-shell--overview .b-split {
     flex: none;
-    height: min(48vh, 480px);
-    min-height: 280px;
+    height: min(53vh, 528px);
+    min-height: 308px;
     grid-template-columns: minmax(0, 1fr) minmax(200px, 28vw);
   }
 }
