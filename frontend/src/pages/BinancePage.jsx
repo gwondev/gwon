@@ -392,7 +392,6 @@ export default function BinancePage() {
 
   const chartSymbol = activeSymbol || positions[0]?.symbol || "";
   const active = positions.find((p) => p.symbol === chartSymbol) || null;
-  const fut = asset?.futures;
   const fills = story?.symbol === chartSymbol ? story.story : null;
   const chartLevels = [];
   if (active) {
@@ -575,42 +574,16 @@ export default function BinancePage() {
       </div>
       ) : (
       <div className="b-shell b-shell--overview">
-        <div className="b-left">
-          <section className="b-card b-asset">
+        <section className="b-card b-pos">
             {asset ? (
-              <div className="b-asset__row">
-                <div className="b-asset__hero">
-                  <p className="b-card__kicker">총자산</p>
-                  <strong>
-                    {formatNumber(asset.totalUsdt, 2)}
-                    <small>USDT</small>
-                  </strong>
-                  {asset.totalKrw != null && <span>≈ {formatNumber(asset.totalKrw, 0)}원</span>}
-                </div>
-                <div className="b-facts b-facts--3">
-                  <div>
-                    <span>지갑</span>
-                    <strong>{formatNumber(fut?.wallet, 2)}</strong>
-                  </div>
-                  <div>
-                    <span>가용</span>
-                    <strong>{formatNumber(fut?.available, 2)}</strong>
-                  </div>
-                  <div>
-                    <span>미실현</span>
-                    <strong className={(fut?.unrealized || 0) >= 0 ? "is-up" : "is-down"}>{formatNumber(fut?.unrealized, 2)}</strong>
-                  </div>
-                </div>
-              </div>
+              <p className="b-asset-line">
+                <strong>{formatNumber(asset.totalUsdt, 2)}USDT</strong>
+                {asset.totalKrw != null && <span>≈ {formatNumber(asset.totalKrw, 0)}원</span>}
+              </p>
             ) : (
-              !error && <p className="b-muted">불러오는 중…</p>
+              !error && <p className="b-muted">총자산 불러오는 중…</p>
             )}
             {error && <p className="b-err">{error}</p>}
-          </section>
-        </div>
-
-        <section className="b-card b-trade">
-          <div className="b-pos">
             <div className="b-pos__head">
               <p className="b-card__kicker">현재 포지션 요약</p>
               {positions.length ? (
@@ -666,8 +639,9 @@ export default function BinancePage() {
             ) : (
               <p className="b-muted">선택된 포지션이 없습니다.</p>
             )}
-          </div>
+        </section>
 
+        <section className="b-card b-trade">
           <div className="b-split">
           <div className="b-tvwrap">
             <div className="b-tvwrap__head">
