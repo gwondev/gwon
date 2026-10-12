@@ -32,12 +32,7 @@ import { usePortfolioPreview } from "../../lib/usePortfolioPreview.js";
 import { mediaCoverImage, mediaCoverVideo } from "../../lib/media.js";
 import { formatCareerPeriodPreview } from "../../lib/format.js";
 import { isProjectRecord } from "../../lib/sections.js";
-import { useAuth } from "../../context/AuthContext";
-import { useViewMode } from "../../context/ViewModeContext";
 import { useHomeLayout } from "../../lib/useHomeLayout.js";
-import { blankProject, mediaBox, unitBox } from "../../lib/homeLayout.js";
-import EditFrame from "./EditFrame.jsx";
-import HomeEditBar from "./HomeEditBar.jsx";
 import "./WorldExperience.css";
 
 const NeuralCanvas = lazy(() => import("./neural/NeuralCanvas.jsx"));
@@ -129,13 +124,10 @@ function setWorldEffect(scene) {
 export default function WorldExperience() {
   const root = useRef(null);
   const { preview } = usePortfolioPreview();
-  const { isSuperAdmin } = useAuth();
-  const { viewAsUser } = useViewMode();
   const home = useHomeLayout();
   const dbProjects = useMemo(() => (preview.projects || []).filter(isProjectRecord), [preview.projects]);
-  const projects = home.layout.projects;
+  const projects = home.projects;
   const media = useResolvedMedia(projects, dbProjects);
-  const edit = home.edit;
   const [progress, setProgress] = useState(() => sceneToProgress(0));
   const [scene, setScene] = useState(0);
   const [webgl, setWebgl] = useState(true);
@@ -335,7 +327,7 @@ export default function WorldExperience() {
     };
 
     const onWheel = (e) => {
-      if (worldState.editDrag) return;
+      if (worldState.leverDrag) return;
       const now = performance.now();
       const dy = e.deltaY;
       const gap = now - lastWheelRef.current;
@@ -453,23 +445,21 @@ export default function WorldExperience() {
   const navIndex = projectIndexFromScene(scene);
   const { t } = projectLocal(progress);
   const stage = idx >= 0 ? projectStage(t) : { id: progress < INTRO_END ? "intro" : "after", u: 0 };
-  const project = (edit && navIndex >= 0 ? projects[navIndex] : null) || (idx >= 0 ? projects[idx] : null);
-  const showHero = (edit && scene === 0) || progress < INTRO_END + 0.02;
-  const showProject = Boolean(project) && (edit || stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55));
+  const project = idx >= 0 ? projects[idx] : null;
+  const showHero = progress < INTRO_END + 0.02;
+  const showProject = Boolean(project) && (stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55));
   const showConnect = isProfileScene(scene) && progress >= CONNECT_START && progress < PROFILE_START;
-  const showProfile = isProfileScene(scene) && (edit || progress >= PROFILE_START);
+  const showProfile = isProfileScene(scene) && progress >= PROFILE_START;
   const imageReveal = !project
     ? 0
-    : edit
-      ? 1
-      : stage.id === "arrive"
-        ? stage.u
-        : stage.id === "read"
-          ? 1
-          : stage.id === "leave"
-            ? 1 - stage.u
-            : 0;
-  const textReveal = edit ? 1 : stage.id === "read" ? Math.min(1, stage.u * 1.4) : stage.id === "leave" ? 1 - stage.u : 0;
+    : stage.id === "arrive"
+      ? stage.u
+      : stage.id === "read"
+        ? 1
+        : stage.id === "leave"
+          ? 1 - stage.u
+          : 0;
+  const textReveal = stage.id === "read" ? Math.min(1, stage.u * 1.4) : stage.id === "leave" ? 1 - stage.u : 0;
 
   const activities = preview.activities || [];
   const career = preview.career || [];
@@ -491,38 +481,31 @@ export default function WorldExperience() {
         : `00 / ${String(n).padStart(2, "0")}`;
 
   const profileActive = profileTabFromScene(scene);
-  const layout = home.layout;
-  const mediaRect = project ? mediaBox(layout, project.id) : unitBox(layout, "projMedia");
-  const railStops = [
+  const leverStops = [
     { scene: 0, label: "INTRO" },
     ...projects.map((p, i) => ({ scene: i + 1, label: p.title })),
     ...PROFILE_TABS.map((item, i) => ({ scene: n + 1 + i, label: item.label })),
   ];
-  const railPct = (value) => {
-    const a = 0.018;
-    const b = 0.985;
-    return Math.min(100, Math.max(0, ((value - a) / (b - a)) * 100));
-  };
 
-  const addProject = () => {
-    if (projects.length >= 8) return;
-    const next = [...projects, blankProject(projects.length)];
-    home.setProjects(next);
-    goToRef.current(next.length);
-  };
-  const removeProject = (id) => {
-    if (projects.length <= 1) return;
-    if (!window.confirm("이 프로젝트를 홈에서 삭제할까요?")) return;
-    const next = projects.filter((p) => p.id !== id).map((p, i) => ({ ...p, no: String(i + 1).padStart(2, "0") }));
-    home.setProjects(next);
-    goToRef.current(Math.min(scene, next.length));
-  };
-  const patchProject = (id, fields) => {
-    home.setProjects(projects.map((p) => (p.id === id ? { ...p, ...fields } : p)));
+  const scrubTo = (next) => {
+    tweenRef.current?.kill();
+    settleRef.current?.kill();
+    const clamped = Math.max(0, Math.min(sceneMax(), next));
+    targetSceneRef.current = clamped;
+    sceneRef.current = clamped;
+    setScene(clamped);
+    if (isProfileScene(clamped)) setTab(profileTabFromScene(clamped) || "experience");
+    accRef.current = 0;
+    setWorldEffect(clamped);
+    worldState.warpFrom = null;
+    worldState.warpBack = false;
+    const target = sceneToProgress(clamped);
+    worldState.progress = target;
+    setProgress(target);
   };
 
   return (
-    <main className={`page world-page ${edit ? "is-editing" : ""}`} ref={root}>
+    <main className="page world-page" ref={root}>
       <div className="world-pin">
         {webgl ? (
           <Suspense fallback={<div className="world-boot" />}>
@@ -534,53 +517,20 @@ export default function WorldExperience() {
       </div>
 
       {showHero && (
-        <EditFrame id="hero" label="인트로" box={unitBox(layout, "hero")} edit={edit} onBox={(box) => home.setUnit("hero", box)} className="world-hero">
+        <section className="world-hero">
           <p className="world-kicker">ENGINEER</p>
           <h1>이성권</h1>
           <p className="world-line">systems from hardware to infrastructure</p>
-        </EditFrame>
+        </section>
       )}
 
       {showProject && project && (
-        <>
-          <EditFrame
-            id="projCopy"
-            label="프로젝트 글"
-            box={unitBox(layout, "projCopy")}
-            edit={edit}
-            onBox={(box) => home.setUnit("projCopy", box)}
-            className="world-proj__copy"
-            style={{ opacity: Math.max(textReveal, imageReveal * 0.4) }}
-          >
-            <p className="world-kicker">
-              PROJECT {project.no}
-              {project.period ? ` · ${project.period}` : ""}
-              {project.role ? ` · ${project.role}` : ""}
-            </p>
-            <h2>{project.title}</h2>
-            <p className="world-line">{project.subtitle}</p>
-            {textReveal > 0.35 && <p className="world-desc">{project.description}</p>}
-            {textReveal > 0.55 && (
-              <p className="world-meta">
-                {(project.keywords || []).join("  ·  ")}
-                {project.stack?.length ? `  —  ${project.stack.slice(0, 6).join(" / ")}` : ""}
-              </p>
-            )}
-            {textReveal > 0.75 && project.result && <p className="world-result">{project.result}</p>}
-          </EditFrame>
-          <EditFrame
-            id="projMedia"
-            label="사진 · 영상"
-            box={mediaRect}
-            edit={edit}
-            onBox={(box) => home.setMedia(project.id, box)}
-            className={`world-proj__visual is-${project.effect || "none"}`}
-            style={{
-              "--scan": imageReveal,
-              opacity: imageReveal,
-              "--ox": `${mediaRect.ox ?? 50}%`,
-              "--oy": `${mediaRect.oy ?? 50}%`,
-            }}
+        <section className="world-stage" style={{ opacity: Math.max(textReveal, imageReveal * 0.35) }}>
+          <h2 className="world-stage__title">{project.title}</h2>
+          <p className="world-stage__one">{project.subtitle}</p>
+          <div
+            className={`world-stage__media is-${project.effect || "none"}`}
+            style={{ "--scan": imageReveal, opacity: imageReveal }}
           >
             <ProjectVisual
               image={media[project.id]?.image || project.image}
@@ -588,22 +538,27 @@ export default function WorldExperience() {
               reveal={imageReveal}
               alt={project.imageAlt}
             />
-            {edit && <MediaFocus box={mediaRect} onBox={(box) => home.setMedia(project.id, box)} />}
-          </EditFrame>
-        </>
+          </div>
+          <p className="world-stage__bar">{project.description}</p>
+          <p className="world-stage__bar world-stage__bar--meta">
+            {(project.keywords || []).join("  ·  ")}
+            {project.stack?.length ? `  —  ${project.stack.slice(0, 6).join(" / ")}` : ""}
+            {project.result ? `  ·  ${project.result}` : ""}
+          </p>
+        </section>
       )}
 
       {showConnect && (
-        <EditFrame id="connect" label="연결" box={unitBox(layout, "connect")} edit={edit} onBox={(box) => home.setUnit("connect", box)} className="world-hero">
+        <section className="world-hero">
           <p className="world-kicker">THE SYSTEM</p>
           <h1>CONNECT.</h1>
           <p className="world-line">{projects.map((p) => p.title).join(" · ")}</p>
-        </EditFrame>
+        </section>
       )}
 
       {showProfile && (
-        <>
-          <EditFrame id="profileTabs" label="프로필 탭" box={unitBox(layout, "profileTabs")} edit={edit} onBox={(box) => home.setUnit("profileTabs", box)} className="world-file__tabs" allowFocus>
+        <section className="world-file">
+          <nav className="world-file__tabs" aria-label="프로필">
             {PROFILE_TABS.map((item) => (
               <button
                 key={item.id}
@@ -616,8 +571,8 @@ export default function WorldExperience() {
                 {item.label}
               </button>
             ))}
-          </EditFrame>
-          <EditFrame id="profileCards" label="프로필 카드" box={unitBox(layout, "profileCards")} edit={edit} onBox={(box) => home.setUnit("profileCards", box)} className="world-file__panel" allowFocus>
+          </nav>
+          <div className="world-file__panel">
             {tab === "experience" && (
               <FileCards
                 items={activities}
@@ -648,96 +603,95 @@ export default function WorldExperience() {
                 empty="등록된 자격증이 없습니다."
               />
             )}
-          </EditFrame>
-        </>
+          </div>
+        </section>
       )}
 
-      <EditFrame id="counter" label="번호" box={unitBox(layout, "counter")} edit={edit} onBox={(box) => home.setUnit("counter", box)} className="world-counter">
-        <p aria-live="polite">{counterLabel}</p>
-      </EditFrame>
+      <p className="world-counter" aria-live="polite">
+        {counterLabel}
+      </p>
 
-      <EditFrame id="rail" label="여정" box={unitBox(layout, "rail")} edit={edit} onBox={(box) => home.setUnit("rail", box)} className="world-spine" allowFocus>
-        <div className="world-spine__line">
-          <i style={{ height: `${railPct(progress)}%` }} />
-          <b style={{ top: `${railPct(progress)}%` }} />
-        </div>
-        {railStops.map((stop) => (
-          <button
-            key={stop.scene}
-            type="button"
-            className={stop.scene === scene ? "is-on" : ""}
-            style={{ top: `${railPct(sceneToProgress(stop.scene))}%` }}
-            onClick={() => goToRef.current(stop.scene)}
-          >
-            <em />
-            <span>{stop.label}</span>
-          </button>
-        ))}
-      </EditFrame>
+      <JourneyLever
+        scene={scene}
+        stops={leverStops}
+        onScrub={scrubTo}
+        onCommit={(next) => goToRef.current(next)}
+      />
 
-      <EditFrame id="nav" label="목록" box={unitBox(layout, "nav")} edit={edit} onBox={(box) => home.setUnit("nav", box)} className="world-nav" allowFocus>
-        <p className="world-nav__label">PROJECTS</p>
-        {projects.map((p, i) => (
-          <button
-            key={p.id}
-            type="button"
-            className={i === navIndex ? "is-on" : ""}
-            onMouseEnter={() => {
-              if (!worldState.mobile) worldState.hoverIndex = i;
-            }}
-            onMouseLeave={() => {
-              worldState.hoverIndex = -1;
-            }}
-            onClick={() => goToRef.current(sceneFromProjectIndex(i))}
-          >
-            <i />
-            <span>{p.no}</span>
-            <em>{p.title}</em>
-          </button>
-        ))}
-        <p className="world-nav__label world-nav__label--gap">PROFILE</p>
-        {PROFILE_TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={profileActive === item.id ? "is-on" : ""}
-            onClick={() => goToRef.current(sceneFromProfileTab(item.id))}
-          >
-            <i />
-            <span aria-hidden />
-            <em>{item.label}</em>
-          </button>
-        ))}
-      </EditFrame>
-
-      {isSuperAdmin && !viewAsUser && (
-        <HomeEditBar home={home} project={project} onAdd={addProject} onRemove={removeProject} onPatch={patchProject} />
-      )}
+      <nav className={`world-nav${showProfile ? " is-desktop-hide" : ""}`} aria-label="여정">
+          <p className="world-nav__label">PROJECTS</p>
+          {projects.map((p, i) => (
+            <button
+              key={p.id}
+              type="button"
+              className={i === navIndex ? "is-on" : ""}
+              onMouseEnter={() => {
+                if (!worldState.mobile) worldState.hoverIndex = i;
+              }}
+              onMouseLeave={() => {
+                worldState.hoverIndex = -1;
+              }}
+              onClick={() => goToRef.current(sceneFromProjectIndex(i))}
+            >
+              <i />
+              <span>{p.no}</span>
+              <em>{p.title}</em>
+            </button>
+          ))}
+          <p className="world-nav__label world-nav__label--gap">PROFILE</p>
+          {PROFILE_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={profileActive === item.id ? "is-on" : ""}
+              onClick={() => goToRef.current(sceneFromProfileTab(item.id))}
+            >
+              <i />
+              <span aria-hidden />
+              <em>{item.label}</em>
+            </button>
+          ))}
+        </nav>
     </main>
   );
 }
 
-function MediaFocus({ box, onBox }) {
+function JourneyLever({ scene, stops, onScrub, onCommit }) {
+  const track = useRef(null);
+  const index = Math.max(0, stops.findIndex((stop) => stop.scene === scene));
+  const pct = stops.length <= 1 ? 0 : (index / (stops.length - 1)) * 100;
+
+  const sceneFromY = (clientY) => {
+    const rect = track.current?.getBoundingClientRect();
+    if (!rect || !stops.length) return scene;
+    const t = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    return stops[Math.round(t * (stops.length - 1))].scene;
+  };
+
   const start = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    worldState.editDrag = true;
-    const wrap = e.currentTarget.parentElement;
-    const move = (ev) => {
-      const r = wrap.getBoundingClientRect();
-      const ox = Math.min(100, Math.max(0, ((ev.clientX - r.left) / r.width) * 100));
-      const oy = Math.min(100, Math.max(0, ((ev.clientY - r.top) / r.height) * 100));
-      onBox({ ...box, ox, oy });
-    };
-    const up = () => {
-      worldState.editDrag = false;
+    worldState.leverDrag = true;
+    track.current?.setPointerCapture?.(e.pointerId);
+    onScrub(sceneFromY(e.clientY));
+    const move = (ev) => onScrub(sceneFromY(ev.clientY));
+    const up = (ev) => {
+      worldState.leverDrag = false;
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      onCommit(sceneFromY(ev.clientY));
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   };
-  return <b className="world-proj__focus" style={{ left: `${box.ox ?? 50}%`, top: `${box.oy ?? 50}%` }} onPointerDown={start} />;
+
+  return (
+    <div className="world-lever" ref={track} onPointerDown={start}>
+      <i className="world-lever__fill" style={{ height: `${pct}%` }} />
+      <b className="world-lever__grip" style={{ top: `${pct}%` }} />
+      <span className="world-lever__label">{stops[index]?.label}</span>
+    </div>
+  );
 }
 
 function ProjectVisual({ image, video, reveal, alt }) {
