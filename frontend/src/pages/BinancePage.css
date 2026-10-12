@@ -71,46 +71,26 @@
 }
 
 .b-shell--overview {
-  grid-template-columns: minmax(300px, 0.34fr) minmax(0, 0.66fr);
-}
-
-.b-shell--overview .b-pos {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: auto;
-}
-
-.b-shell--overview .b-pos__head {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.b-shell--overview .b-pos__grid {
-  grid-template-columns: 1fr 1fr;
-}
-
-.b-shell--overview .b-trade {
-  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .b-asset-line {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.18rem;
   font-variant-numeric: tabular-nums;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .b-asset-line strong {
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-size: 0.86rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
 }
 
 .b-asset-line span {
-  margin-left: 0.22rem;
+  margin-left: 0.18rem;
   color: var(--accent);
-  font-size: 0.92rem;
-  font-weight: 650;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .b-shell--picks {

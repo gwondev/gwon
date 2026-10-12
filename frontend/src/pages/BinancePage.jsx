@@ -574,7 +574,8 @@ export default function BinancePage() {
       </div>
       ) : (
       <div className="b-shell b-shell--overview">
-        <section className="b-card b-pos">
+        <section className="b-card b-trade">
+          <div className="b-pos">
             {asset ? (
               <p className="b-asset-line">
                 <strong>{formatNumber(asset.totalUsdt, 2)}USDT</strong>
@@ -639,9 +640,8 @@ export default function BinancePage() {
             ) : (
               <p className="b-muted">선택된 포지션이 없습니다.</p>
             )}
-        </section>
+          </div>
 
-        <section className="b-card b-trade">
           <div className="b-split">
           <div className="b-tvwrap">
             <div className="b-tvwrap__head">

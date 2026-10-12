@@ -510,6 +510,7 @@ async function runMigrations(conn) {
     // 키워드를 사용자가 자유롭게 추가/삭제할 수 있도록 고정 ENUM에서 자유 문자열로 전환
     "ALTER TABLE calendar_events MODIFY COLUMN appointment_type VARCHAR(32) DEFAULT NULL",
     // 할 일 세부설명(선택) — 리스트에는 안 보이고 팝업으로만 확인
+    "ALTER TABLE settings MODIFY COLUMN value LONGTEXT",
     "ALTER TABLE todo_items ADD COLUMN description TEXT DEFAULT NULL AFTER text",
     "ALTER TABLE binance_income_ledger DROP INDEX uniq_tran",
     "ALTER TABLE binance_income_ledger ADD UNIQUE KEY uniq_tran_type (binance_tran_id, income_type)",

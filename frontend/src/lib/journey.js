@@ -101,7 +101,7 @@ export const PLANET_POS = [
 
 export const INTRO_END = 0.07;
 export const PROJECT_SPAN = 0.145;
-export const CONNECT_START = INTRO_END + JOURNEY_PROJECTS.length * PROJECT_SPAN;
+export const CONNECT_START = 0.82;
 export const PROFILE_START = 0.9;
 
 export const PROJECT_COUNT = JOURNEY_PROJECTS.length;
@@ -112,76 +112,137 @@ export const CERTS_SCENE = PROJECT_COUNT + 3;
 export const PROFILE_SCENE = EXPERIENCE_SCENE;
 export const SCENE_MAX = CERTS_SCENE;
 
+export function makePlanetPos(n) {
+  const count = Math.max(1, n);
+  return Array.from({ length: count }, (_, i) => [
+    (i % 2 === 0 ? 0.9 : -1.25) * (1 - (i % 3) * 0.12),
+    0.15 + ((i % 3) - 1) * 0.26,
+    -4 - i * 18,
+  ]);
+}
+
+function liveList() {
+  const list = globalThis.__gwonLiveProjects;
+  return Array.isArray(list) && list.length ? list : JOURNEY_PROJECTS;
+}
+
+export function setLiveProjects(list) {
+  globalThis.__gwonLiveProjects = Array.isArray(list) && list.length ? list : null;
+}
+
+export function liveProjects() {
+  return liveList();
+}
+
+export function projectCount() {
+  return liveList().length;
+}
+
+export function projectSpan() {
+  return (CONNECT_START - INTRO_END) / projectCount();
+}
+
+export function experienceScene() {
+  return projectCount() + 1;
+}
+
+export function careerScene() {
+  return projectCount() + 2;
+}
+
+export function certsScene() {
+  return projectCount() + 3;
+}
+
+export function sceneMax() {
+  return projectCount() + 3;
+}
+
+export function livePlanets() {
+  return makePlanetPos(projectCount());
+}
+
 export function isProfileScene(scene) {
-  return scene >= EXPERIENCE_SCENE;
+  return scene >= experienceScene();
 }
 
 export function profileTabFromScene(scene) {
-  if (scene === CAREER_SCENE) return "career";
-  if (scene === CERTS_SCENE) return "certs";
-  if (scene >= EXPERIENCE_SCENE) return "experience";
+  if (scene === careerScene()) return "career";
+  if (scene === certsScene()) return "certs";
+  if (scene >= experienceScene()) return "experience";
   return null;
 }
 
 export function sceneFromProfileTab(tab) {
-  if (tab === "career") return CAREER_SCENE;
-  if (tab === "certs") return CERTS_SCENE;
-  return EXPERIENCE_SCENE;
+  if (tab === "career") return careerScene();
+  if (tab === "certs") return certsScene();
+  return experienceScene();
 }
 
-/** Settled progress: 0 intro, 1–5 projects (read), 6–8 profile. */
+/** Settled progress: 0 intro, 1–N projects (read), then profile. */
 export function sceneToProgress(scene) {
+  const n = projectCount();
+  const span = projectSpan();
   if (scene <= INTRO_SCENE) return 0.018;
-  if (scene <= PROJECT_COUNT) {
+  if (scene <= n) {
     const i = scene - 1;
-    return INTRO_END + i * PROJECT_SPAN + PROJECT_SPAN * 0.8;
+    return INTRO_END + i * span + span * 0.8;
   }
   return Math.min(0.985, PROFILE_START + 0.045);
 }
 
 /** 프로젝트 장면(1..N)의 워프 시작/끝 진행도. 이 구간에서는 프로젝트 내용이 보이지 않는다. */
 export function warpStartOf(scene) {
-  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.14;
+  const span = projectSpan();
+  return INTRO_END + (scene - 1) * span + span * 0.14;
 }
 
 /** 워프가 끝나는 지점(도착 직전). 여기서부터는 행성에 붙어 내용이 보이기 시작한다. */
 export function warpEndOf(scene) {
-  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.579;
+  const span = projectSpan();
+  return INTRO_END + (scene - 1) * span + span * 0.579;
 }
 
 /** 프로젝트 퇴장 구간 중 내용이 이미 안 보이는 지점 */
 export function leaveHiddenOf(scene) {
-  return INTRO_END + (scene - 1) * PROJECT_SPAN + PROJECT_SPAN * 0.96;
+  const span = projectSpan();
+  return INTRO_END + (scene - 1) * span + span * 0.96;
 }
 
 /** 진행도가 속한 장면. 0 인트로, 1..N 프로젝트, -1 CONNECT/프로필 구간. */
 export function regionSceneAt(p) {
+  const n = projectCount();
   if (p >= CONNECT_START) return -1;
-  for (let s = PROJECT_COUNT; s >= 1; s--) {
+  for (let s = n; s >= 1; s--) {
     if (p >= warpStartOf(s)) return s;
   }
   return 0;
 }
 
 export function projectIndexFromScene(scene) {
-  if (scene >= 1 && scene <= PROJECT_COUNT) return scene - 1;
+  const n = projectCount();
+  if (scene >= 1 && scene <= n) return scene - 1;
   return -1;
 }
 
 export function sceneFromProjectIndex(i) {
-  return Math.min(PROJECT_COUNT, Math.max(1, i + 1));
+  const n = projectCount();
+  return Math.min(n, Math.max(1, i + 1));
 }
 
 export function projectIndexAt(p) {
+  const n = projectCount();
+  const span = projectSpan();
   if (p < INTRO_END) return -1;
   if (p >= CONNECT_START) return -2;
-  return Math.min(JOURNEY_PROJECTS.length - 1, Math.floor((p - INTRO_END) / PROJECT_SPAN));
+  return Math.min(n - 1, Math.floor((p - INTRO_END) / span));
 }
 
 export function projectLocal(p) {
   const i = projectIndexAt(p);
   if (i < 0) return { i, t: 0 };
-  const t = (p - INTRO_END - i * PROJECT_SPAN) / PROJECT_SPAN;
+  const span = projectSpan();
+  const t = (p - INTRO_END - i * span) / span;
   return { i, t: Math.min(1, Math.max(0, t)) };
 }
 

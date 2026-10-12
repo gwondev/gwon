@@ -7,22 +7,22 @@ import {
   readStoredLayout,
   writeStoredLayout,
 } from "./homeLayout.js";
-
-const MOBILE_MAX = 859;
+import { makePlanetPos, setLiveProjects } from "./journey.js";
+import { worldState } from "../components/home/worldState.js";
 
 export function useHomeLayout() {
   const { token } = useAuth();
   const [layout, setLayout] = useState(() => readStoredLayout());
   const [saved, setSaved] = useState(() => readStoredLayout());
-  const [mobile, setMobile] = useState(() => (typeof window === "undefined" ? false : window.innerWidth <= MOBILE_MAX));
+  const [edit, setEdit] = useState(false);
   const [saving, setSaving] = useState(false);
   const loaded = useRef(false);
 
   useEffect(() => {
-    const onResize = () => setMobile(window.innerWidth <= MOBILE_MAX);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+    setLiveProjects(layout.projects);
+    worldState.liveProjects = layout.projects;
+    worldState.planets = makePlanetPos(layout.projects.length);
+  }, [layout.projects]);
 
   useEffect(() => {
     if (loaded.current) return;
@@ -33,24 +33,32 @@ export function useHomeLayout() {
         setLayout(next);
         setSaved(next);
         writeStoredLayout(next);
+        setLiveProjects(next.projects);
       })
       .catch(() => {});
   }, []);
 
-  const key = mobile ? "mobile" : "desktop";
-  const breakpoint = layout[key];
   const dirty = useMemo(() => JSON.stringify(layout) !== JSON.stringify(saved), [layout, saved]);
 
-  const patch = useCallback((bp, field, value) => {
-    setLayout((prev) => {
-      const next = {
-        ...prev,
-        [bp]: { ...prev[bp], [field]: value },
-      };
-      writeStoredLayout(next);
-      return next;
-    });
+  const commit = useCallback((next) => {
+    writeStoredLayout(next);
+    setLiveProjects(next.projects);
+    worldState.liveProjects = next.projects;
+    worldState.planets = makePlanetPos(next.projects.length);
+    return next;
   }, []);
+
+  const setUnit = useCallback((id, box) => {
+    setLayout((prev) => commit({ ...prev, units: { ...prev.units, [id]: box } }));
+  }, [commit]);
+
+  const setMedia = useCallback((projectId, box) => {
+    setLayout((prev) => commit({ ...prev, media: { ...prev.media, [projectId]: box } }));
+  }, [commit]);
+
+  const setProjects = useCallback((projects) => {
+    setLayout((prev) => commit({ ...prev, projects }));
+  }, [commit]);
 
   const save = useCallback(async () => {
     setSaving(true);
@@ -70,6 +78,7 @@ export function useHomeLayout() {
       setLayout(next);
       setSaved(next);
       writeStoredLayout(next);
+      setLiveProjects(next.projects);
     } catch {
       setSaved(layout);
     } finally {
@@ -81,7 +90,8 @@ export function useHomeLayout() {
     const next = mergeHomeLayout(HOME_LAYOUT_DEFAULT);
     setLayout(next);
     writeStoredLayout(next);
+    setLiveProjects(next.projects);
   }, []);
 
-  return { layout, breakpoint, key, mobile, dirty, saving, patch, save, reset };
+  return { layout, edit, setEdit, dirty, saving, setUnit, setMedia, setProjects, save, reset };
 }

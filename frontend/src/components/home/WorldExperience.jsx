@@ -3,13 +3,14 @@ import gsap from "gsap";
 import { worldState } from "./worldState.js";
 import {
   CONNECT_START,
-  EXPERIENCE_SCENE,
   INTRO_END,
   JOURNEY_PROJECTS,
   PROFILE_START,
   PROFILE_TABS,
-  PROJECT_COUNT,
-  SCENE_MAX,
+  experienceScene,
+  liveProjects,
+  projectCount,
+  sceneMax,
   cinematicEase,
   isProfileScene,
   projectIndexAt,
@@ -34,8 +35,9 @@ import { isProjectRecord } from "../../lib/sections.js";
 import { useAuth } from "../../context/AuthContext";
 import { useViewMode } from "../../context/ViewModeContext";
 import { useHomeLayout } from "../../lib/useHomeLayout.js";
-import { layoutCssVars } from "../../lib/homeLayout.js";
-import HomeLayoutEditor from "./HomeLayoutEditor.jsx";
+import { blankProject, mediaBox, unitBox } from "../../lib/homeLayout.js";
+import EditFrame from "./EditFrame.jsx";
+import HomeEditBar from "./HomeEditBar.jsx";
 import "./WorldExperience.css";
 
 const NeuralCanvas = lazy(() => import("./neural/NeuralCanvas.jsx"));
@@ -62,18 +64,22 @@ function hasWebGL() {
   }
 }
 
-function useResolvedMedia(liveProjects) {
+function useResolvedMedia(projects, dbProjects) {
   const [map, setMap] = useState({});
   useEffect(() => {
     let alive = true;
     const next = {};
-    const jobs = JOURNEY_PROJECTS.map((p) => {
-      const live = (liveProjects || []).find((it) => matchLive(it, p));
+    const jobs = (projects || []).map((p) => {
+      if (p.image || p.video) {
+        next[p.id] = { image: p.image || "", video: p.video || "" };
+        return Promise.resolve();
+      }
+      const live = (dbProjects || []).find((it) => matchLive(it, p));
       const fromDb = mediaCoverImage(live?.media);
       const video = mediaCoverVideo(live?.media);
       const candidates = fromDb
-        ? [fromDb, p.image, p.image.replace(".png", ".webp")]
-        : [p.image, p.image.replace(".png", ".webp")];
+        ? [fromDb, p.image, p.image?.replace(".png", ".webp")]
+        : [p.image, p.image?.replace(".png", ".webp")];
       return probe(candidates).then((url) => {
         next[p.id] = { image: url, video };
       });
@@ -84,7 +90,7 @@ function useResolvedMedia(liveProjects) {
     return () => {
       alive = false;
     };
-  }, [liveProjects]);
+  }, [projects, dbProjects]);
   return map;
 }
 
@@ -112,7 +118,7 @@ function probe(urls) {
 function setWorldEffect(scene) {
   const i = projectIndexFromScene(scene);
   if (i >= 0) {
-    worldState.effect = JOURNEY_PROJECTS[i].effect || "none";
+    worldState.effect = (liveProjects()[i] || JOURNEY_PROJECTS[i])?.effect || "none";
     worldState.effectIndex = i;
     return;
   }
@@ -125,9 +131,11 @@ export default function WorldExperience() {
   const { preview } = usePortfolioPreview();
   const { isSuperAdmin } = useAuth();
   const { viewAsUser } = useViewMode();
-  const homeLayout = useHomeLayout();
-  const liveProjects = useMemo(() => (preview.projects || []).filter(isProjectRecord), [preview.projects]);
-  const media = useResolvedMedia(liveProjects);
+  const home = useHomeLayout();
+  const dbProjects = useMemo(() => (preview.projects || []).filter(isProjectRecord), [preview.projects]);
+  const projects = home.layout.projects;
+  const media = useResolvedMedia(projects, dbProjects);
+  const edit = home.edit;
   const [progress, setProgress] = useState(() => sceneToProgress(0));
   const [scene, setScene] = useState(0);
   const [webgl, setWebgl] = useState(true);
@@ -212,7 +220,7 @@ export default function WorldExperience() {
   };
 
   goToRef.current = (nextScene) => {
-    const clamped = Math.max(0, Math.min(SCENE_MAX, nextScene));
+    const clamped = Math.max(0, Math.min(sceneMax(), nextScene));
     const mid = Boolean(tweenRef.current?.isActive?.());
     const inbound = worldState.progress < PROFILE_START - 0.012;
     const target = sceneToProgress(clamped);
@@ -252,13 +260,13 @@ export default function WorldExperience() {
     settleRef.current?.kill();
 
     // 앞쪽 프로젝트에서 프로필로 곧장: 마지막 프로젝트가 퇴장하는 지점(내용이 이미 안 보이는 곳)으로 점프해 한 번에 넘어간다.
-    if (toProfile && region >= 0 && region < PROJECT_COUNT) {
-      worldState.progress = leaveHiddenOf(PROJECT_COUNT);
+    if (toProfile && region >= 0 && region < projectCount()) {
+      worldState.progress = leaveHiddenOf(projectCount());
       setProgress(worldState.progress);
     }
     // 프로필에서 앞쪽 프로젝트로 곧장: 위의 역순. 그 지점까지 역재생한 뒤 목표 장면으로 점프한다.
-    const farBack = !toProfile && region < 0 && clamped < PROJECT_COUNT;
-    const tweenTo = farBack ? leaveHiddenOf(PROJECT_COUNT) : target;
+    const farBack = !toProfile && region < 0 && clamped < projectCount();
+    const tweenTo = farBack ? leaveHiddenOf(projectCount()) : target;
 
     const fromProgress = worldState.progress;
     const backward = tweenTo < fromProgress;
@@ -321,12 +329,13 @@ export default function WorldExperience() {
       const flyingToProfile =
         isProfileScene(targetSceneRef.current) && worldState.progress < PROFILE_START - 0.012;
       if (dir > 0 && flyingToProfile) {
-        next = EXPERIENCE_SCENE;
+        next = experienceScene();
       }
       goToRef.current(next);
     };
 
     const onWheel = (e) => {
+      if (worldState.editDrag) return;
       const now = performance.now();
       const dy = e.deltaY;
       const gap = now - lastWheelRef.current;
@@ -344,7 +353,7 @@ export default function WorldExperience() {
             }
           } else if (e.deltaY > 0 && atBottom) {
             e.preventDefault();
-            if (gap >= WHEEL_STEP_GAP_MS && targetSceneRef.current < SCENE_MAX) {
+            if (gap >= WHEEL_STEP_GAP_MS && targetSceneRef.current < sceneMax()) {
               lastWheelRef.current = now;
               step(1);
             }
@@ -395,7 +404,7 @@ export default function WorldExperience() {
       const prev = e.key === "ArrowUp" || e.key === "PageUp";
       if (!next && !prev) return;
       e.preventDefault();
-      if (next && targetSceneRef.current >= SCENE_MAX) return;
+      if (next && targetSceneRef.current >= sceneMax()) return;
       step(next ? 1 : -1);
     };
 
@@ -410,7 +419,7 @@ export default function WorldExperience() {
       const dy = touchYRef.current - y;
       if (Math.abs(dy) < SWIPE_THRESHOLD) return;
       const dir = dy > 0 ? 1 : -1;
-      if (dir > 0 && targetSceneRef.current >= SCENE_MAX) return;
+      if (dir > 0 && targetSceneRef.current >= sceneMax()) return;
       step(dir);
     };
 
@@ -444,21 +453,23 @@ export default function WorldExperience() {
   const navIndex = projectIndexFromScene(scene);
   const { t } = projectLocal(progress);
   const stage = idx >= 0 ? projectStage(t) : { id: progress < INTRO_END ? "intro" : "after", u: 0 };
-  const project = idx >= 0 ? JOURNEY_PROJECTS[idx] : null;
-  const showHero = progress < INTRO_END + 0.02;
-  const showProject = idx >= 0 && (stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55));
+  const project = (edit && navIndex >= 0 ? projects[navIndex] : null) || (idx >= 0 ? projects[idx] : null);
+  const showHero = (edit && scene === 0) || progress < INTRO_END + 0.02;
+  const showProject = Boolean(project) && (edit || stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55));
   const showConnect = isProfileScene(scene) && progress >= CONNECT_START && progress < PROFILE_START;
-  const showProfile = isProfileScene(scene) && progress >= PROFILE_START;
+  const showProfile = isProfileScene(scene) && (edit || progress >= PROFILE_START);
   const imageReveal = !project
     ? 0
-    : stage.id === "arrive"
-      ? stage.u
-      : stage.id === "read"
-        ? 1
-        : stage.id === "leave"
-          ? 1 - stage.u
-          : 0;
-  const textReveal = stage.id === "read" ? Math.min(1, stage.u * 1.4) : stage.id === "leave" ? 1 - stage.u : 0;
+    : edit
+      ? 1
+      : stage.id === "arrive"
+        ? stage.u
+        : stage.id === "read"
+          ? 1
+          : stage.id === "leave"
+            ? 1 - stage.u
+            : 0;
+  const textReveal = edit ? 1 : stage.id === "read" ? Math.min(1, stage.u * 1.4) : stage.id === "leave" ? 1 - stage.u : 0;
 
   const activities = preview.activities || [];
   const career = preview.career || [];
@@ -471,163 +482,202 @@ export default function WorldExperience() {
     description: it.description,
   }));
 
+  const n = projectCount();
   const counterLabel =
     navIndex >= 0
-      ? `${String(navIndex + 1).padStart(2, "0")} / ${String(PROJECT_COUNT).padStart(2, "0")}`
+      ? `${String(navIndex + 1).padStart(2, "0")} / ${String(n).padStart(2, "0")}`
       : isProfileScene(scene)
         ? "FILE"
-        : "00 / 05";
+        : `00 / ${String(n).padStart(2, "0")}`;
 
   const profileActive = profileTabFromScene(scene);
+  const layout = home.layout;
+  const mediaRect = project ? mediaBox(layout, project.id) : unitBox(layout, "projMedia");
+  const railStops = [
+    { scene: 0, label: "INTRO" },
+    ...projects.map((p, i) => ({ scene: i + 1, label: p.title })),
+    ...PROFILE_TABS.map((item, i) => ({ scene: n + 1 + i, label: item.label })),
+  ];
+  const railPct = (value) => {
+    const a = 0.018;
+    const b = 0.985;
+    return Math.min(100, Math.max(0, ((value - a) / (b - a)) * 100));
+  };
+
+  const addProject = () => {
+    if (projects.length >= 8) return;
+    const next = [...projects, blankProject(projects.length)];
+    home.setProjects(next);
+    goToRef.current(next.length);
+  };
+  const removeProject = (id) => {
+    if (projects.length <= 1) return;
+    if (!window.confirm("이 프로젝트를 홈에서 삭제할까요?")) return;
+    const next = projects.filter((p) => p.id !== id).map((p, i) => ({ ...p, no: String(i + 1).padStart(2, "0") }));
+    home.setProjects(next);
+    goToRef.current(Math.min(scene, next.length));
+  };
+  const patchProject = (id, fields) => {
+    home.setProjects(projects.map((p) => (p.id === id ? { ...p, ...fields } : p)));
+  };
 
   return (
-    <main className="page world-page" ref={root} style={layoutCssVars(homeLayout.breakpoint)}>
+    <main className={`page world-page ${edit ? "is-editing" : ""}`} ref={root}>
       <div className="world-pin">
         {webgl ? (
           <Suspense fallback={<div className="world-boot" />}>
-            <NeuralCanvas />
+            <NeuralCanvas key={projects.map((p) => p.id).join("|")} />
           </Suspense>
         ) : (
           <div className="world-boot" />
         )}
-
-        {showHero && (
-          <header className="world-hero">
-            <p className="world-kicker">ENGINEER</p>
-            <h1>이성권</h1>
-            <p className="world-line">systems from hardware to infrastructure</p>
-          </header>
-        )}
-
-        {showProject && project && (
-          <section
-            className={`world-proj is-${project.effect || "none"} ${stage.id === "leave" ? "is-out" : ""}`}
-            aria-label={project.title}
-            style={{ "--scan": imageReveal }}
-          >
-            <div
-              className="world-proj__visual"
-              style={{
-                opacity: imageReveal,
-                filter: `blur(${(1 - imageReveal) * 16}px)`,
-                transform: `scale(${0.92 + imageReveal * 0.08})`,
-              }}
-            >
-              <ProjectVisual
-                image={media[project.id]?.image}
-                video={media[project.id]?.video}
-                reveal={imageReveal}
-                alt={project.imageAlt}
-              />
-            </div>
-            <div className="world-proj__copy" style={{ opacity: Math.max(textReveal, imageReveal * 0.4) }}>
-              <p className="world-kicker">
-                PROJECT {project.no}
-                {project.period ? ` · ${project.period}` : ""}
-                {project.role ? ` · ${project.role}` : ""}
-              </p>
-              <h2>{project.title}</h2>
-              <p className="world-line">{project.subtitle}</p>
-              {textReveal > 0.35 && <p className="world-desc">{project.description}</p>}
-              {textReveal > 0.55 && (
-                <p className="world-meta">
-                  {project.keywords.join("  ·  ")}
-                  {project.stack?.length ? `  —  ${project.stack.slice(0, 6).join(" / ")}` : ""}
-                </p>
-              )}
-              {textReveal > 0.75 && project.result && <p className="world-result">{project.result}</p>}
-            </div>
-          </section>
-        )}
-
-        {showConnect && (
-          <div className="world-hero">
-            <p className="world-kicker">THE SYSTEM</p>
-            <h1>CONNECT.</h1>
-            <p className="world-line">GWON · METER · GREENEYE · TRESS · DEVSIGN</p>
-          </div>
-        )}
-
-        {showProfile && (
-          <section className="world-file" aria-label="Profile">
-            <div className="world-file__tabs" role="tablist">
-              {PROFILE_TABS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === item.id}
-                  className={tab === item.id ? "is-on" : ""}
-                  onClick={() => goToRef.current(sceneFromProfileTab(item.id))}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <div key={tab} className="world-file__panel" role="tabpanel">
-              {tab === "experience" && (
-                <FileCards
-                  items={activities}
-                  titleOf={(it) => it.title}
-                  subOf={(it) => [it.organization, it.role, it.period].filter(Boolean).join(" · ")}
-                  detailOf={(it) => it.description}
-                />
-              )}
-              {tab === "career" && (
-                <FileCards
-                  items={career.length ? career : activities}
-                  titleOf={(it) => it.title}
-                  subOf={(it) =>
-                    career.length
-                      ? [it.position || it.category, formatCareerPeriodPreview(it.period) || it.period].filter(Boolean).join(" · ")
-                      : [it.role, it.organization, it.period].filter(Boolean).join(" · ")
-                  }
-                  detailOf={(it) => it.description}
-                  empty="등록된 경력이 없습니다."
-                />
-              )}
-              {tab === "certs" && (
-                <FileCards
-                  items={certs}
-                  titleOf={(it) => it.name}
-                  subOf={(it) => [it.organization, it.date, it.status].filter(Boolean).join(" · ")}
-                  detailOf={(it) => it.description}
-                  empty="등록된 자격증이 없습니다."
-                />
-              )}
-            </div>
-          </section>
-        )}
       </div>
 
-      <p className="world-counter" aria-live="polite">
-        {counterLabel}
-      </p>
+      {showHero && (
+        <EditFrame id="hero" label="인트로" box={unitBox(layout, "hero")} edit={edit} onBox={(box) => home.setUnit("hero", box)} className="world-hero">
+          <p className="world-kicker">ENGINEER</p>
+          <h1>이성권</h1>
+          <p className="world-line">systems from hardware to infrastructure</p>
+        </EditFrame>
+      )}
 
-      <aside className="world-rail" aria-label="여정 위치">
-        <div className="world-rail__track">
-          <i className="world-rail__fill" style={{ height: `${Math.min(100, Math.max(0, progress * 100))}%` }} />
-          <b className="world-rail__thumb" style={{ top: `${Math.min(100, Math.max(0, progress * 100))}%` }} />
-        </div>
-        <div className="world-rail__marks">
-          {Array.from({ length: SCENE_MAX + 1 }, (_, i) => (
-            <button
-              key={i}
-              type="button"
-              className={i === scene ? "is-on" : ""}
-              style={{ top: `${(i / SCENE_MAX) * 100}%` }}
-              aria-label={i === 0 ? "INTRO" : i <= PROJECT_COUNT ? JOURNEY_PROJECTS[i - 1].title : PROFILE_TABS[i - PROJECT_COUNT - 1]?.label}
-              onClick={() => goToRef.current(i)}
+      {showProject && project && (
+        <>
+          <EditFrame
+            id="projCopy"
+            label="프로젝트 글"
+            box={unitBox(layout, "projCopy")}
+            edit={edit}
+            onBox={(box) => home.setUnit("projCopy", box)}
+            className="world-proj__copy"
+            style={{ opacity: Math.max(textReveal, imageReveal * 0.4) }}
+          >
+            <p className="world-kicker">
+              PROJECT {project.no}
+              {project.period ? ` · ${project.period}` : ""}
+              {project.role ? ` · ${project.role}` : ""}
+            </p>
+            <h2>{project.title}</h2>
+            <p className="world-line">{project.subtitle}</p>
+            {textReveal > 0.35 && <p className="world-desc">{project.description}</p>}
+            {textReveal > 0.55 && (
+              <p className="world-meta">
+                {(project.keywords || []).join("  ·  ")}
+                {project.stack?.length ? `  —  ${project.stack.slice(0, 6).join(" / ")}` : ""}
+              </p>
+            )}
+            {textReveal > 0.75 && project.result && <p className="world-result">{project.result}</p>}
+          </EditFrame>
+          <EditFrame
+            id="projMedia"
+            label="사진 · 영상"
+            box={mediaRect}
+            edit={edit}
+            onBox={(box) => home.setMedia(project.id, box)}
+            className={`world-proj__visual is-${project.effect || "none"}`}
+            style={{
+              "--scan": imageReveal,
+              opacity: imageReveal,
+              "--ox": `${mediaRect.ox ?? 50}%`,
+              "--oy": `${mediaRect.oy ?? 50}%`,
+            }}
+          >
+            <ProjectVisual
+              image={media[project.id]?.image || project.image}
+              video={media[project.id]?.video || project.video}
+              reveal={imageReveal}
+              alt={project.imageAlt}
             />
-          ))}
+            {edit && <MediaFocus box={mediaRect} onBox={(box) => home.setMedia(project.id, box)} />}
+          </EditFrame>
+        </>
+      )}
+
+      {showConnect && (
+        <EditFrame id="connect" label="연결" box={unitBox(layout, "connect")} edit={edit} onBox={(box) => home.setUnit("connect", box)} className="world-hero">
+          <p className="world-kicker">THE SYSTEM</p>
+          <h1>CONNECT.</h1>
+          <p className="world-line">{projects.map((p) => p.title).join(" · ")}</p>
+        </EditFrame>
+      )}
+
+      {showProfile && (
+        <>
+          <EditFrame id="profileTabs" label="프로필 탭" box={unitBox(layout, "profileTabs")} edit={edit} onBox={(box) => home.setUnit("profileTabs", box)} className="world-file__tabs" allowFocus>
+            {PROFILE_TABS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === item.id}
+                className={tab === item.id ? "is-on" : ""}
+                onClick={() => goToRef.current(sceneFromProfileTab(item.id))}
+              >
+                {item.label}
+              </button>
+            ))}
+          </EditFrame>
+          <EditFrame id="profileCards" label="프로필 카드" box={unitBox(layout, "profileCards")} edit={edit} onBox={(box) => home.setUnit("profileCards", box)} className="world-file__panel" allowFocus>
+            {tab === "experience" && (
+              <FileCards
+                items={activities}
+                titleOf={(it) => it.title}
+                subOf={(it) => [it.organization, it.role, it.period].filter(Boolean).join(" · ")}
+                detailOf={(it) => it.description}
+              />
+            )}
+            {tab === "career" && (
+              <FileCards
+                items={career.length ? career : activities}
+                titleOf={(it) => it.title}
+                subOf={(it) =>
+                  career.length
+                    ? [it.position || it.category, formatCareerPeriodPreview(it.period) || it.period].filter(Boolean).join(" · ")
+                    : [it.role, it.organization, it.period].filter(Boolean).join(" · ")
+                }
+                detailOf={(it) => it.description}
+                empty="등록된 경력이 없습니다."
+              />
+            )}
+            {tab === "certs" && (
+              <FileCards
+                items={certs}
+                titleOf={(it) => it.name}
+                subOf={(it) => [it.organization, it.date, it.status].filter(Boolean).join(" · ")}
+                detailOf={(it) => it.description}
+                empty="등록된 자격증이 없습니다."
+              />
+            )}
+          </EditFrame>
+        </>
+      )}
+
+      <EditFrame id="counter" label="번호" box={unitBox(layout, "counter")} edit={edit} onBox={(box) => home.setUnit("counter", box)} className="world-counter">
+        <p aria-live="polite">{counterLabel}</p>
+      </EditFrame>
+
+      <EditFrame id="rail" label="여정" box={unitBox(layout, "rail")} edit={edit} onBox={(box) => home.setUnit("rail", box)} className="world-spine" allowFocus>
+        <div className="world-spine__line">
+          <i style={{ height: `${railPct(progress)}%` }} />
+          <b style={{ top: `${railPct(progress)}%` }} />
         </div>
-      </aside>
+        {railStops.map((stop) => (
+          <button
+            key={stop.scene}
+            type="button"
+            className={stop.scene === scene ? "is-on" : ""}
+            style={{ top: `${railPct(sceneToProgress(stop.scene))}%` }}
+            onClick={() => goToRef.current(stop.scene)}
+          >
+            <em />
+            <span>{stop.label}</span>
+          </button>
+        ))}
+      </EditFrame>
 
-      {isSuperAdmin && !viewAsUser && <HomeLayoutEditor homeLayout={homeLayout} />}
-
-      <nav className="world-nav" aria-label="Site">
+      <EditFrame id="nav" label="목록" box={unitBox(layout, "nav")} edit={edit} onBox={(box) => home.setUnit("nav", box)} className="world-nav" allowFocus>
         <p className="world-nav__label">PROJECTS</p>
-        {JOURNEY_PROJECTS.map((p, i) => (
+        {projects.map((p, i) => (
           <button
             key={p.id}
             type="button"
@@ -658,9 +708,36 @@ export default function WorldExperience() {
             <em>{item.label}</em>
           </button>
         ))}
-      </nav>
+      </EditFrame>
+
+      {isSuperAdmin && !viewAsUser && (
+        <HomeEditBar home={home} project={project} onAdd={addProject} onRemove={removeProject} onPatch={patchProject} />
+      )}
     </main>
   );
+}
+
+function MediaFocus({ box, onBox }) {
+  const start = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    worldState.editDrag = true;
+    const wrap = e.currentTarget.parentElement;
+    const move = (ev) => {
+      const r = wrap.getBoundingClientRect();
+      const ox = Math.min(100, Math.max(0, ((ev.clientX - r.left) / r.width) * 100));
+      const oy = Math.min(100, Math.max(0, ((ev.clientY - r.top) / r.height) * 100));
+      onBox({ ...box, ox, oy });
+    };
+    const up = () => {
+      worldState.editDrag = false;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  return <b className="world-proj__focus" style={{ left: `${box.ox ?? 50}%`, top: `${box.oy ?? 50}%` }} onPointerDown={start} />;
 }
 
 function ProjectVisual({ image, video, reveal, alt }) {

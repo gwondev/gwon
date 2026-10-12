@@ -148,29 +148,12 @@ router.put("/tech-stack", requireSuperAdmin, async (req, res) => {
   res.json({ groups });
 });
 
-function clampLayoutNum(v, fallback, min, max) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(n)));
-}
-
 function sanitizeHomeLayout(raw) {
   const src = raw && typeof raw === "object" ? raw : {};
-  const pick = (part, fallback) => {
-    const x = part && typeof part === "object" ? part : {};
-    return {
-      profileCols: clampLayoutNum(x.profileCols, fallback.profileCols, 1, 6),
-      profileCardH: clampLayoutNum(x.profileCardH, fallback.profileCardH, 140, 720),
-      projectMediaH: clampLayoutNum(x.projectMediaH, fallback.projectMediaH, 18, 80),
-      projectMediaMax: clampLayoutNum(x.projectMediaMax, fallback.projectMediaMax, 180, 900),
-    };
-  };
-  const desktop = { profileCols: 4, profileCardH: 430, projectMediaH: 52, projectMediaMax: 560 };
-  const mobile = { profileCols: 2, profileCardH: 280, projectMediaH: 36, projectMediaMax: 380 };
-  return {
-    desktop: pick(src.desktop, desktop),
-    mobile: pick(src.mobile, mobile),
-  };
+  const units = src.units && typeof src.units === "object" ? src.units : {};
+  const media = src.media && typeof src.media === "object" ? src.media : {};
+  const projects = Array.isArray(src.projects) ? src.projects.slice(0, 8) : [];
+  return { units, media, projects };
 }
 
 router.get("/home-layout", requireSuperAdmin, async (_req, res) => {

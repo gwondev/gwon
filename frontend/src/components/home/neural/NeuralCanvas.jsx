@@ -11,6 +11,7 @@ import {
   INTRO_END,
   JOURNEY_PROJECTS,
   PLANET_POS,
+  liveProjects,
   PROFILE_START,
   projectIndexAt,
   projectLocal,
@@ -56,6 +57,10 @@ const goldC = new THREE.Color(GOLD);
 const cyanC = new THREE.Color(CYAN);
 const tint = new THREE.Color();
 
+function planets() {
+  return worldState.planets?.length ? worldState.planets : PLANET_POS;
+}
+
 function cameraTarget(p) {
   const reduced = worldState.reduced;
   if (p < INTRO_END) {
@@ -68,7 +73,7 @@ function cameraTarget(p) {
     };
   }
   if (p >= PROFILE_START) {
-    const last = PLANET_POS[PLANET_POS.length - 1] || [0, 0, -76];
+    const last = planets()[planets().length - 1] || [0, 0, -76];
     const u = (p - PROFILE_START) / 0.1;
     return {
       cam: [last[0] * 0.08, last[1] + 0.5 + u * 0.4, last[2] - 6 - u * 4],
@@ -78,7 +83,7 @@ function cameraTarget(p) {
     };
   }
   if (p >= CONNECT_START) {
-    const last = PLANET_POS[PLANET_POS.length - 1] || [0, 0, -76];
+    const last = planets()[planets().length - 1] || [0, 0, -76];
     const u = (p - CONNECT_START) / Math.max(0.001, PROFILE_START - CONNECT_START);
     return {
       cam: [last[0] * 0.12, last[1] + 0.4 + u * 0.2, last[2] + 2.1 - u * 8],
@@ -89,9 +94,9 @@ function cameraTarget(p) {
   }
 
   const { i, t } = projectLocal(p);
-  const planet = PLANET_POS[i] || PLANET_POS[0];
+  const planet = planets()[i] || planets()[0];
   const fromScene = worldState.warpFrom ?? i;
-  const prev = fromScene <= 0 ? [0, 0.2, 12] : lookFrom(PLANET_POS[fromScene - 1], 2.35);
+  const prev = fromScene <= 0 ? [0, 0.2, 12] : lookFrom(planets()[fromScene - 1], 2.35);
   const arrive = lookFrom(planet, 3.15);
   const read = lookFrom(planet, 2.35);
   const stage = projectStage(t);
@@ -115,7 +120,7 @@ function cameraTarget(p) {
   if (stage.id === "read") {
     return { cam: read, look: planet, fov: 41, warp: 0 };
   }
-  const nextPlanet = i < PLANET_POS.length - 1 ? PLANET_POS[i + 1] : [0, 0, -94];
+  const nextPlanet = i < planets().length - 1 ? planets()[i + 1] : [0, 0, -94];
   const nextCam = lookFrom(nextPlanet, 5.2);
   _from.set(read[0], read[1], read[2]);
   _to.set(nextCam[0], nextCam[1], nextCam[2]);
@@ -228,7 +233,8 @@ function applyEffect(i, time, px, py, pz, planet, effect, warp, live) {
 function NeuralField({ count }) {
   const mesh = useRef();
   const lines = useRef();
-  const net = useMemo(() => buildNetwork(count, PLANET_POS), [count]);
+  const planetList = planets();
+  const net = useMemo(() => buildNetwork(count, planetList), [count, planetList.length]);
   const colors = useMemo(() => {
     const c = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
@@ -250,10 +256,10 @@ function NeuralField({ count }) {
     const breath = 1 + Math.sin(clock.elapsedTime * (0.35 + intro * 0.12)) * breathAmp;
     const warp = (worldState.warp || 0) * live;
     const idx = projectIndexAt(p);
-    const active = idx >= 0 ? PLANET_POS[idx] : null;
+    const active = idx >= 0 ? planetList[idx] : null;
     const hover = worldState.hoverIndex;
-    const highlight = hover >= 0 ? PLANET_POS[hover] : active;
-    const effectPlanet = worldState.effectIndex >= 0 ? PLANET_POS[worldState.effectIndex] : highlight;
+    const highlight = hover >= 0 ? planetList[hover] : active;
+    const effectPlanet = worldState.effectIndex >= 0 ? planetList[worldState.effectIndex] : highlight;
     const effect = worldState.effect || "none";
     const t = clock.elapsedTime;
     const connect = p >= CONNECT_START;
@@ -355,8 +361,8 @@ function Planets() {
   });
   return (
     <group ref={group}>
-      {PLANET_POS.map((pos, i) => (
-        <group key={JOURNEY_PROJECTS[i].id} position={pos}>
+      {planets().map((pos, i) => (
+        <group key={(liveProjects()[i] || JOURNEY_PROJECTS[i])?.id || i} position={pos}>
           <mesh geometry={sph} material={planetMat} scale={0.82} />
           <mesh geometry={sph} material={atmoMat} scale={1.12} />
           <mesh geometry={torus} rotation={[Math.PI / 2, 0, 0]} visible={false}>

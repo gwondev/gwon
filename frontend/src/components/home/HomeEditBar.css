@@ -1,0 +1,105 @@
+.world-editbar {
+  position: fixed;
+  top: 5.15rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.28rem;
+  pointer-events: auto;
+}
+
+.world-editbar button {
+  border: 1px solid rgba(216, 193, 154, 0.35);
+  background: rgba(10, 10, 12, 0.82);
+  color: rgba(243, 242, 239, 0.78);
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.world-editbar button.is-on,
+.world-editbar button.is-save {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.world-editbar button.is-danger {
+  border-color: rgba(252, 165, 165, 0.45);
+  color: #fca5a5;
+}
+
+.world-editbar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.world-editpop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1rem;
+}
+
+.world-editpop__box {
+  width: min(440px, 94vw);
+  max-height: 86vh;
+  overflow: auto;
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.05rem 1.1rem;
+  border: 1px solid var(--accent-line, rgba(216, 193, 154, 0.35));
+  border-radius: 14px;
+  background: #111114;
+}
+
+.world-editpop__box strong {
+  font-size: 0.92rem;
+}
+
+.world-editpop__box label {
+  display: grid;
+  gap: 0.18rem;
+  font-size: 0.64rem;
+  color: rgba(243, 242, 239, 0.5);
+}
+
+.world-editpop__box input,
+.world-editpop__box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: #0c0c0e;
+  color: #f3f2ef;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.world-editpop__acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.world-editpop__acts button {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: rgba(243, 242, 239, 0.75);
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.7rem;
+}
+
+.world-editpop__acts .is-save {
+  border-color: var(--accent);
+  color: var(--accent);
+}
