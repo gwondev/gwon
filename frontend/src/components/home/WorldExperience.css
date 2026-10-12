@@ -80,17 +80,19 @@
 
 .world-nav {
   position: fixed;
-  left: max(22px, env(safe-area-inset-left, 0px) + 20px);
+  left: clamp(42px, 5.6vw, 88px);
   top: 50%;
   transform: translateY(-50%);
   z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 0.15rem 0.85rem 0.15rem 0;
+  padding: 1.05rem 1.35rem 1.15rem 1rem;
   pointer-events: auto;
   max-height: calc(100dvh - 6.5rem);
   overflow: visible;
+  background: #0a0a0c;
+  box-shadow: 0 0 0 1px rgba(243, 242, 239, 0.06);
 }
 
 .world-nav__label {
@@ -170,17 +172,11 @@
   outline-offset: 4px;
 }
 
-@media (min-width: 861px) {
-  .world-nav.is-desktop-hide {
-    display: none;
-  }
-}
-
 .world-stage {
   position: absolute;
-  left: clamp(150px, 15vw, 210px);
+  left: clamp(248px, 24vw, 340px);
   right: clamp(92px, 12vw, 168px);
-  top: 7vh;
+  top: 8vh;
   bottom: 6vh;
   z-index: 3;
   display: flex;
@@ -190,7 +186,7 @@
 }
 
 .world-stage__title {
-  margin: 0;
+  margin: 0 0 -0.18em;
   overflow: hidden;
   font-size: clamp(3.4rem, 12vw, 9.6rem);
   font-weight: 650;
@@ -198,14 +194,18 @@
   line-height: 0.78;
   text-align: center;
   white-space: nowrap;
+  position: relative;
+  z-index: 2;
 }
 
 .world-stage__one {
-  margin: 0.55rem 0 0.85rem;
+  margin: 0;
+  padding: 0.42rem 1rem;
   text-align: center;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   letter-spacing: 0.02em;
-  color: rgba(243, 242, 239, 0.55);
+  color: rgba(243, 242, 239, 0.62);
+  background: #1a1610;
 }
 
 .world-stage__media {
@@ -213,8 +213,13 @@
   flex: 1 1 auto;
   min-height: 28vh;
   overflow: hidden;
-  border: 1px solid rgba(216, 193, 154, 0.18);
+  border: 0;
   background: #0c0c0e;
+}
+
+.world-stage__media--cards {
+  pointer-events: auto;
+  overflow: auto;
 }
 
 .world-stage__media.is-neural-recognition::after {
@@ -323,14 +328,14 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   height: 100%;
-  min-height: 58vh;
+  min-height: 100%;
   overflow: auto;
   background: #050506;
 }
 
 .world-cards li {
   min-width: 0;
-  min-height: 58vh;
+  min-height: 0;
 }
 
 .world-card {

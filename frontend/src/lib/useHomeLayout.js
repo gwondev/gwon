@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { mergeHomeLayout, readStoredLayout, writeStoredLayout } from "./homeLayout.js";
-import { makePlanetPos, setLiveProjects } from "./journey.js";
+import { journeyCount, makePlanetPos, setLiveProjects } from "./journey.js";
 import { worldState } from "../components/home/worldState.js";
 
 export function useHomeLayout() {
@@ -11,7 +11,7 @@ export function useHomeLayout() {
   useEffect(() => {
     setLiveProjects(projects);
     worldState.liveProjects = projects;
-    worldState.planets = makePlanetPos(projects.length);
+    worldState.planets = makePlanetPos(journeyCount());
   }, [projects]);
 
   useEffect(() => {

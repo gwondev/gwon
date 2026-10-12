@@ -103,6 +103,7 @@ export const INTRO_END = 0.07;
 export const PROJECT_SPAN = 0.145;
 export const CONNECT_START = 0.82;
 export const PROFILE_START = 0.9;
+export const JOURNEY_END = 0.985;
 
 export const PROJECT_COUNT = JOURNEY_PROJECTS.length;
 export const INTRO_SCENE = 0;
@@ -142,6 +143,18 @@ export function projectSpan() {
   return (CONNECT_START - INTRO_END) / projectCount();
 }
 
+export function profileCount() {
+  return PROFILE_TABS.length;
+}
+
+export function profileSpan() {
+  return (JOURNEY_END - CONNECT_START) / profileCount();
+}
+
+export function journeyCount() {
+  return projectCount() + profileCount();
+}
+
 export function experienceScene() {
   return projectCount() + 1;
 }
@@ -159,7 +172,7 @@ export function sceneMax() {
 }
 
 export function livePlanets() {
-  return makePlanetPos(projectCount());
+  return makePlanetPos(journeyCount());
 }
 
 export function isProfileScene(scene) {
@@ -179,41 +192,47 @@ export function sceneFromProfileTab(tab) {
   return experienceScene();
 }
 
-/** Settled progress: 0 intro, 1–N projects (read), then profile. */
-export function sceneToProgress(scene) {
-  const n = projectCount();
-  const span = projectSpan();
-  if (scene <= INTRO_SCENE) return 0.018;
-  if (scene <= n) {
-    const i = scene - 1;
-    return INTRO_END + i * span + span * 0.8;
-  }
-  return Math.min(0.985, PROFILE_START + 0.045);
+function spanOf(scene) {
+  return scene > projectCount() ? profileSpan() : projectSpan();
 }
 
-/** 프로젝트 장면(1..N)의 워프 시작/끝 진행도. 이 구간에서는 프로젝트 내용이 보이지 않는다. */
+function originOf(scene) {
+  const n = projectCount();
+  if (scene <= n) return INTRO_END + (scene - 1) * projectSpan();
+  return CONNECT_START + (scene - n - 1) * profileSpan();
+}
+
+/** Settled progress: 0 intro, 1–N projects, then profile tabs. 프로젝트 구간 비율은 그대로다. */
+export function sceneToProgress(scene) {
+  if (scene <= INTRO_SCENE) return 0.018;
+  return originOf(scene) + spanOf(scene) * 0.8;
+}
+
+/** 장면의 워프 시작/끝 진행도. 이 구간에서는 내용이 보이지 않는다. */
 export function warpStartOf(scene) {
-  const span = projectSpan();
-  return INTRO_END + (scene - 1) * span + span * 0.14;
+  return originOf(scene) + spanOf(scene) * 0.14;
 }
 
 /** 워프가 끝나는 지점(도착 직전). 여기서부터는 행성에 붙어 내용이 보이기 시작한다. */
 export function warpEndOf(scene) {
-  const span = projectSpan();
-  return INTRO_END + (scene - 1) * span + span * 0.579;
+  return originOf(scene) + spanOf(scene) * 0.579;
 }
 
-/** 프로젝트 퇴장 구간 중 내용이 이미 안 보이는 지점 */
+/** 퇴장 구간 중 내용이 이미 안 보이는 지점 */
 export function leaveHiddenOf(scene) {
-  const span = projectSpan();
-  return INTRO_END + (scene - 1) * span + span * 0.96;
+  return originOf(scene) + spanOf(scene) * 0.96;
 }
 
-/** 진행도가 속한 장면. 0 인트로, 1..N 프로젝트, -1 CONNECT/프로필 구간. */
+/** 진행도가 속한 장면. 0 인트로, 1..N 프로젝트, 그다음 프로필. */
 export function regionSceneAt(p) {
-  const n = projectCount();
-  if (p >= CONNECT_START) return -1;
-  for (let s = n; s >= 1; s--) {
+  const max = sceneMax();
+  if (p >= CONNECT_START) {
+    for (let s = max; s >= experienceScene(); s--) {
+      if (p >= warpStartOf(s)) return s;
+    }
+    return experienceScene();
+  }
+  for (let s = projectCount(); s >= 1; s--) {
     if (p >= warpStartOf(s)) return s;
   }
   return 0;
@@ -232,17 +251,25 @@ export function sceneFromProjectIndex(i) {
 
 export function projectIndexAt(p) {
   const n = projectCount();
-  const span = projectSpan();
   if (p < INTRO_END) return -1;
-  if (p >= CONNECT_START) return -2;
-  return Math.min(n - 1, Math.floor((p - INTRO_END) / span));
+  if (p < CONNECT_START) {
+    return Math.min(n - 1, Math.floor((p - INTRO_END) / projectSpan()));
+  }
+  const i = Math.floor((p - CONNECT_START) / profileSpan());
+  return n + Math.min(profileCount() - 1, Math.max(0, i));
 }
 
 export function projectLocal(p) {
   const i = projectIndexAt(p);
   if (i < 0) return { i, t: 0 };
-  const span = projectSpan();
-  const t = (p - INTRO_END - i * span) / span;
+  const n = projectCount();
+  if (i < n) {
+    const span = projectSpan();
+    const t = (p - INTRO_END - i * span) / span;
+    return { i, t: Math.min(1, Math.max(0, t)) };
+  }
+  const span = profileSpan();
+  const t = (p - CONNECT_START - (i - n) * span) / span;
   return { i, t: Math.min(1, Math.max(0, t)) };
 }
 

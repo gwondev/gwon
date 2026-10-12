@@ -2,25 +2,19 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { worldState } from "./worldState.js";
 import {
-  CONNECT_START,
   INTRO_END,
   JOURNEY_PROJECTS,
-  PROFILE_START,
   PROFILE_TABS,
-  experienceScene,
   liveProjects,
   projectCount,
   sceneMax,
-  cinematicEase,
   isProfileScene,
   projectIndexAt,
   projectIndexFromScene,
   projectLocal,
   projectStage,
   profileTabFromScene,
-  leaveHiddenOf,
   regionSceneAt,
-  reversedCinematicEase,
   warpEndOf,
   sceneFromProfileTab,
   sceneFromProjectIndex,
@@ -159,7 +153,7 @@ export default function WorldExperience() {
     const tgt = targetSceneRef.current;
     const p = worldState.progress;
     const k = regionSceneAt(p);
-    if (k < 0 || isProfileScene(tgt)) return;
+    if (k < 0) return;
 
     const set = (v) => {
       worldState.progress = v;
@@ -214,7 +208,6 @@ export default function WorldExperience() {
   goToRef.current = (nextScene) => {
     const clamped = Math.max(0, Math.min(sceneMax(), nextScene));
     const mid = Boolean(tweenRef.current?.isActive?.());
-    const inbound = worldState.progress < PROFILE_START - 0.012;
     const target = sceneToProgress(clamped);
     const alreadyThere = Math.abs(worldState.progress - target) < 0.002;
 
@@ -222,75 +215,13 @@ export default function WorldExperience() {
       return;
     }
 
-    const from = targetSceneRef.current;
-    const fromProfile = isProfileScene(from);
-    const toProfile = isProfileScene(clamped);
     targetSceneRef.current = clamped;
     sceneRef.current = clamped;
     setScene(clamped);
-    if (toProfile || fromProfile) setTab(profileTabFromScene(clamped) || "experience");
+    if (isProfileScene(clamped)) setTab(profileTabFromScene(clamped) || "experience");
     accRef.current = 0;
     setWorldEffect(clamped);
-
-    const region = regionSceneAt(worldState.progress);
-    if (!toProfile && region >= 0) {
-      driveRef.current();
-      return;
-    }
-    worldState.warpFrom = null;
-    worldState.warpBack = false;
-
-    if (fromProfile && toProfile && !inbound && alreadyThere) {
-      tweenRef.current?.kill();
-      settleRef.current?.kill();
-      worldState.progress = target;
-      setProgress(target);
-      return;
-    }
-
-    tweenRef.current?.kill();
-    settleRef.current?.kill();
-
-    // 앞쪽 프로젝트에서 프로필로 곧장: 마지막 프로젝트가 퇴장하는 지점(내용이 이미 안 보이는 곳)으로 점프해 한 번에 넘어간다.
-    if (toProfile && region >= 0 && region < projectCount()) {
-      worldState.progress = leaveHiddenOf(projectCount());
-      setProgress(worldState.progress);
-    }
-    // 프로필에서 앞쪽 프로젝트로 곧장: 위의 역순. 그 지점까지 역재생한 뒤 목표 장면으로 점프한다.
-    const farBack = !toProfile && region < 0 && clamped < projectCount();
-    const tweenTo = farBack ? leaveHiddenOf(projectCount()) : target;
-
-    const fromProgress = worldState.progress;
-    const backward = tweenTo < fromProgress;
-    const dist = Math.abs(tweenTo - fromProgress);
-    const duration = worldState.reduced
-      ? 0.2
-      : mid
-        ? Math.max(0.28, Math.min(0.78, 0.24 + dist * 1.45))
-        : Math.max(0.38, Math.min(1.28, 0.36 + dist * 2.55));
-
-    tweenRef.current = gsap.fromTo(
-      worldState,
-      { progress: fromProgress },
-      {
-        progress: tweenTo,
-        duration,
-        ease: mid ? "power2.out" : backward ? reversedCinematicEase : cinematicEase,
-        overwrite: true,
-        onUpdate: () => {
-          setProgress(worldState.progress);
-        },
-        onComplete: () => {
-          const live = targetSceneRef.current;
-          const liveTarget = sceneToProgress(live);
-          worldState.progress = liveTarget;
-          setProgress(liveTarget);
-          if (!farBack && Math.abs(liveTarget - target) > 0.002) {
-            goToRef.current(live);
-          }
-        },
-      }
-    );
+    driveRef.current();
   };
 
   useEffect(() => {
@@ -310,20 +241,8 @@ export default function WorldExperience() {
 
     const onResize = () => detectEnv();
 
-    const inProfilePanel = (target) => {
-      const el = target instanceof Element ? target : null;
-      if (!el) return null;
-      return el.closest(".world-file__panel");
-    };
-
     const step = (dir) => {
-      let next = targetSceneRef.current + dir;
-      const flyingToProfile =
-        isProfileScene(targetSceneRef.current) && worldState.progress < PROFILE_START - 0.012;
-      if (dir > 0 && flyingToProfile) {
-        next = experienceScene();
-      }
-      goToRef.current(next);
+      goToRef.current(targetSceneRef.current + dir);
     };
 
     const onWheel = (e) => {
@@ -331,28 +250,6 @@ export default function WorldExperience() {
       const now = performance.now();
       const dy = e.deltaY;
       const gap = now - lastWheelRef.current;
-
-      if (isProfileScene(targetSceneRef.current)) {
-        const panel = inProfilePanel(e.target);
-        if (panel && panel.scrollHeight > panel.clientHeight + 2) {
-          const atTop = panel.scrollTop <= 0;
-          const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1;
-          if (e.deltaY < 0 && atTop) {
-            e.preventDefault();
-            if (gap >= WHEEL_STEP_GAP_MS) {
-              lastWheelRef.current = now;
-              step(-1);
-            }
-          } else if (e.deltaY > 0 && atBottom) {
-            e.preventDefault();
-            if (gap >= WHEEL_STEP_GAP_MS && targetSceneRef.current < sceneMax()) {
-              lastWheelRef.current = now;
-              step(1);
-            }
-          }
-          return;
-        }
-      }
 
       e.preventDefault();
       const px = e.deltaMode === 1 ? dy * 40 : e.deltaMode === 2 ? dy * 800 : dy;
@@ -401,12 +298,10 @@ export default function WorldExperience() {
     };
 
     const onTouchStart = (e) => {
-      if (isProfileScene(sceneRef.current) && inProfilePanel(e.target)) return;
       touchYRef.current = e.touches[0]?.clientY ?? 0;
     };
 
     const onTouchEnd = (e) => {
-      if (isProfileScene(sceneRef.current) && inProfilePanel(e.target)) return;
       const y = e.changedTouches[0]?.clientY ?? touchYRef.current;
       const dy = touchYRef.current - y;
       if (Math.abs(dy) < SWIPE_THRESHOLD) return;
@@ -445,12 +340,14 @@ export default function WorldExperience() {
   const navIndex = projectIndexFromScene(scene);
   const { t } = projectLocal(progress);
   const stage = idx >= 0 ? projectStage(t) : { id: progress < INTRO_END ? "intro" : "after", u: 0 };
-  const project = idx >= 0 ? projects[idx] : null;
+  const n = projectCount();
+  const project = idx >= 0 && idx < n ? projects[idx] : null;
+  const profileTab = idx >= n ? PROFILE_TABS[idx - n] : null;
+  const stageVisible = stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55);
   const showHero = progress < INTRO_END + 0.02;
-  const showProject = Boolean(project) && (stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55));
-  const showConnect = isProfileScene(scene) && progress >= CONNECT_START && progress < PROFILE_START;
-  const showProfile = isProfileScene(scene) && progress >= PROFILE_START;
-  const imageReveal = !project
+  const showProject = Boolean(project) && stageVisible;
+  const showProfile = Boolean(profileTab) && stageVisible;
+  const imageReveal = !project && !profileTab
     ? 0
     : stage.id === "arrive"
       ? stage.u
@@ -472,7 +369,6 @@ export default function WorldExperience() {
     description: it.description,
   }));
 
-  const n = projectCount();
   const counterLabel =
     navIndex >= 0
       ? `${String(navIndex + 1).padStart(2, "0")} / ${String(n).padStart(2, "0")}`
@@ -548,32 +444,14 @@ export default function WorldExperience() {
         </section>
       )}
 
-      {showConnect && (
-        <section className="world-hero">
-          <p className="world-kicker">THE SYSTEM</p>
-          <h1>CONNECT.</h1>
-          <p className="world-line">{projects.map((p) => p.title).join(" · ")}</p>
-        </section>
-      )}
-
-      {showProfile && (
-        <section className="world-file">
-          <nav className="world-file__tabs" aria-label="프로필">
-            {PROFILE_TABS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={tab === item.id}
-                className={tab === item.id ? "is-on" : ""}
-                onClick={() => goToRef.current(sceneFromProfileTab(item.id))}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-          <div className="world-file__panel">
-            {tab === "experience" && (
+      {showProfile && profileTab && (
+        <section className="world-stage" style={{ opacity: Math.max(textReveal, imageReveal * 0.35) }}>
+          <h2 className="world-stage__title">{profileTab.label}</h2>
+          <p className="world-stage__one">
+            {profileTab.id === "career" ? "Roles and periods" : profileTab.id === "certs" ? "Licenses and scores" : "Work and activities"}
+          </p>
+          <div className="world-stage__media world-stage__media--cards" style={{ opacity: imageReveal }}>
+            {profileTab.id === "experience" && (
               <FileCards
                 items={activities}
                 titleOf={(it) => it.title}
@@ -581,7 +459,7 @@ export default function WorldExperience() {
                 detailOf={(it) => it.description}
               />
             )}
-            {tab === "career" && (
+            {profileTab.id === "career" && (
               <FileCards
                 items={career.length ? career : activities}
                 titleOf={(it) => it.title}
@@ -594,7 +472,7 @@ export default function WorldExperience() {
                 empty="등록된 경력이 없습니다."
               />
             )}
-            {tab === "certs" && (
+            {profileTab.id === "certs" && (
               <FileCards
                 items={certs}
                 titleOf={(it) => it.name}
@@ -604,6 +482,14 @@ export default function WorldExperience() {
               />
             )}
           </div>
+          <p className="world-stage__bar">
+            {profileTab.id === "career"
+              ? `${(career.length ? career : activities).length} records`
+              : profileTab.id === "certs"
+                ? `${certs.length} certifications`
+                : `${activities.length} activities`}
+          </p>
+          <p className="world-stage__bar world-stage__bar--meta">{profileTab.label}</p>
         </section>
       )}
 
@@ -618,7 +504,7 @@ export default function WorldExperience() {
         onCommit={(next) => goToRef.current(next)}
       />
 
-      <nav className={`world-nav${showProfile ? " is-desktop-hide" : ""}`} aria-label="여정">
+      <nav className="world-nav" aria-label="여정">
           <p className="world-nav__label">PROJECTS</p>
           {projects.map((p, i) => (
             <button

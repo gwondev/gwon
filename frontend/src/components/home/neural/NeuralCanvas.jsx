@@ -7,11 +7,11 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { AdaptiveDpr } from "@react-three/drei";
 import * as THREE from "three";
 import {
-  CONNECT_START,
   INTRO_END,
   JOURNEY_PROJECTS,
-  PLANET_POS,
   liveProjects,
+  journeyCount,
+  makePlanetPos,
   PROFILE_START,
   projectIndexAt,
   projectLocal,
@@ -58,7 +58,7 @@ const cyanC = new THREE.Color(CYAN);
 const tint = new THREE.Color();
 
 function planets() {
-  return worldState.planets?.length ? worldState.planets : PLANET_POS;
+  return worldState.planets?.length ? worldState.planets : makePlanetPos(journeyCount());
 }
 
 function cameraTarget(p) {
@@ -72,31 +72,11 @@ function cameraTarget(p) {
       warp: 0,
     };
   }
-  if (p >= PROFILE_START) {
-    const last = planets()[planets().length - 1] || [0, 0, -76];
-    const u = (p - PROFILE_START) / 0.1;
-    return {
-      cam: [last[0] * 0.08, last[1] + 0.5 + u * 0.4, last[2] - 6 - u * 4],
-      look: [0, 0, last[2] - 18],
-      fov: 38,
-      warp: 0,
-    };
-  }
-  if (p >= CONNECT_START) {
-    const last = planets()[planets().length - 1] || [0, 0, -76];
-    const u = (p - CONNECT_START) / Math.max(0.001, PROFILE_START - CONNECT_START);
-    return {
-      cam: [last[0] * 0.12, last[1] + 0.4 + u * 0.2, last[2] + 2.1 - u * 8],
-      look: [0, 0, last[2] - 16],
-      fov: 40 - u * 2,
-      warp: 0.08,
-    };
-  }
-
   const { i, t } = projectLocal(p);
   const planet = planets()[i] || planets()[0];
   const fromScene = worldState.warpFrom ?? i;
-  const prev = fromScene <= 0 ? [0, 0.2, 12] : lookFrom(planets()[fromScene - 1], 2.35);
+  const prevPlanet = fromScene > 0 ? planets()[fromScene - 1] : null;
+  const prev = prevPlanet ? lookFrom(prevPlanet, 2.35) : [0, 0.2, 12];
   const arrive = lookFrom(planet, 3.15);
   const read = lookFrom(planet, 2.35);
   const stage = projectStage(t);
@@ -129,6 +109,7 @@ function cameraTarget(p) {
 }
 
 function lookFrom(planet, dist) {
+  if (!planet) return [0, 0.2, 12];
   return [planet[0] * 0.15, planet[1] + 0.35, planet[2] + dist];
 }
 
@@ -262,7 +243,7 @@ function NeuralField({ count }) {
     const effectPlanet = worldState.effectIndex >= 0 ? planetList[worldState.effectIndex] : highlight;
     const effect = worldState.effect || "none";
     const t = clock.elapsedTime;
-    const connect = p >= CONNECT_START;
+    const connect = false;
     const eventGate = Math.sin(t * 0.21) * Math.sin(t * 0.093 + 1.4);
     const event = eventGate > 0.62 ? (eventGate - 0.62) / 0.38 : 0;
 
@@ -340,7 +321,7 @@ function Planets() {
     group.current.children.forEach((child, i) => {
       const on = idx === i && (stage === "warp" || stage === "arrive" || stage === "read");
       const leave = idx === i && stage === "leave";
-      const connect = p >= CONNECT_START;
+      const connect = false;
       const hover = worldState.hoverIndex === i;
       const target = connect ? 0.62 : on ? 1 : hover ? 0.72 : 0.28;
       const scale = leave ? 1 - projectStage(t).u * 0.35 : target;

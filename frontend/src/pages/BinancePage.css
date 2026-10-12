@@ -3,24 +3,24 @@
   width: 100%;
   flex: 0 0 auto;
   box-sizing: border-box;
-  height: calc(100vh - 7.6rem);
-  max-height: calc(100vh - 7.6rem);
-  padding: 0.16rem clamp(10px, 1.6vw, 18px) 0.16rem;
+  height: calc(100dvh - 5.2rem);
+  max-height: calc(100dvh - 5.2rem);
+  padding: 0.08rem clamp(8px, 1vw, 14px) 0.12rem;
   color: var(--text);
   line-height: 1.25;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
+  gap: 0.16rem;
 }
 
 .b-tabs {
   flex: none;
   width: 100%;
-  max-width: 1560px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   display: flex;
-  gap: 0.2rem;
+  gap: 0.35rem;
   border-bottom: 1px solid var(--line);
 }
 
@@ -29,10 +29,10 @@
   border: 0;
   background: transparent;
   color: var(--text-faint);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 0.32rem 0.8rem 0.42rem;
+  font-size: 1.12rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  padding: 0.48rem 1.05rem 0.58rem;
   cursor: pointer;
   transition: color 0.15s ease;
 }
@@ -58,8 +58,8 @@
 
 .b-shell {
   width: 100%;
-  max-width: 1560px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   flex: 1 1 0;
   height: auto;
   max-height: 100%;
@@ -515,8 +515,8 @@
 .b-pos__grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.16rem;
-  margin-top: 0.16rem;
+  gap: 0.1rem;
+  margin-top: 0.1rem;
 }
 
 .b-pos__grid div {
@@ -539,7 +539,7 @@
 
 .b-split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 22vw);
   gap: 0.28rem;
   flex: 1 1 0;
   min-height: 0;
@@ -558,8 +558,8 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.2rem 0.6rem;
-  margin-bottom: 0.18rem;
+  gap: 0.1rem 0.6rem;
+  margin-bottom: 0.08rem;
   flex: 0 0 auto;
 }
 
@@ -1352,6 +1352,12 @@
     overflow: visible;
   }
 
+  .page.binance-page:has(.b-shell--overview) {
+    height: calc(100dvh - 5.2rem);
+    max-height: calc(100dvh - 5.2rem);
+    overflow: hidden;
+  }
+
   .b-rep {
     flex: none;
     overflow: visible;
@@ -1392,6 +1398,25 @@
     flex: none;
     height: clamp(420px, 64vh, 640px);
     grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+  }
+
+  .b-shell--overview {
+    flex: 1 1 0;
+    height: auto;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .b-shell--overview .b-trade {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .b-shell--overview .b-split {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 56vh;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 26vw);
   }
 }
 
