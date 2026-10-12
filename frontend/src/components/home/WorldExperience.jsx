@@ -3,7 +3,6 @@ import gsap from "gsap";
 import { worldState } from "./worldState.js";
 import {
   INTRO_END,
-  JOURNEY_END,
   JOURNEY_PROJECTS,
   PROFILE_TABS,
   liveProjects,
@@ -25,7 +24,7 @@ import { fileToCompressedDataUrl } from "../../lib/image.js";
 import { fileToVideoDataUrl } from "../../lib/video.js";
 import { useAuth } from "../../context/AuthContext";
 import { useViewMode } from "../../context/ViewModeContext";
-import { blankSlide } from "../../lib/homeLayout.js";
+import { blankPage } from "../../lib/homeLayout.js";
 import { useHomeLayout } from "../../lib/useHomeLayout.js";
 import "./WorldExperience.css";
 
@@ -76,7 +75,7 @@ export default function WorldExperience() {
   const [scene, setScene] = useState(0);
   const [webgl, setWebgl] = useState(true);
   const [tab, setTab] = useState("experience");
-  const [slideI, setSlideI] = useState(0);
+  const [pageI, setPageI] = useState(0);
 
   const sceneRef = useRef(0);
   const targetSceneRef = useRef(0);
@@ -124,26 +123,13 @@ export default function WorldExperience() {
       });
     };
 
-    if (tgt > k) {
+    if (tgt !== k) {
       worldState.warpBack = false;
       worldState.warpFrom = k;
-      set(warpStartOf(tgt));
-      run(sceneToProgress(tgt), WARP_SECONDS, "power2.out", () => {
-        worldState.warpFrom = null;
-        driveRef.current();
-      });
-      return;
-    }
-    if (tgt < k) {
-      // 휠 내리기와 같은 한 방: 목표 워프 시작으로 즉시 점프(지금 위젯 사라짐)
-      // → 0.95s power2.out 으로 도착·읽기까지. 사진·제목은 도착 구간에서 같은 타이밍으로 뜬다.
-      worldState.warpBack = true;
-      worldState.warpFrom = k;
       if (tgt < 1) {
-        set(warpStartOf(k));
+        set(warpStartOf(Math.max(1, k)));
         run(sceneToProgress(0), WARP_SECONDS, "power2.out", () => {
           worldState.warpFrom = null;
-          worldState.warpBack = false;
           driveRef.current();
         });
         return;
@@ -151,7 +137,6 @@ export default function WorldExperience() {
       set(warpStartOf(tgt));
       run(sceneToProgress(tgt), WARP_SECONDS, "power2.out", () => {
         worldState.warpFrom = null;
-        worldState.warpBack = false;
         driveRef.current();
       });
       return;
@@ -317,11 +302,10 @@ export default function WorldExperience() {
   const profileTabs = profile?.tabs?.length ? profile.tabs : PROFILE_TABS;
   const liveProfileTab = profileTab ? profileTabs.find((item) => item.id === profileTab.id) || profileTab : null;
   const profileItems = liveProfileTab?.items || [];
-  const slides = project?.slides || [];
-  const slide = slides[Math.min(slideI, Math.max(0, slides.length - 1))] || null;
+  const pages = project?.pages?.length ? project.pages : [];
 
   useEffect(() => {
-    setSlideI(0);
+    setPageI(0);
   }, [project?.id]);
 
   const counterLabel =
@@ -337,23 +321,6 @@ export default function WorldExperience() {
     ...projects.map((p, i) => ({ scene: i + 1, label: p.title })),
         ...profileTabs.map((item, i) => ({ scene: n + 1 + i, label: item.label })),
   ];
-
-  const scrubTo = (next) => {
-    tweenRef.current?.kill();
-    settleRef.current?.kill();
-    const clamped = Math.max(0, Math.min(sceneMax(), next));
-    targetSceneRef.current = clamped;
-    sceneRef.current = clamped;
-    setScene(clamped);
-    if (isProfileScene(clamped)) setTab(profileTabFromScene(clamped) || "experience");
-    accRef.current = 0;
-    setWorldEffect(clamped);
-    worldState.warpFrom = null;
-    worldState.warpBack = false;
-    const target = sceneToProgress(clamped);
-    worldState.progress = target;
-    setProgress(target);
-  };
 
   return (
     <main className="page world-page" ref={root}>
@@ -379,63 +346,26 @@ export default function WorldExperience() {
         <section className={`world-stage${canEditHome ? " is-editing" : ""}`} style={{ opacity: Math.max(textReveal, imageReveal * 0.35) }}>
           <Field tag="h2" className="world-stage__title" value={project.title} canEdit={canEditHome} onSave={(title) => home.patchProject(project.id, { title })} />
           <Field className="world-stage__one" value={project.subtitle} canEdit={canEditHome} onSave={(subtitle) => home.patchProject(project.id, { subtitle })} />
-          <div className="world-stage__media" style={{ opacity: imageReveal }}>
-            <ProjectVisual
-              image={slide?.kind === "image" ? slide.src : ""}
-              video={slide?.kind === "video" ? slide.src : ""}
-              reveal={imageReveal}
-              alt={slide?.name || project.title}
-              canEdit={canEditHome}
-              onPick={async (file) => {
-                if (!file) return;
-                try {
-                  const isVideo = file.type.startsWith("video/");
-                  const src = isVideo ? await fileToVideoDataUrl(file) : await fileToCompressedDataUrl(file);
-                  const next = slides.length
-                    ? slides.map((s, i) => (i === slideI ? { ...s, kind: isVideo ? "video" : "image", src } : s))
-                    : [{ i: 0, kind: isVideo ? "video" : "image", src, caption: "", name: "탭 1" }];
-                  home.patchProject(project.id, { slides: next });
-                } catch (err) {
-                  window.alert(err.message || "미디어를 넣지 못했습니다.");
-                }
-              }}
-            />
-          </div>
-          <Field
-            className="world-stage__bar"
-            value={slide?.caption || project.description}
+          <MediaPages
+            pages={pages.length ? pages : [blankPage(0)]}
+            index={pageI}
+            setIndex={setPageI}
+            reveal={imageReveal}
+            title={project.title}
             canEdit={canEditHome}
-            onSave={(caption) => {
-              if (!slides.length) {
-                home.patchProject(project.id, { description: caption });
-                return;
-              }
+            onPatchCell={(pi, side, fields) => {
+              const base = pages.length ? pages : [blankPage(0)];
               home.patchProject(project.id, {
-                slides: slides.map((s, i) => (i === slideI ? { ...s, caption } : s)),
-                description: caption,
+                pages: base.map((pg, i) => (i === pi ? { ...pg, [side]: { ...pg[side], ...fields } } : pg)),
               });
             }}
+            onAdd={() => {
+              const base = pages.length ? pages : [blankPage(0)];
+              const next = [...base, blankPage(base.length)];
+              home.patchProject(project.id, { pages: next });
+              setPageI(next.length - 1);
+            }}
           />
-          <div className="world-stage__tabs">
-            {(slides.length ? slides : [{ i: 0, name: "탭 1" }]).map((s, i) => (
-              <button key={s.i ?? i} type="button" className={i === slideI ? "is-on" : ""} onClick={() => setSlideI(i)}>
-                {s.name || String(i + 1).padStart(2, "0")}
-              </button>
-            ))}
-            {canEditHome && (
-              <button
-                type="button"
-                className="world-stage__tabs-add"
-                onClick={() => {
-                  const next = [...slides, blankSlide(slides.length)];
-                  home.patchProject(project.id, { slides: next });
-                  setSlideI(next.length - 1);
-                }}
-              >
-                +
-              </button>
-            )}
-          </div>
         </section>
       )}
 
@@ -457,9 +387,9 @@ export default function WorldExperience() {
           <div className="world-stage__media world-stage__media--cards" style={{ opacity: imageReveal }}>
             <FileCards
               items={profileItems}
+              layout={liveProfileTab.id}
               canEdit={canEditHome}
               onPatch={(id, fields) => home.patchProfileItem(liveProfileTab.id, id, fields)}
-              onAdd={() => home.addProfileItem(liveProfileTab.id)}
             />
           </div>
         </section>
@@ -470,10 +400,8 @@ export default function WorldExperience() {
       </p>
 
       <JourneyLever
-        progress={progress}
         scene={scene}
         stops={leverStops}
-        onScrub={scrubTo}
         onCommit={(next) => goToRef.current(next)}
       />
 
@@ -525,7 +453,7 @@ export default function WorldExperience() {
   );
 }
 
-const Field = memo(function Field({ tag: Tag = "p", className, value, canEdit, onSave }) {
+const Field = memo(function Field({ tag: Tag = "p", className, value, canEdit, onSave, placeholder }) {
   const ref = useRef(null);
   const saveRef = useRef(onSave);
   saveRef.current = onSave;
@@ -548,6 +476,7 @@ const Field = memo(function Field({ tag: Tag = "p", className, value, canEdit, o
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
+      data-placeholder={placeholder || "입력"}
       onBlur={() => {
         const next = (ref.current?.textContent || "").replace(/\s+/g, " ").trim();
         if (next !== (value || "")) saveRef.current(next);
@@ -560,39 +489,63 @@ const Field = memo(function Field({ tag: Tag = "p", className, value, canEdit, o
       }}
     />
   );
-}, (a, b) => a.value === b.value && a.canEdit === b.canEdit && a.className === b.className && a.tag === b.tag);
+}, (a, b) => a.value === b.value && a.canEdit === b.canEdit && a.className === b.className && a.tag === b.tag && a.placeholder === b.placeholder);
 
-function JourneyLever({ progress, scene, stops, onScrub, onCommit }) {
+function JourneyLever({ scene, stops, onCommit }) {
   const track = useRef(null);
+  const tween = useRef(null);
   const [drag, setDrag] = useState(false);
+  const n = Math.max(1, stops.length - 1);
   const index = Math.max(0, stops.findIndex((stop) => stop.scene === scene));
-  const pct = Math.min(100, Math.max(0, ((progress - 0.018) / (JOURNEY_END - 0.018)) * 100));
+  const obj = useRef({ t: index / n });
+  const [t, setT] = useState(index / n);
 
-  const sceneFromY = (clientY) => {
+  useEffect(() => {
+    if (drag) return undefined;
+    const to = index / n;
+    tween.current?.kill();
+    tween.current = gsap.to(obj.current, {
+      t: to,
+      duration: worldState.reduced ? 0.2 : WARP_SECONDS,
+      ease: "power2.out",
+      onUpdate: () => setT(obj.current.t),
+    });
+    return () => tween.current?.kill();
+  }, [index, n, drag]);
+
+  const yToT = (clientY) => {
     const rect = track.current?.getBoundingClientRect();
-    if (!rect || !stops.length) return scene;
-    const t = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
-    return stops[Math.round(t * (stops.length - 1))].scene;
+    if (!rect) return obj.current.t;
+    return Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
   };
 
   const start = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    tween.current?.kill();
     setDrag(true);
     worldState.leverDrag = true;
-    track.current?.setPointerCapture?.(e.pointerId);
-    onScrub(sceneFromY(e.clientY));
-    const move = (ev) => onScrub(sceneFromY(ev.clientY));
+    const apply = (ev) => {
+      const next = yToT(ev.clientY);
+      obj.current.t = next;
+      setT(next);
+    };
+    apply(e);
     const up = (ev) => {
+      apply(ev);
       setDrag(false);
       worldState.leverDrag = false;
-      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointermove", apply);
       window.removeEventListener("pointerup", up);
-      onCommit(sceneFromY(ev.clientY));
+      const stop = stops[Math.round(obj.current.t * n)];
+      if (stop) onCommit(stop.scene);
     };
-    window.addEventListener("pointermove", move);
+    window.addEventListener("pointermove", apply);
     window.addEventListener("pointerup", up);
   };
+
+  const pct = t * 100;
+  const near = Math.round(t * n);
 
   return (
     <div className={`world-lever${drag ? " is-drag" : ""}`} ref={track} onPointerDown={start} style={{ "--lever": `${pct}%` }}>
@@ -601,12 +554,131 @@ function JourneyLever({ progress, scene, stops, onScrub, onCommit }) {
       {stops.map((stop, i) => (
         <span
           key={stop.scene}
-          className={`world-lever__tick${stop.scene === scene ? " is-on" : ""}`}
-          style={{ top: `${stops.length <= 1 ? 0 : (i / (stops.length - 1)) * 100}%` }}
+          className={`world-lever__tick${i === near ? " is-on" : ""}`}
+          style={{ top: `${(i / n) * 100}%` }}
         />
       ))}
       <b className="world-lever__grip" style={{ top: `${pct}%` }} />
-      <span className="world-lever__label">{stops[index]?.label}</span>
+      <span className="world-lever__label">{stops[near]?.label}</span>
+    </div>
+  );
+}
+
+function MediaPages({ pages, index, setIndex, reveal, title, canEdit, onPatchCell, onAdd }) {
+  const view = useRef(null);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const dx = useRef(0);
+  const axis = useRef(null);
+  const [off, setOff] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
+  const down = (e) => {
+    if (e.target?.closest?.("[contenteditable='true'], label, input, .world-stage__tabs-add, .world-stage__bar, .is-edit")) return;
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+    dx.current = 0;
+    axis.current = null;
+    setDragging(true);
+    const move = (ev) => {
+      const x = ev.clientX - startX.current;
+      const y = ev.clientY - startY.current;
+      if (!axis.current) {
+        if (Math.abs(x) < 10 && Math.abs(y) < 10) return;
+        axis.current = Math.abs(x) > Math.abs(y) ? "x" : "y";
+      }
+      if (axis.current !== "x") return;
+      dx.current = x;
+      setOff(x);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (axis.current === "x") {
+        const w = view.current?.clientWidth || 1;
+        if (dx.current / w < -0.12) setIndex(Math.min(pages.length - 1, index + 1));
+        else if (dx.current / w > 0.12) setIndex(Math.max(0, index - 1));
+      }
+      dx.current = 0;
+      axis.current = null;
+      setOff(0);
+      setDragging(false);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const w = view.current?.clientWidth || 1;
+  const shift = -index * 100 + (off / w) * 100;
+
+  return (
+    <>
+      <div className={`world-stage__viewport${dragging ? " is-drag" : ""}`} ref={view} onPointerDown={down} style={{ opacity: reveal }}>
+        <div className="world-stage__track" style={{ transform: `translate3d(${shift}%, 0, 0)` }}>
+          {pages.map((pg, i) => (
+            <div className="world-stage__page" key={pg.i ?? i}>
+              <div className="world-stage__pair">
+                {["left", "right"].map((side) => (
+                  <MediaCell
+                    key={side}
+                    cell={pg[side]}
+                    reveal={reveal}
+                    alt={`${title} ${pg.name || i + 1} ${side}`}
+                    canEdit={canEdit}
+                    onPick={async (file) => {
+                      if (!file) return;
+                      try {
+                        const isVideo = file.type.startsWith("video/");
+                        const src = isVideo ? await fileToVideoDataUrl(file) : await fileToCompressedDataUrl(file);
+                        onPatchCell(i, side, { kind: isVideo ? "video" : "image", src });
+                      } catch (err) {
+                        window.alert(err.message || "미디어를 넣지 못했습니다.");
+                      }
+                    }}
+                    onCaption={(caption) => onPatchCell(i, side, { caption })}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="world-stage__tabs" onPointerDown={down}>
+        {pages.map((pg, i) => (
+          <span key={pg.i ?? i} className={i === index ? "is-on" : ""}>
+            {pg.name || String(i + 1).padStart(2, "0")}
+          </span>
+        ))}
+        {canEdit && (
+          <button type="button" className="world-stage__tabs-add" onClick={onAdd}>
+            +
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function MediaCell({ cell, reveal, alt, canEdit, onPick, onCaption }) {
+  return (
+    <div className="world-stage__cell">
+      <div className="world-stage__media">
+        <ProjectVisual
+          image={cell?.kind === "image" ? cell.src : ""}
+          video={cell?.kind === "video" ? cell.src : ""}
+          reveal={reveal}
+          alt={alt}
+          canEdit={canEdit}
+          onPick={onPick}
+        />
+      </div>
+      <Field
+        className="world-stage__bar"
+        value={cell?.caption}
+        canEdit={canEdit}
+        placeholder="사진·영상 설명"
+        onSave={onCaption}
+      />
     </div>
   );
 }
@@ -660,12 +732,12 @@ function ProjectVisual({ image, video, reveal, alt, canEdit, onPick }) {
   );
 }
 
-function FileCards({ items, canEdit, onPatch, onAdd, empty = "—" }) {
+function FileCards({ items, layout = "experience", canEdit, onPatch, empty = "—" }) {
   const [open, setOpen] = useState(null);
   if (!items?.length && !canEdit) return <p className="world-empty">{empty}</p>;
   return (
     <>
-      <ul className="world-cards">
+      <ul className={`world-cards world-cards--${layout}`}>
         {items.map((it) => (
           <li key={it.id}>
             <div
@@ -675,19 +747,12 @@ function FileCards({ items, canEdit, onPatch, onAdd, empty = "—" }) {
               }}
               role={canEdit ? undefined : "button"}
             >
-              <Field tag="b" value={it.title} canEdit={canEdit} onSave={(title) => onPatch(it.id, { title })} />
-              <Field tag="span" value={it.subtitle} canEdit={canEdit} onSave={(subtitle) => onPatch(it.id, { subtitle })} />
-              <Field tag="em" value={it.description} canEdit={canEdit} onSave={(description) => onPatch(it.id, { description })} />
+              <Field tag="b" value={it.title} canEdit={canEdit} placeholder="제목" onSave={(title) => onPatch(it.id, { title })} />
+              <Field tag="span" value={it.subtitle} canEdit={canEdit} placeholder="기간 · 부제" onSave={(subtitle) => onPatch(it.id, { subtitle })} />
+              <Field tag="em" value={it.description} canEdit={canEdit} placeholder="설명" onSave={(description) => onPatch(it.id, { description })} />
             </div>
           </li>
         ))}
-        {canEdit && (
-          <li>
-            <button type="button" className="world-card world-card--add" onClick={onAdd}>
-              + 항목
-            </button>
-          </li>
-        )}
       </ul>
       {open && (
         <div className="world-card-pop" onClick={() => setOpen(null)} role="presentation">

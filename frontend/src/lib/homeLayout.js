@@ -8,17 +8,20 @@ export const HOME_LAYOUT_KEY = "gwon.homeLayout";
  *
  * hero            i=0     kicker, name, line
  * nav             i=0     projects, profile
- * projects[i]             id, no, title, subtitle, description, slides
- * projects[i].slides[j]   i, kind(image|video), src, caption, name
- * profile.tabs[k]         i, id, label, one, items
- * profile.tabs[k].items[n] i, id, title, subtitle, description
+ * projects[i]             id, no, title, subtitle, description, pages
+ * projects[i].pages[j]    i, name, left, right
+ * pages[j].left|right     kind(image|video), src, caption
+ * profile.tabs[k]         i, id, label, one, items (experience 8, career 4, certs 8)
+ * profile.tabs[k].items[n] i, id, title, subtitle, description  (certs 마지막 = 기타 자격증)
  */
 export const HOME_LAYOUT_DOC = {
   hero: "hero.i=0 — kicker, name, line",
   nav: "nav.i=0 — projects, profile",
-  projects: "projects[i] — title, subtitle, description, slides[j] {i, kind:image|video, src, caption, name}",
-  profile: "profile.tabs[k] — id, label, one, items[n] {i, id, title, subtitle, description}",
+  projects: "projects[i].pages[j] — name, left|right {kind, src, caption}",
+  profile: "experience 8칸(2x4), career 4칸, certs 8칸(마지막 기타 자격증)",
 };
+
+export const PROFILE_SLOTS = { experience: 8, career: 4, certs: 8 };
 
 function str(v, fallback = "") {
   return v == null ? fallback : String(v);
@@ -47,9 +50,10 @@ function slidesOf(p) {
 }
 
 export function cloneProject(p, i) {
-  const slides = slidesOf(p);
-  const firstImg = slides.find((s) => s.kind === "image");
-  const firstVid = slides.find((s) => s.kind === "video");
+  const pages = pagesOf(p);
+  const cells = pages.flatMap((pg) => [pg.left, pg.right]);
+  const firstImg = cells.find((c) => c.kind === "image" && c.src);
+  const firstVid = cells.find((c) => c.kind === "video" && c.src);
   return {
     i,
     id: str(p?.id, `p-${i + 1}`),
@@ -67,7 +71,7 @@ export function cloneProject(p, i) {
     imageAlt: str(p?.imageAlt || p?.title),
     match: Array.isArray(p?.match) ? p.match.map(String) : [str(p?.id, `p-${i + 1}`)],
     effect: str(p?.effect, "none"),
-    slides,
+    pages,
   };
 }
 
@@ -90,8 +94,54 @@ export function blankProject(index) {
   );
 }
 
+function emptyCell() {
+  return { kind: "image", src: "", caption: "" };
+}
+
+function cloneCell(c) {
+  const src = str(c?.src || c?.image || c?.video);
+  const kind = c?.kind === "video" || c?.video || src.startsWith("data:video") ? "video" : "image";
+  return { kind, src, caption: str(c?.caption) };
+}
+
+function clonePage(pg, i) {
+  const src = pg && typeof pg === "object" ? pg : {};
+  return {
+    i,
+    name: str(src.name, `탭 ${i + 1}`),
+    left: cloneCell(src.left),
+    right: cloneCell(src.right),
+  };
+}
+
+export function blankPage(index) {
+  return clonePage({ name: `탭 ${index + 1}`, left: emptyCell(), right: emptyCell() }, index);
+}
+
 export function blankSlide(index) {
   return cloneSlide({ kind: "image", src: "", caption: "", name: `탭 ${index + 1}` }, index);
+}
+
+function pagesOf(p) {
+  if (Array.isArray(p?.pages) && p.pages.length) {
+    return p.pages.slice(0, 8).map((pg, i) => clonePage(pg, i));
+  }
+  const slides = slidesOf(p);
+  if (!slides.length) return [blankPage(0)];
+  const pages = [];
+  for (let s = 0; s < slides.length; s += 2) {
+    pages.push(
+      clonePage(
+        {
+          name: slides[s].name || `탭 ${pages.length + 1}`,
+          left: slides[s],
+          right: slides[s + 1] || emptyCell(),
+        },
+        pages.length
+      )
+    );
+  }
+  return pages;
 }
 
 function cloneCard(it, i) {
@@ -104,15 +154,28 @@ function cloneCard(it, i) {
   };
 }
 
+function padItems(tabId, items) {
+  const n = PROFILE_SLOTS[tabId] || items.length;
+  const out = items.slice(0, n).map((it, j) => cloneCard(it, j));
+  while (out.length < n) {
+    const i = out.length;
+    const title = tabId === "certs" && i === n - 1 ? "기타 자격증" : "";
+    out.push({ i, id: `c-${tabId}-${i}`, title, subtitle: "", description: "" });
+  }
+  if (tabId === "certs" && !out[n - 1].title) out[n - 1].title = "기타 자격증";
+  return out.map((it, i) => ({ ...it, i }));
+}
+
 function cloneProfileTab(tab, i, fallback) {
   const src = tab && typeof tab === "object" ? tab : {};
+  const id = str(src.id, fallback.id);
   const items = Array.isArray(src.items) ? src.items : [];
   return {
     i,
-    id: str(src.id, fallback.id),
+    id,
     label: str(src.label, fallback.label),
     one: str(src.one, fallback.one),
-    items: items.map((it, j) => cloneCard(it, j)),
+    items: padItems(id, items),
   };
 }
 

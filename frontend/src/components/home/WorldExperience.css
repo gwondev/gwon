@@ -197,8 +197,65 @@
 
 .world-stage.is-editing .is-edit,
 .world-stage.is-editing .world-stage__tabs,
-.world-stage.is-editing .world-stage__upload {
+.world-stage.is-editing .world-stage__upload,
+.world-stage.is-editing .world-stage__viewport {
   pointer-events: auto;
+}
+
+.world-stage__viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  touch-action: pan-x;
+}
+
+.world-stage__track {
+  display: flex;
+  height: 100%;
+  will-change: transform;
+  transition: transform 0.48s cubic-bezier(0.16, 1, 0.32, 1);
+}
+
+.world-stage__viewport.is-drag .world-stage__track {
+  transition: none;
+}
+
+.world-stage__page {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.world-stage__pair {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #050506;
+}
+
+.world-stage__cell {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.world-stage__cell .world-stage__media,
+.world-stage__cell .world-proj__void {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.world-stage__cell .world-stage__bar {
+  margin: 0;
+  flex: none;
 }
 
 .world-stage__title {
@@ -279,7 +336,7 @@
 
 .world-stage__media--cards {
   pointer-events: auto;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .world-stage__tabs {
@@ -289,8 +346,11 @@
   pointer-events: auto;
 }
 
+.world-stage__tabs span,
 .world-stage__tabs button {
   flex: 1 1 auto;
+  display: grid;
+  place-items: center;
   min-height: 2.05rem;
   border: 1px solid rgba(243, 242, 239, 0.1);
   background: rgba(12, 12, 14, 0.88);
@@ -298,10 +358,10 @@
   font-size: 0.68rem;
   font-weight: 650;
   letter-spacing: 0.12em;
-  cursor: pointer;
+  user-select: none;
 }
 
-.world-stage__tabs button.is-on {
+.world-stage__tabs span.is-on {
   color: #ececec;
   background: #161618;
   border-color: rgba(243, 242, 239, 0.28);
@@ -347,6 +407,11 @@
 
 .is-edit:focus {
   box-shadow: inset 0 0 0 1px rgba(243, 242, 239, 0.22);
+}
+
+.is-edit:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(243, 242, 239, 0.28);
 }
 
 .world-stage__bar--meta {
@@ -415,8 +480,26 @@
   gap: 1px;
   height: 100%;
   min-height: 100%;
-  overflow: auto;
+  overflow: hidden;
   background: #050506;
+}
+
+.world-cards--experience,
+.world-cards--certs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.world-cards--career {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 10px;
+  background: transparent;
+}
+
+.world-cards--career .world-card {
+  border: 1px solid rgba(243, 242, 239, 0.08);
+  border-radius: 12px;
 }
 
 .world-cards li {
@@ -579,21 +662,28 @@
 }
 
 .world-lever__tick.is-on {
+  width: 11px;
+  height: 11px;
   border-color: var(--accent);
   background: var(--accent);
-  box-shadow: 0 0 8px rgba(216, 193, 154, 0.55);
+  box-shadow: 0 0 12px rgba(216, 193, 154, 0.7);
 }
 
 .world-lever__grip {
   position: absolute;
   left: 50%;
-  width: 9px;
-  height: 9px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 10px rgba(216, 193, 154, 0.45);
+  box-shadow: 0 0 14px rgba(216, 193, 154, 0.55);
   transform: translate(-50%, -50%);
   pointer-events: none;
+}
+
+.world-lever.is-drag .world-lever__grip {
+  width: 18px;
+  height: 18px;
 }
 
 .world-lever__label {
@@ -689,6 +779,7 @@
     bottom: 3.15rem;
     padding: 0;
     min-width: 0;
+    overflow: hidden;
   }
 
   .world-stage__title {
@@ -726,10 +817,16 @@
     overflow: hidden;
   }
 
+  .world-stage__pair {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
   .world-stage__tabs {
     margin-top: 0.16rem;
   }
 
+  .world-stage__tabs span,
   .world-stage__tabs button {
     min-height: 1.48rem;
     font-size: 0.52rem;
@@ -760,10 +857,19 @@
     background: transparent;
   }
 
-  .world-cards {
+  .world-cards,
+  .world-cards--experience,
+  .world-cards--certs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(0, 1fr));
     min-height: 0;
     max-height: none;
+  }
+
+  .world-cards--career {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .world-cards li {
@@ -806,9 +912,14 @@
     height: 4px;
   }
 
+  .world-lever__tick.is-on {
+    width: 9px;
+    height: 9px;
+  }
+
   .world-lever__grip {
-    width: 8px;
-    height: 8px;
+    width: 13px;
+    height: 13px;
   }
 }
 
