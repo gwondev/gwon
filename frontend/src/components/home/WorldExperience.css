@@ -79,7 +79,7 @@
 .world-counter {
   position: fixed;
   top: 5.4rem;
-  right: clamp(88px, 11vw, 156px);
+  right: clamp(52px, 7vw, 96px);
   z-index: 30;
   margin: 0;
   font-size: 0.64rem;
@@ -529,14 +529,12 @@
 .world-lever {
   position: fixed;
   top: 50%;
-  right: clamp(72px, 9.5vw, 140px);
+  right: clamp(52px, 7vw, 96px);
   transform: translateY(-50%);
   z-index: 30;
-  width: 18px;
-  height: min(56vh, 500px);
-  border-radius: 99px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.1));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 10px 28px rgba(0, 0, 0, 0.35);
+  width: 22px;
+  height: min(52vh, 440px);
+  background: transparent;
   cursor: grab;
   touch-action: none;
 }
@@ -545,49 +543,68 @@
   cursor: grabbing;
 }
 
+.world-lever__rail {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: rgba(243, 242, 239, 0.14);
+  pointer-events: none;
+}
+
 .world-lever__fill {
   position: absolute;
-  left: 4px;
-  right: 4px;
-  top: 6px;
-  border-radius: 99px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(196, 196, 196, 0.72));
+  left: 50%;
+  top: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--accent);
+  opacity: 0.55;
   pointer-events: none;
+}
+
+.world-lever__tick {
+  position: absolute;
+  display: block;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid rgba(243, 242, 239, 0.28);
+  background: #050506;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.world-lever__tick.is-on {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(216, 193, 154, 0.55);
 }
 
 .world-lever__grip {
   position: absolute;
   left: 50%;
-  width: 26px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #d4d4d4, #8d8d8d 42%, #2c2c2c);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.45);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(216, 193, 154, 0.45);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
 
-.world-lever__grip::before,
-.world-lever__grip::after {
-  content: "";
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  height: 1px;
-  background: rgba(12, 12, 12, 0.45);
-}
-
-.world-lever__grip::before { top: 15px; }
-.world-lever__grip::after { top: 23px; }
-
 .world-lever__label {
   position: absolute;
-  right: 34px;
-  top: 50%;
+  right: 18px;
+  top: var(--lever, 50%);
   transform: translateY(-50%);
-  font-size: 0.58rem;
-  letter-spacing: 0.12em;
-  color: rgba(210, 210, 210, 0.42);
+  font-size: 0.56rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  color: rgba(216, 193, 154, 0.58);
   pointer-events: none;
   white-space: nowrap;
 }

@@ -16,7 +16,6 @@ import {
   projectStage,
   profileTabFromScene,
   regionSceneAt,
-  warpEndOf,
   sceneFromProfileTab,
   sceneFromProjectIndex,
   sceneToProgress,
@@ -136,30 +135,24 @@ export default function WorldExperience() {
       return;
     }
     if (tgt < k) {
-      // 현재 장면을 앞으로 갈 때와 같은 구조로 역재생한 뒤,
-      // 이전 장면은 다음 장면과 똑같이 워프 끝에서 위젯이 서서히 나타난다.
-      worldState.warpFrom = Math.max(0, tgt);
+      // 휠 내리기와 같은 한 방: 목표 워프 시작으로 즉시 점프(지금 위젯 사라짐)
+      // → 0.95s power2.out 으로 도착·읽기까지. 사진·제목은 도착 구간에서 같은 타이밍으로 뜬다.
       worldState.warpBack = true;
-      const start = warpStartOf(k);
-      const end = warpEndOf(k);
-      const from = p > end ? end : Math.min(end, Math.max(start, p));
-      set(from);
-      const span = Math.max(0.0001, end - start);
-      run(start, Math.max(0.18, WARP_SECONDS * ((from - start) / span)), "power2.out", () => {
-        if (tgt < 1) {
-          set(sceneToProgress(0));
+      worldState.warpFrom = k;
+      if (tgt < 1) {
+        set(warpStartOf(k));
+        run(sceneToProgress(0), WARP_SECONDS, "power2.out", () => {
           worldState.warpFrom = null;
           worldState.warpBack = false;
           driveRef.current();
-          return;
-        }
-        worldState.warpBack = false;
-        worldState.warpFrom = tgt;
-        set(warpEndOf(tgt));
-        run(sceneToProgress(tgt), WARP_SECONDS * 0.55, "power2.out", () => {
-          worldState.warpFrom = null;
-          driveRef.current();
         });
+        return;
+      }
+      set(warpStartOf(tgt));
+      run(sceneToProgress(tgt), WARP_SECONDS, "power2.out", () => {
+        worldState.warpFrom = null;
+        worldState.warpBack = false;
+        driveRef.current();
       });
       return;
     }
@@ -602,8 +595,16 @@ function JourneyLever({ progress, scene, stops, onScrub, onCommit }) {
   };
 
   return (
-    <div className={`world-lever${drag ? " is-drag" : ""}`} ref={track} onPointerDown={start}>
+    <div className={`world-lever${drag ? " is-drag" : ""}`} ref={track} onPointerDown={start} style={{ "--lever": `${pct}%` }}>
+      <i className="world-lever__rail" />
       <i className="world-lever__fill" style={{ height: `${pct}%` }} />
+      {stops.map((stop, i) => (
+        <span
+          key={stop.scene}
+          className={`world-lever__tick${stop.scene === scene ? " is-on" : ""}`}
+          style={{ top: `${stops.length <= 1 ? 0 : (i / (stops.length - 1)) * 100}%` }}
+        />
+      ))}
       <b className="world-lever__grip" style={{ top: `${pct}%` }} />
       <span className="world-lever__label">{stops[index]?.label}</span>
     </div>

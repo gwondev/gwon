@@ -70,8 +70,47 @@
   overflow: hidden;
 }
 
+.page.binance-page:has(.b-shell--overview) {
+  height: auto;
+  max-height: calc(100dvh - 5.2rem);
+  overflow: auto;
+  padding: 0.55rem clamp(28px, 5.5vw, 72px) 1.15rem;
+}
+
 .b-shell--overview {
+  width: min(1080px, 100%);
+  max-width: 1080px;
+  margin: 0 auto;
+  flex: none;
+  height: auto;
+  max-height: none;
   grid-template-columns: minmax(0, 1fr);
+  overflow: visible;
+}
+
+.b-shell--overview .b-trade {
+  height: auto;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem 0.7rem;
+}
+
+.b-shell--overview .b-split {
+  flex: none;
+  height: min(52vh, 560px);
+  min-height: 340px;
+}
+
+.b-shell--overview .b-pos__grid {
+  gap: 0.22rem;
+  margin-top: 0.28rem;
+}
+
+.b-shell--overview .b-pos__grid div {
+  padding: 0.22rem 0.36rem;
+}
+
+.b-shell--overview .b-mini {
+  margin-top: 0.18rem;
 }
 
 .b-asset-line {
@@ -1353,9 +1392,10 @@
   }
 
   .page.binance-page:has(.b-shell--overview) {
-    height: calc(100dvh - 5.2rem);
-    max-height: calc(100dvh - 5.2rem);
-    overflow: hidden;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 0.45rem clamp(16px, 4vw, 36px) 1rem;
   }
 
   .b-rep {
@@ -1401,22 +1441,22 @@
   }
 
   .b-shell--overview {
-    flex: 1 1 0;
+    flex: none;
     height: auto;
-    max-height: 100%;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
   }
 
   .b-shell--overview .b-trade {
-    height: 100%;
-    overflow: hidden;
+    height: auto;
+    overflow: visible;
   }
 
   .b-shell--overview .b-split {
-    flex: 1 1 0;
-    height: auto;
-    min-height: 56vh;
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 26vw);
+    flex: none;
+    height: min(48vh, 480px);
+    min-height: 280px;
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 28vw);
   }
 }
 
@@ -1454,6 +1494,12 @@
 
   .b-pos__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .b-shell--overview .b-split {
+    height: auto;
+    min-height: 0;
+    grid-template-columns: 1fr;
   }
 }
 
