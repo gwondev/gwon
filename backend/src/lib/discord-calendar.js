@@ -2,30 +2,11 @@ import pool from "../db.js";
 
 const WEBHOOK_HOSTS = new Set(["discord.com", "discordapp.com"]);
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-const THEME_COLORS = {
-  gray: 0x9ca3af,
-  slate: 0x64748b,
-  red: 0xef4444,
-  rose: 0xf43f5e,
-  orange: 0xf97316,
-  amber: 0xf59e0b,
-  yellow: 0xeab308,
-  lime: 0x84cc16,
-  green: 0x22c55e,
-  emerald: 0x10b981,
-  teal: 0x14b8a6,
-  cyan: 0x06b6d4,
-  sky: 0x0ea5e9,
-  blue: 0x3b82f6,
-  indigo: 0x6366f1,
-  violet: 0x8b5cf6,
-  purple: 0xa855f7,
-  pink: 0xec4899,
-};
-const INCOME_LABEL = { ALBA: "알바", WORK: "일", SCHOLARSHIP: "근로장학생" };
 
 let digestTimer = null;
 let lastDigestDate = "";
+let todayNotifyTimer = null;
+let todayNotifyAction = "edit";
 
 function webhookUrl() {
   const raw = String(process.env.DISCORD_CALENDAR_WEBHOOK_URL || "").trim();
@@ -41,38 +22,10 @@ function webhookUrl() {
   }
 }
 
-function whenText(event) {
-  const date = event?.eventDate || "";
-  const start = event?.startTime || "";
-  const end = event?.endTime || "";
-  if (start && end) return `${date}  ${start}–${end}`;
-  if (start) return `${date}  ${start}`;
-  return date || "-";
-}
-
 function clip(text, max = 400) {
-  const s = String(text || "").trim();
+  const s = String(text || "").replace(/\s+/g, " ").trim();
   if (s.length <= max) return s;
-  return `${s.slice(0, max - 1)}…`;
-}
-
-function embedOf(action, event) {
-  const titles = { add: "일정 추가", edit: "일정 변경", delete: "일정 삭제" };
-  const colors = { add: 0xd8c19a, edit: 0x60a5fa, delete: 0xf87171 };
-  const fields = [
-    { name: "일시", value: whenText(event), inline: false },
-  ];
-  if (event?.locationName) {
-    fields.push({ name: "장소", value: clip(event.locationName, 200), inline: false });
-  }
-  if (event?.description) {
-    fields.push({ name: "메모", value: clip(event.description, 400), inline: false });
-  }
-  return {
-    title: `${titles[action] || "일정"} · ${clip(event?.title || "(제목 없음)", 80)}`,
-    color: colors[action] || 0xd8c19a,
-    fields,
-  };
+  return `${s.slice(0, max)}`;
 }
 
 function postWebhook(body) {
@@ -93,9 +46,14 @@ function postWebhook(body) {
     });
 }
 
-export function notifyCalendarChange(action, event) {
-  if (!event) return;
-  postWebhook({ embeds: [embedOf(action, event)] });
+export function notifyCalendarChange(action) {
+  todayNotifyAction = action || "edit";
+  clearTimeout(todayNotifyTimer);
+  todayNotifyTimer = setTimeout(() => {
+    sendTodaySnapshot(todayNotifyAction).catch((err) => {
+      console.warn("[discord] today snapshot failed:", err.message);
+    });
+  }, 500);
 }
 
 function kstParts(ms = Date.now()) {
@@ -159,31 +117,39 @@ function eventTime(row) {
   return "종일";
 }
 
-function eventKind(row) {
-  if (row.appointment_type) return String(row.appointment_type);
-  if (row.income_type && INCOME_LABEL[row.income_type]) return INCOME_LABEL[row.income_type];
-  return "";
+function isAllDay(row) {
+  return !timeOf(row.start_time);
 }
 
-function hexColor(theme) {
-  const named = THEME_COLORS[String(theme || "").toLowerCase()];
-  if (named) return named;
-  const hex = String(theme || "").replace("#", "");
-  if (/^[0-9a-f]{6}$/i.test(hex)) return Number.parseInt(hex, 16);
-  return THEME_COLORS.gray;
-}
+function compactTodayEmbed(rows, { today, action = "morning" }) {
+  const allDay = rows.filter(isAllDay);
+  const timed = rows.filter((r) => !isAllDay(r));
+  const parts = [];
+  if (allDay.length) {
+    parts.push(`**종일**  ${allDay.map((r) => clip(r.title || "", 10)).join(" · ")}`);
+  }
+  if (timed.length) {
+    parts.push(timed.map((r) => `\`${eventTime(r)}\`  ${clip(r.title || "(제목 없음)", 22)}`).join("\n"));
+  }
+  if (!parts.length) parts.push("일정 없음");
 
-function todayCard(row) {
-  const kind = eventKind(row);
-  const fields = [{ name: "시간", value: eventTime(row), inline: true }];
-  if (kind) fields.push({ name: "종류", value: kind, inline: true });
-  if (row.location_name) fields.push({ name: "장소", value: clip(row.location_name, 200), inline: false });
-  if (row.description) fields.push({ name: "메모", value: clip(row.description, 400), inline: false });
+  const colors = { add: 0x86efac, edit: 0xd8c19a, delete: 0xf87171, morning: 0xd8c19a };
+  const tags = { add: "추가됨", edit: "변경됨", delete: "삭제됨", morning: "오늘" };
   return {
-    title: clip(row.title || "(제목 없음)", 80),
-    color: hexColor(row.theme_color),
-    fields,
+    title: formatLong(today),
+    color: colors[action] || 0xd8c19a,
+    description: parts.join("\n"),
+    footer: { text: tags[action] || "오늘" },
   };
+}
+
+async function sendTodaySnapshot(action) {
+  if (!webhookUrl()) return;
+  const today = kstParts().date;
+  const rows = await loadRange(today, today);
+  await postWebhook({
+    embeds: [compactTodayEmbed(rows, { today, action })],
+  });
 }
 
 function weekSummaryEmbed(today, until, rows) {
@@ -192,7 +158,9 @@ function weekSummaryEmbed(today, until, rows) {
     const key = addDays(today, i);
     const dayRows = rows.filter((r) => dateKeyOf(r.event_date) === key);
     const items = dayRows.length
-      ? dayRows.map((r) => `${eventTime(r)} ${r.title || "(제목 없음)"}`).join(" · ")
+      ? dayRows
+          .map((r) => (isAllDay(r) ? clip(r.title || "", 10) : `${eventTime(r)} ${clip(r.title || "", 16)}`))
+          .join(" · ")
       : "없음";
     lines.push(`**${formatDot(key)} (${weekdayKo(key)})**  ${clip(items, 180)}`);
   }
@@ -220,33 +188,18 @@ async function loadRange(startDate, endDate) {
   return rows || [];
 }
 
-function chunk(list, size) {
-  const out = [];
-  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
-  return out;
-}
-
 export async function sendMorningDigest() {
   if (!webhookUrl()) return;
   const today = kstParts().date;
   const until = addDays(today, 7);
   const rows = await loadRange(today, until);
-  const todayRows = rows.filter((r) => dateKeyOf(r.event_date) === today && !r.is_done);
-
-  const cards = todayRows.length
-    ? todayRows.map(todayCard)
-    : [{ title: "오늘 일정 없음", color: 0x64748b, description: formatLong(today) }];
+  const todayRows = rows.filter((r) => dateKeyOf(r.event_date) === today);
 
   await postWebhook({
-    content: `**오늘 일정**  ·  ${formatLong(today)}`,
-    embeds: cards.slice(0, 10),
-  });
-  for (const extra of chunk(cards.slice(10), 10)) {
-    await postWebhook({ embeds: extra });
-  }
-  await postWebhook({
-    content: "**일주일 요약**  ·  오늘부터 7일",
-    embeds: [weekSummaryEmbed(today, until, rows)],
+    embeds: [
+      compactTodayEmbed(todayRows, { today, action: "morning" }),
+      weekSummaryEmbed(today, until, rows),
+    ],
   });
   console.log(`[discord] morning digest sent today=${today} cards=${todayRows.length} week=${rows.length}`);
 }
