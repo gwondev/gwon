@@ -1810,49 +1810,49 @@ function sortDayEvents(list) {
 function DayEventCard({ ev, onEdit, onDelete }) {
   const keywords = useKeywords();
   const keyword = keywordBadge(keywords, resolveKeywordId(ev));
+  const hasMap = ev.locationName && ev.locationLat != null && ev.locationLng != null;
   return (
     <div className={`schedule__day-item ${ev.isDone ? "is-done" : ""}`}>
-      <span className="schedule__day-item-dot" style={{ background: eventAccent(ev, keywords) }} aria-hidden />
       <div className="schedule__day-item-main">
-        <strong>
-          <span className="schedule__day-item-title-text">
-            <EventTitleDisplay event={ev} />
-          </span>
+        <div className="schedule__day-item-row">
           {keyword && <span className="schedule__day-item-keyword">{keyword}</span>}
+          <strong className="schedule__day-item-title-text">{ev.title}</strong>
           <span className="schedule__day-item-title-time">
             {formatEventTime(ev, { continuousSpan: true })}
           </span>
-        </strong>
-        {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
-          <a
-            className="schedule__day-item-location"
-            href={mapsLink(ev.locationLat, ev.locationLng)}
-            target="_blank"
-            rel="noreferrer"
-            title={ev.locationName}
-          >
-            📍 {shortenLocationName(ev.locationName)}
-          </a>
-        )}
+          {ev.isDone && (
+            <span className="schedule__day-item-done" title="해결된 할 일" aria-hidden>
+              ✓
+            </span>
+          )}
+          <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
+            수정
+          </button>
+        </div>
+        <div className="schedule__day-item-row schedule__day-item-row--sub">
+          {hasMap ? (
+            <a
+              className="schedule__day-item-location"
+              href={mapsLink(ev.locationLat, ev.locationLng)}
+              target="_blank"
+              rel="noreferrer"
+              title={ev.locationName}
+            >
+              {shortenLocationName(ev.locationName)}
+            </a>
+          ) : (
+            <span className="schedule__day-item-location" />
+          )}
+          <button type="button" className="btn btn-ghost schedule__day-delete-btn" onClick={() => onDelete(ev.id)}>
+            삭제
+          </button>
+        </div>
         {ev.description && (
           <p className="schedule__day-item-desc" title={ev.description}>
             {ev.description}
           </p>
         )}
       </div>
-      <div className="schedule__day-item-actions">
-        <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
-          수정
-        </button>
-        <button type="button" className="btn btn-ghost schedule__day-delete-btn" onClick={() => onDelete(ev.id)}>
-          삭제
-        </button>
-      </div>
-      {ev.isDone && (
-        <span className="schedule__day-item-done" title="해결된 할 일" aria-hidden>
-          ✓
-        </span>
-      )}
     </div>
   );
 }
