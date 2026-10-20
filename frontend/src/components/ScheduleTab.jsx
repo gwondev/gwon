@@ -1888,7 +1888,7 @@ function TimelineBlock({ ev, slotH }) {
       <span className="schedule__tl-block-title">
         <EventTitleDisplay event={ev} />
       </span>
-      {!tiny && <span className="schedule__tl-block-time">{timeLabel}</span>}
+      <span className="schedule__tl-block-time">{timeLabel}</span>
     </div>
   );
 }
@@ -1935,7 +1935,8 @@ function DayTimeline({ events, expanded, onToggleExpand }) {
           </div>
         )}
 
-        <div className="schedule__tl-body" style={{ height: `${24 * slotH}px` }}>
+        <div className="schedule__tl-scroll">
+          <div className="schedule__tl-body" style={{ height: `${24 * slotH}px` }}>
           <div className="schedule__tl-hours">
             {TIMELINE_HOURS.map((h) => (
               <div key={h} className="schedule__tl-hour" style={{ height: `${slotH}px` }}>
@@ -1953,6 +1954,7 @@ function DayTimeline({ events, expanded, onToggleExpand }) {
                 <TimelineBlock key={eventSeriesKey(ev)} ev={ev} slotH={slotH} />
               ))}
           </div>
+        </div>
         </div>
 
         <button

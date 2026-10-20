@@ -1730,6 +1730,7 @@
 
 .schedule__day-item-row--sub {
   margin-top: 0.15rem;
+  align-items: flex-start;
 }
 
 .schedule__day-item-sub {
@@ -1894,6 +1895,8 @@
   border-radius: 12px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.015);
+  display: flex;
+  flex-direction: column;
 }
 
 .schedule__tl-allday {
@@ -1902,6 +1905,18 @@
   padding: 0 4px;
   margin-top: 3px;
   align-items: stretch;
+  flex: none;
+  z-index: 2;
+}
+
+.schedule__tl-scroll {
+  overflow-y: auto;
+  max-height: min(58vh, 620px);
+  flex: 1 1 auto;
+}
+
+.schedule__modal--timeline.is-expanded .schedule__tl-scroll {
+  max-height: min(76vh, 880px);
 }
 
 .schedule__tl-hour-gutter {
@@ -1994,14 +2009,15 @@
   left: 2px;
   right: 2px;
   overflow: hidden;
-  padding: 0.14rem 0.34rem;
+  padding: 0.1rem 0.4rem;
   border-radius: 7px;
   background: color-mix(in srgb, var(--tl-accent) 82%, transparent);
   border-left: 3px solid var(--tl-accent);
   color: #fff;
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
@@ -2010,6 +2026,8 @@
 }
 
 .schedule__tl-block-title {
+  flex: 1;
+  min-width: 0;
   font-size: 0.7rem;
   font-weight: 800;
   white-space: nowrap;
@@ -2018,12 +2036,12 @@
 }
 
 .schedule__tl-block-time {
+  flex: none;
+  margin-left: auto;
   font-size: 0.6rem;
   font-weight: 600;
-  opacity: 0.9;
+  opacity: 0.92;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* 칸이 낮을 때: 글자 겹침 방지용으로 폰트/여백 확 축소 */
