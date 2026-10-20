@@ -56,7 +56,20 @@ function postWebhook(body) {
     });
 }
 
+function touchesToday(event, today) {
+  if (!event) return false;
+  const date = String(event.eventDate || "").slice(0, 10);
+  if (date === today) return true;
+  const start = String(event.seriesStartDate || date || "").slice(0, 10);
+  const end = String(event.seriesEndDate || date || "").slice(0, 10);
+  return Boolean(start && end && start <= today && today <= end);
+}
+
+/** 오늘(한국시간)에 해당하는 일정만 추가·변경·삭제될 때 디스코드로 보낸다. */
 export function notifyCalendarChange(action, event) {
+  const today = kstParts().date;
+  if (!touchesToday(event, today)) return;
+
   todayNotifyAction = action || "edit";
   todayNotifyEvent = event || null;
   clearTimeout(todayNotifyTimer);
