@@ -105,14 +105,14 @@ function formatDot(dateKey) {
 }
 
 function formatLong(dateKey) {
-  const [y, m, d] = String(dateKey).split("-");
-  return `${y}년 ${Number(m)}월 ${Number(d)}일 (${weekdayKo(dateKey)})`;
+  const [, m, d] = String(dateKey).split("-");
+  return `${Number(m)}월 ${Number(d)}일`;
 }
 
 function eventTime(row) {
   const start = timeOf(row.start_time);
   const end = timeOf(row.end_time);
-  if (start && end) return `${start}–${end}`;
+  if (start && end) return `${start} ${end}`;
   if (start) return start;
   return "종일";
 }
@@ -126,20 +126,21 @@ function compactTodayEmbed(rows, { today, action = "morning" }) {
   const timed = rows.filter((r) => !isAllDay(r));
   const parts = [];
   if (allDay.length) {
-    parts.push(`**종일**  ${allDay.map((r) => clip(r.title || "", 10)).join(" · ")}`);
+    parts.push(`종일 : ${allDay.map((r) => clip(r.title || "", 10)).join(" · ")}`);
   }
-  if (timed.length) {
-    parts.push(timed.map((r) => `\`${eventTime(r)}\`  ${clip(r.title || "(제목 없음)", 22)}`).join("\n"));
+  const timedBits = timed.map(
+    (r, i) => `일정${i + 1} : ${clip(r.title || "(없음)", 12)} ${eventTime(r)}`
+  );
+  for (let i = 0; i < timedBits.length; i += 2) {
+    parts.push(timedBits.slice(i, i + 2).join("    "));
   }
   if (!parts.length) parts.push("일정 없음");
 
   const colors = { add: 0x86efac, edit: 0xd8c19a, delete: 0xf87171, morning: 0xd8c19a };
-  const tags = { add: "추가됨", edit: "변경됨", delete: "삭제됨", morning: "오늘" };
   return {
-    title: formatLong(today),
+    title: `오늘일정 (${formatLong(today)})`,
     color: colors[action] || 0xd8c19a,
     description: parts.join("\n"),
-    footer: { text: tags[action] || "오늘" },
   };
 }
 
