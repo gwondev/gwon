@@ -4,7 +4,7 @@
  */
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { AdaptiveDpr } from "@react-three/drei";
+import { AdaptiveDpr, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import {
   INTRO_END,
@@ -358,6 +358,23 @@ function StarField({ count }) {
   );
 }
 
+function Gargantua() {
+  const { scene } = useGLTF("/assets/blackhole/Blackhole.glb");
+  const spin = useRef();
+  useFrame((_, delta) => {
+    if (spin.current && !worldState.reduced) spin.current.rotation.z += delta * 0.04;
+  });
+  return (
+    <group position={[0, 0.05, 5.2]} rotation={[1.15, 0.08, 0]} scale={0.042}>
+      <group ref={spin}>
+        <primitive object={scene} />
+      </group>
+    </group>
+  );
+}
+
+useGLTF.preload("/assets/blackhole/Blackhole.glb");
+
 function Scene({ count }) {
   return (
     <>
@@ -370,6 +387,7 @@ function Scene({ count }) {
       <Rig />
       <StarField count={worldState.mobile ? 180 : 420} />
       <NeuralField count={count} />
+      <Gargantua />
       <Worlds />
     </>
   );

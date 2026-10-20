@@ -1,0 +1,8 @@
+Blackhole.glb
+Source page: https://mediawiki3d.org/index.php/File:Blackhole.glb
+Direct file: https://mediawiki3d.org/images/7/77/Blackhole.glb
+Original Sketchfab model: https://sketchfab.com/3d-models/blackhole-74cbeaeae2174a218fe9455d77902b5c
+Author credited on that page: rubykamen
+License stated by MediaWiki3D: CC BY 4.0
+File checked locally: glTF binary, 8,793,240 bytes, 17 meshes, 5 textures.
+This is a textured mesh (core, ring, skins). It is not a gravitational-lensing shader and not an official Interstellar asset.
