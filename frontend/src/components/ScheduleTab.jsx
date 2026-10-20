@@ -99,12 +99,6 @@ function keywordOf(keywords, id) {
   return keywords.find((k) => k.id === id) || null;
 }
 
-function keywordBadge(keywords, id) {
-  const kw = keywordOf(keywords, id);
-  if (!kw) return "";
-  return kw.emoji ? `${kw.emoji} ${kw.label}` : kw.label;
-}
-
 function makeKeywordId() {
   return `KW${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
 }
@@ -1809,17 +1803,20 @@ function sortDayEvents(list) {
 
 function DayEventCard({ ev, onEdit, onDelete }) {
   const keywords = useKeywords();
-  const keyword = keywordBadge(keywords, resolveKeywordId(ev));
+  const kw = keywordOf(keywords, resolveKeywordId(ev));
   return (
     <div className={`schedule__day-item ${ev.isDone ? "is-done" : ""}`}>
-      <span className="schedule__day-item-dot" style={{ background: eventAccent(ev, keywords) }} aria-hidden />
       <div className="schedule__day-item-main">
         <div className="schedule__day-item-row">
+          <span className="schedule__day-item-dot" style={{ background: eventAccent(ev, keywords) }} aria-hidden />
           <strong>
-            {keyword && <span className="schedule__day-item-keyword">{keyword}</span>}
-            <span className="schedule__day-item-title-text">
-              <EventTitleDisplay event={ev} />
-            </span>
+            {kw && (
+              <span className="schedule__day-item-keyword">
+                {kw.emoji && <span className="schedule__day-item-keyword-icon">{kw.emoji}</span>}
+                {kw.label}
+              </span>
+            )}
+            <span className="schedule__day-item-title-text">{ev.title}</span>
             <span className="schedule__day-item-title-time">
               {formatEventTime(ev, { continuousSpan: true })}
             </span>
