@@ -304,15 +304,15 @@ export function effectiveEventTimes(ev) {
   return { startTime: null, endTime: null };
 }
 
-// 정렬 우선순위: 종일이 위, 그 아래는 시작 시간 순.
+// 정렬 우선순위: 시간순이 위, 종일은 맨 아래.
 function eventSortRank(ev) {
-  if (!ev.startTime) return 0;
-  return 1;
+  if (!ev.startTime) return 1;
+  return 0;
 }
 
 /**
  * 연속·반복 일정은 시리즈당 하나만 표시.
- * 종일을 위에 두고, 시간 있는 일정은 시작 시간 순으로 둔다.
+ * 시간 있는 일정을 위에 두고, 종일은 맨 아래에 둔다.
  */
 export function dedupeEventsBySeries(events) {
   const map = new Map();

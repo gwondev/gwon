@@ -1790,8 +1790,8 @@ function eventAccent(ev, keywords) {
 
 function sortDayEvents(list) {
   return [...list].sort((a, b) => {
-    if (a.startTime && !b.startTime) return 1;
-    if (!a.startTime && b.startTime) return -1;
+    if (a.startTime && !b.startTime) return -1;
+    if (!a.startTime && b.startTime) return 1;
     if (!a.startTime && !b.startTime) return a.id - b.id;
     return a.startTime.localeCompare(b.startTime);
   });
@@ -2039,7 +2039,7 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
           <div className="schedule__day-list">
             {uniqueEvents.map((ev, idx) => {
               const prev = uniqueEvents[idx - 1];
-              const split = prev && !prev.startTime && ev.startTime;
+              const split = prev && prev.startTime && !ev.startTime;
               return (
                 <Fragment key={eventSeriesKey(ev)}>
                   {split && <div className="schedule__day-split" />}
