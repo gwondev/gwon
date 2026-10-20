@@ -1810,27 +1810,26 @@ function sortDayEvents(list) {
 function DayEventCard({ ev, onEdit, onDelete }) {
   const keywords = useKeywords();
   const keyword = keywordBadge(keywords, resolveKeywordId(ev));
-  const hasMap = ev.locationName && ev.locationLat != null && ev.locationLng != null;
   return (
     <div className={`schedule__day-item ${ev.isDone ? "is-done" : ""}`}>
+      <span className="schedule__day-item-dot" style={{ background: eventAccent(ev, keywords) }} aria-hidden />
       <div className="schedule__day-item-main">
         <div className="schedule__day-item-row">
-          {keyword && <span className="schedule__day-item-keyword">{keyword}</span>}
-          <strong className="schedule__day-item-title-text">{ev.title}</strong>
-          <span className="schedule__day-item-title-time">
-            {formatEventTime(ev, { continuousSpan: true })}
-          </span>
-          {ev.isDone && (
-            <span className="schedule__day-item-done" title="해결된 할 일" aria-hidden>
-              ✓
+          <strong>
+            {keyword && <span className="schedule__day-item-keyword">{keyword}</span>}
+            <span className="schedule__day-item-title-text">
+              <EventTitleDisplay event={ev} />
             </span>
-          )}
+            <span className="schedule__day-item-title-time">
+              {formatEventTime(ev, { continuousSpan: true })}
+            </span>
+          </strong>
           <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
             수정
           </button>
         </div>
         <div className="schedule__day-item-row schedule__day-item-row--sub">
-          {hasMap ? (
+          {ev.locationName && ev.locationLat != null && ev.locationLng != null ? (
             <a
               className="schedule__day-item-location"
               href={mapsLink(ev.locationLat, ev.locationLng)}
@@ -1838,7 +1837,7 @@ function DayEventCard({ ev, onEdit, onDelete }) {
               rel="noreferrer"
               title={ev.locationName}
             >
-              {shortenLocationName(ev.locationName)}
+              📍 {shortenLocationName(ev.locationName)}
             </a>
           ) : (
             <span className="schedule__day-item-location" />
@@ -1853,6 +1852,11 @@ function DayEventCard({ ev, onEdit, onDelete }) {
           </p>
         )}
       </div>
+      {ev.isDone && (
+        <span className="schedule__day-item-done" title="해결된 할 일" aria-hidden>
+          ✓
+        </span>
+      )}
     </div>
   );
 }

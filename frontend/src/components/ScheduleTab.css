@@ -1657,9 +1657,11 @@
 }
 
 .schedule__day-item {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
   width: 100%;
-  padding: 0.7rem 0.85rem;
+  padding: 0.75rem;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.03);
@@ -1680,18 +1682,28 @@
 
 .schedule__day-item-done {
   flex: none;
-  width: 1.15rem;
-  height: 1.15rem;
+  align-self: center;
+  width: 1.35rem;
+  height: 1.35rem;
   border-radius: 50%;
   display: grid;
   place-items: center;
   background: rgba(134, 239, 172, 0.18);
   color: #86efac;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
+.schedule__day-item-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+}
+
 .schedule__day-item-main {
+  flex: 1;
   min-width: 0;
 }
 
@@ -1703,23 +1715,29 @@
 }
 
 .schedule__day-item-row--sub {
-  margin-top: 0.45rem;
+  margin-top: 0.2rem;
+}
+
+.schedule__day-item-main strong {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
 }
 
 .schedule__day-item-title-text {
-  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.98rem;
-  font-weight: 800;
 }
 
 .schedule__day-item-title-time {
   flex: none;
-  font-size: 0.78rem;
-  color: #9ca3af;
+  font-size: 0.76rem;
+  color: var(--text-dim);
   font-weight: 600;
 }
 
@@ -1727,9 +1745,9 @@
   flex: 1;
   min-width: 0;
   display: block;
-  font-size: 0.82rem;
-  color: #e5e7eb;
-  font-weight: 500;
+  font-size: 0.76rem;
+  color: #93c5fd;
+  font-weight: 600;
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1744,34 +1762,25 @@
   flex: none;
   display: inline-flex;
   align-items: center;
-  padding: 0.28rem 0.7rem;
+  margin-top: 0;
+  padding: 0.14rem 0.55rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 0.78rem;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
   font-weight: 700;
-  color: #d1d5db;
+  color: var(--text-dim);
 }
 
 .schedule__day-edit-btn,
 .schedule__day-delete-btn {
   flex: none;
   margin-left: auto;
-  min-width: 58px;
-  padding: 0.28rem 0.85rem !important;
-  border-radius: 999px !important;
-  font-size: 0.78rem !important;
-  font-weight: 700 !important;
-  line-height: 1.2;
-}
-
-.schedule__day-edit-btn {
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  color: #f3f4f6 !important;
+  min-width: 54px;
+  padding: 0.28rem 0.5rem !important;
+  font-size: 0.72rem !important;
 }
 
 .schedule__day-delete-btn {
-  border: 1px solid rgba(255, 107, 107, 0.85) !important;
   color: #ff6b6b !important;
 }
 
