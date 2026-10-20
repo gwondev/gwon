@@ -1746,16 +1746,11 @@
   text-decoration: underline;
 }
 
-.schedule__day-item-range {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.72rem;
-  color: var(--text-faint);
-}
-
 .schedule__day-item-keyword {
-  display: inline-block;
-  margin-top: 0.35rem;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0;
   padding: 0.14rem 0.55rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);

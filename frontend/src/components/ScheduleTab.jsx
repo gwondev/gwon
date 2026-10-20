@@ -1818,15 +1818,11 @@ function DayEventCard({ ev, onEdit, onDelete }) {
           <span className="schedule__day-item-title-text">
             <EventTitleDisplay event={ev} />
           </span>
+          {keyword && <span className="schedule__day-item-keyword">{keyword}</span>}
           <span className="schedule__day-item-title-time">
             {formatEventTime(ev, { continuousSpan: true })}
           </span>
         </strong>
-        <span className="schedule__day-item-range">
-          {formatDateDot(ev.seriesStartDate || ev.eventDate)} ~{" "}
-          {formatDateDot(ev.seriesEndDate || ev.eventDate)}
-        </span>
-        {keyword && <span className="schedule__day-item-keyword">{keyword}</span>}
         {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
           <a
             className="schedule__day-item-location"
