@@ -1697,8 +1697,8 @@
 .schedule__day-item-dot {
   flex: none;
   align-self: center;
-  width: 1rem;
-  height: 1rem;
+  width: 8px;
+  height: 8px;
   margin-top: 0;
   border-radius: 50%;
 }
@@ -1763,24 +1763,21 @@
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.22rem;
   margin-top: 0;
-  padding: 0.22rem 0.5rem;
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.55);
-  font-size: 0.78rem;
+  padding: 0.12rem 0.48rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
   font-weight: 700;
-  line-height: 1;
-  color: #f4f4f5;
+  line-height: 1.2;
+  color: #f3f4f6;
 }
 
 .schedule__day-item-keyword-icon {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 1rem;
-  height: 1rem;
-  font-size: 1rem;
+  font-size: 0.85rem;
   line-height: 1;
 }
 
