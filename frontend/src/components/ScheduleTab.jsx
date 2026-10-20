@@ -1,4 +1,5 @@
 import {
+  Fragment,
   createContext,
   useCallback,
   useContext,
@@ -284,12 +285,7 @@ export default function ScheduleTab() {
       map[ev.eventDate].push(ev);
     }
     for (const key of Object.keys(map)) {
-      map[key].sort((a, b) => {
-        if (a.startTime && !b.startTime) return -1;
-        if (!a.startTime && b.startTime) return 1;
-        if (!a.startTime && !b.startTime) return a.id - b.id;
-        return a.startTime.localeCompare(b.startTime);
-      });
+      map[key] = sortDayEvents(map[key]);
     }
     return map;
   }, [displayEvents]);
@@ -2039,9 +2035,16 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
           />
         ) : (
           <div className="schedule__day-list">
-            {uniqueEvents.map((ev) => (
-              <DayEventCard key={eventSeriesKey(ev)} ev={ev} onEdit={onEdit} onDelete={onDelete} />
-            ))}
+            {uniqueEvents.map((ev, idx) => {
+              const prev = uniqueEvents[idx - 1];
+              const split = prev && !prev.startTime && ev.startTime;
+              return (
+                <Fragment key={eventSeriesKey(ev)}>
+                  {split && <div className="schedule__day-split" />}
+                  <DayEventCard ev={ev} onEdit={onEdit} onDelete={onDelete} />
+                </Fragment>
+              );
+            })}
           </div>
         )}
       </motion.div>
