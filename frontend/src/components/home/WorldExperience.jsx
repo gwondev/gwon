@@ -87,9 +87,8 @@ export default function WorldExperience() {
     setWorldEffect(0);
   }, []);
 
-  // 인트로·프로젝트 구간 전용. 몇 칸을 건너가든 워프는 한 번만 한다.
-  // 앞으로: 즉시 목표의 워프 시작점으로 점프(내용이 바로 사라짐) → 워프로 진입.
-  // 뒤로: 앞으로 가는 것을 그대로 역재생(워프를 거꾸로 빠져나옴) → 끝에서 목표 장면으로 점프.
+  // 몇 칸을 건너가든 워프는 한 번만 한다.
+  // 다음으로 들어가나, 이전으로 돌아가나 같은 안으로 들어가는 워프를 재생한다.
   // warpFrom 은 워프가 출발하는 장면이라, 여러 칸을 건너도 카메라가 현재 위치에서 곧장 날아간다.
   driveRef.current = () => {
     tweenRef.current?.kill();
@@ -120,14 +119,6 @@ export default function WorldExperience() {
     if (tgt !== k) {
       worldState.warpBack = false;
       worldState.warpFrom = k;
-      if (tgt < 1) {
-        set(warpStartOf(Math.max(1, k)));
-        run(sceneToProgress(0), WARP_SECONDS, "power2.out", () => {
-          worldState.warpFrom = null;
-          driveRef.current();
-        });
-        return;
-      }
       set(warpStartOf(tgt));
       run(sceneToProgress(tgt), WARP_SECONDS, "power2.out", () => {
         worldState.warpFrom = null;

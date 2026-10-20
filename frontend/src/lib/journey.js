@@ -242,7 +242,7 @@ export function sceneToProgress(scene) {
 }
 
 export function warpStartOf(scene) {
-  if (scene <= 0) return 0.01;
+  if (scene <= 0) return 0;
   return originOf(scene) + spanOf(scene) * 0.14;
 }
 

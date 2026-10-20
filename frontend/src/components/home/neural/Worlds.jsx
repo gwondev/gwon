@@ -250,6 +250,7 @@ export default function Worlds() {
   useFrame(({ clock }) => {
     if (!group.current) return;
     const idx = Math.max(0, worldState.effectIndex);
+    group.current.visible = worldState.progress > 0.12;
     group.current.children.forEach((child, i) => {
       const on = idx === i;
       const target = on ? 1 : 0.42;

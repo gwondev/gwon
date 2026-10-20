@@ -47,35 +47,63 @@ function attractors() {
   return [[0, 0.08, -5], ...dests()];
 }
 
+const HOLE = [2.15, 0.0, 3.15];
+
+function holeView(close) {
+  const c = Math.max(0, close);
+  const framed = Math.min(1, c);
+  const into = Math.max(0, c - 1);
+  const x = 0.1 + into * 2.4;
+  const y = 0.72 - framed * 0.38 - into * 0.28;
+  const z = 26.5 - framed * 7.4 - into * 12;
+  return {
+    cam: [x, y, z],
+    look: [HOLE[0] - 2.55 + into * 2.55, 0.02, HOLE[2]],
+    fov: 33 - into * 10,
+  };
+}
+
 function cameraTarget(p) {
   const reduced = worldState.reduced;
   if (p < INTRO_END) {
-    const u = p / INTRO_END;
-    return {
-      cam: [0.15, 0.55, 12.6 - u * 0.85],
-      look: [0, -0.08, 3.4],
-      fov: 34,
-      warp: 0,
-    };
+    const u = Math.min(1, p / 0.02);
+    const view = holeView(u);
+    return { ...view, warp: 0 };
   }
   const { i, t } = projectLocal(p);
   const planet = dests()[i] || dests()[0];
   const fromScene = worldState.warpFrom ?? i;
+  const fromHole = fromScene <= 0;
   const prevPlanet = fromScene > 0 ? dests()[fromScene - 1] : null;
-  const prev = prevPlanet ? lookFrom(prevPlanet, 3.4) : [0, 0.18, 11];
+  const horizon = holeView(1);
+  const prev = prevPlanet ? lookFrom(prevPlanet, 3.4) : horizon.cam;
   const arrive = lookFrom(planet, 4.6);
   const read = lookFrom(planet, 3.2);
   const stage = projectStage(t);
 
   if (stage.id === "network") {
+    if (fromHole) return { ...horizon, warp: 0 };
     return { cam: prev, look: planet, fov: 46 - stage.u * 2, warp: 0 };
   }
   if (stage.id === "warp") {
     const e = reduced ? stage.u : warpEase(stage.u);
-    _from.set(prev[0], prev[1], prev[2]);
+    if (fromHole) {
+      const dive = holeView(1 + e * 1.25);
+      const out = Math.max(0, (e - 0.42) / 0.58);
+      _from.set(dive.cam[0], dive.cam[1], dive.cam[2]);
+      _to.set(arrive[0], arrive[1], arrive[2]);
+      _from.lerp(_to, out);
+      const cam = [_from.x, _from.y, _from.z];
+      _from.set(dive.look[0], dive.look[1], dive.look[2]);
+      _to.set(planet[0], planet[1], planet[2]);
+      _from.lerp(_to, out);
+      return { cam, look: [_from.x, _from.y, _from.z], fov: dive.fov + out * 8, warp: e * 0.22 };
+    }
+    const outside = lookFrom(planet, 10.4);
+    _from.set(outside[0], outside[1], outside[2]);
     _to.set(arrive[0], arrive[1], arrive[2]);
     _from.lerp(_to, e);
-    return { cam: [_from.x, _from.y, _from.z], look: planet, fov: 44 - e * 2, warp: e * 0.28 };
+    return { cam: [_from.x, _from.y, _from.z], look: planet, fov: 46 - e * 4, warp: e * 0.28 };
   }
   if (stage.id === "arrive") {
     _from.set(arrive[0], arrive[1], arrive[2]);
@@ -123,7 +151,7 @@ function Rig() {
         _cam.y += Math.cos(t * 0.08) * 0.12 * idle;
       }
     }
-    const follow = worldState.warpBack ? 7.2 : warp > 0.35 ? 4.2 : 2.6;
+    const follow = warp > 0.35 ? 4.2 : 2.6;
     const k = 1 - Math.exp(-delta * follow);
     camera.position.lerp(_cam, k);
     camera.lookAt(_look);
@@ -381,6 +409,11 @@ function Gargantua() {
     scene.traverse((obj) => {
       if (!obj.isMesh) return;
       obj.frustumCulled = false;
+      if (/skin|core001|core002|ring2/i.test(obj.name)) obj.visible = false;
+      if (obj.name === "Blackhole_core_Blackhole_core_0" && !obj.userData.horizonScaled) {
+        obj.scale.multiplyScalar(1.12);
+        obj.userData.horizonScaled = true;
+      }
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       for (const mat of mats) {
         if (!mat) continue;
@@ -389,32 +422,37 @@ function Gargantua() {
         mat.side = THREE.DoubleSide;
         mat.depthWrite = true;
         if (mat.transparent && mat.opacity >= 1) mat.transparent = false;
-        if (obj.name === "Blackhole_core_Blackhole_core_0") {
-          const horizon = mat.clone();
-          horizon.depthTest = false;
-          horizon.depthWrite = false;
-          horizon.fog = false;
-          obj.material = horizon;
-          obj.renderOrder = 3;
-          if (!obj.userData.horizonScaled) {
-            obj.scale.multiplyScalar(1.35);
-            obj.userData.horizonScaled = true;
-          }
+        if (mat.emissiveMap && !mat.userData.holed) {
+          mat.emissiveIntensity = 1.55;
+          const size = 256;
+          const canvas = document.createElement("canvas");
+          canvas.width = canvas.height = size;
+          const g = canvas.getContext("2d");
+          g.fillStyle = "#fff";
+          g.fillRect(0, 0, size, size);
+          g.globalCompositeOperation = "destination-out";
+          g.beginPath();
+          g.arc(size / 2, size / 2, size * 0.145, 0, Math.PI * 2);
+          g.fill();
+          const alpha = new THREE.CanvasTexture(canvas);
+          alpha.colorSpace = THREE.NoColorSpace;
+          mat.alphaMap = alpha;
+          mat.alphaTest = 0.45;
+          mat.transparent = false;
+          mat.needsUpdate = true;
+          mat.userData.holed = true;
         }
-        if (mat.emissiveMap) mat.emissiveIntensity = 1.35;
       }
     });
   }, [scene]);
 
   useFrame((_, delta) => {
     const intro = introAmt(worldState.progress);
-    const shown = intro > 0.04;
+    const leaving = worldState.warpFrom === 0;
+    const shown = intro > 0.04 || leaving;
     if (root.current) root.current.visible = shown;
-    if (body.current) {
-      const s = 1.35 * Math.min(1.05, intro / 0.75);
-      body.current.scale.setScalar(Math.max(s, 0.0001));
-    }
-    if (spin.current && shown && !worldState.reduced) spin.current.rotation.z += delta * 0.045;
+    if (body.current) body.current.scale.setScalar(shown ? 2.7 : 0.0001);
+    if (spin.current && shown && !worldState.reduced) spin.current.rotation.y += delta * 0.62;
   });
 
   return (
@@ -432,7 +470,7 @@ function Gargantua() {
           depthWrite={false}
         />
       </points>
-      <group ref={body} position={[0, -0.02, 3.2]} rotation={[1.42, 0.04, 0]} scale={1.35}>
+      <group ref={body} position={HOLE} rotation={[0.11, 0.02, 0]} scale={2.7}>
         <group ref={spin}>
           <primitive object={scene} />
         </group>
