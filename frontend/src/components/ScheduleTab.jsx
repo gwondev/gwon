@@ -1817,37 +1817,37 @@ function DayEventCard({ ev, onEdit, onDelete }) {
               </span>
             )}
             <span className="schedule__day-item-title-text">{ev.title}</span>
-            <span className="schedule__day-item-title-time">
-              {formatEventTime(ev, { continuousSpan: true })}
-            </span>
           </strong>
+          <span className="schedule__day-item-title-time">
+            {formatEventTime(ev, { continuousSpan: true })}
+          </span>
           <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
             수정
           </button>
         </div>
         <div className="schedule__day-item-row schedule__day-item-row--sub">
-          {ev.locationName && ev.locationLat != null && ev.locationLng != null ? (
-            <a
-              className="schedule__day-item-location"
-              href={mapsLink(ev.locationLat, ev.locationLng)}
-              target="_blank"
-              rel="noreferrer"
-              title={ev.locationName}
-            >
-              📍 {shortenLocationName(ev.locationName)}
-            </a>
-          ) : (
-            <span className="schedule__day-item-location" />
-          )}
+          <div className="schedule__day-item-sub">
+            {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
+              <a
+                className="schedule__day-item-location"
+                href={mapsLink(ev.locationLat, ev.locationLng)}
+                target="_blank"
+                rel="noreferrer"
+                title={ev.locationName}
+              >
+                📍 {shortenLocationName(ev.locationName)}
+              </a>
+            )}
+            {ev.description && (
+              <p className="schedule__day-item-desc" title={ev.description}>
+                {ev.description}
+              </p>
+            )}
+          </div>
           <button type="button" className="btn btn-ghost schedule__day-delete-btn" onClick={() => onDelete(ev.id)}>
             삭제
           </button>
         </div>
-        {ev.description && (
-          <p className="schedule__day-item-desc" title={ev.description}>
-            {ev.description}
-          </p>
-        )}
       </div>
       {ev.isDone && (
         <span className="schedule__day-item-done" title="해결된 할 일" aria-hidden>
