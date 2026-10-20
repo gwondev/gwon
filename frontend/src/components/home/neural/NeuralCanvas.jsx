@@ -1,6 +1,6 @@
 /**
- * Neural space — particles, lines, simple planets, camera warp.
- * Shared NeuralWorld + per-project effect presets. No downloaded 3D models.
+ * Neural core + seven destination worlds.
+ * Worlds are procedural shaders/geometry — not NASA scans.
  */
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
@@ -8,11 +8,8 @@ import { AdaptiveDpr } from "@react-three/drei";
 import * as THREE from "three";
 import {
   INTRO_END,
-  JOURNEY_PROJECTS,
-  liveProjects,
   journeyCount,
   makePlanetPos,
-  PROFILE_START,
   projectIndexAt,
   projectLocal,
   projectStage,
@@ -20,32 +17,17 @@ import {
 } from "../../../lib/journey.js";
 import { worldState } from "../worldState.js";
 import { buildNetwork } from "./network.js";
+import Worlds from "./Worlds.jsx";
 
 const GOLD = "#d8c19a";
 const CYAN = "#9bb8c4";
-const ico = new THREE.IcosahedronGeometry(0.028, 0);
-const sph = new THREE.SphereGeometry(1, 32, 32);
-const torus = new THREE.TorusGeometry(1.38, 0.007, 8, 72);
-const nodeMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.78, depthWrite: false });
+const ico = new THREE.IcosahedronGeometry(0.022, 0);
+const nodeMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.82, depthWrite: false });
 const lineMat = new THREE.LineBasicMaterial({
   color: GOLD,
   transparent: true,
   opacity: 0.14,
   blending: THREE.AdditiveBlending,
-  depthWrite: false,
-});
-const planetMat = new THREE.MeshStandardMaterial({
-  color: "#16151a",
-  metalness: 0.55,
-  roughness: 0.38,
-  emissive: GOLD,
-  emissiveIntensity: 0.08,
-});
-const atmoMat = new THREE.MeshBasicMaterial({
-  color: GOLD,
-  transparent: true,
-  opacity: 0.09,
-  side: THREE.BackSide,
   depthWrite: false,
 });
 const dummy = new THREE.Object3D();
@@ -57,8 +39,12 @@ const goldC = new THREE.Color(GOLD);
 const cyanC = new THREE.Color(CYAN);
 const tint = new THREE.Color();
 
-function planets() {
+function dests() {
   return worldState.planets?.length ? worldState.planets : makePlanetPos(journeyCount());
+}
+
+function attractors() {
+  return [[0, 0.08, -5], ...dests()];
 }
 
 function cameraTarget(p) {
@@ -66,19 +52,19 @@ function cameraTarget(p) {
   if (p < INTRO_END) {
     const u = p / INTRO_END;
     return {
-      cam: [0, 0.2, 22 - u * 8],
-      look: [0, 0, -8],
-      fov: 45,
+      cam: [0, 0.18, 16 - u * 5],
+      look: [0, 0.05, -6],
+      fov: 42,
       warp: 0,
     };
   }
   const { i, t } = projectLocal(p);
-  const planet = planets()[i] || planets()[0];
+  const planet = dests()[i] || dests()[0];
   const fromScene = worldState.warpFrom ?? i;
-  const prevPlanet = fromScene > 0 ? planets()[fromScene - 1] : null;
-  const prev = prevPlanet ? lookFrom(prevPlanet, 2.35) : [0, 0.2, 12];
-  const arrive = lookFrom(planet, 3.15);
-  const read = lookFrom(planet, 2.35);
+  const prevPlanet = fromScene > 0 ? dests()[fromScene - 1] : null;
+  const prev = prevPlanet ? lookFrom(prevPlanet, 3.4) : [0, 0.18, 11];
+  const arrive = lookFrom(planet, 4.6);
+  const read = lookFrom(planet, 3.2);
   const stage = projectStage(t);
 
   if (stage.id === "network") {
@@ -100,8 +86,8 @@ function cameraTarget(p) {
   if (stage.id === "read") {
     return { cam: read, look: planet, fov: 41, warp: 0 };
   }
-  const nextPlanet = i < planets().length - 1 ? planets()[i + 1] : [0, 0, -94];
-  const nextCam = lookFrom(nextPlanet, 5.2);
+  const nextPlanet = i < dests().length - 1 ? dests()[i + 1] : [0, 0, -200];
+  const nextCam = lookFrom(nextPlanet, 7.2);
   _from.set(read[0], read[1], read[2]);
   _to.set(nextCam[0], nextCam[1], nextCam[2]);
   _from.lerp(_to, stage.u);
@@ -214,8 +200,8 @@ function applyEffect(i, time, px, py, pz, planet, effect, warp, live) {
 function NeuralField({ count }) {
   const mesh = useRef();
   const lines = useRef();
-  const planetList = planets();
-  const net = useMemo(() => buildNetwork(count, planetList), [count, planetList.length]);
+  const planetList = dests();
+  const net = useMemo(() => buildNetwork(count, attractors()), [count, planetList.length]);
   const colors = useMemo(() => {
     const c = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
@@ -229,7 +215,7 @@ function NeuralField({ count }) {
   useFrame(({ clock }) => {
     const meshObj = mesh.current;
     if (!meshObj) return;
-    const quiet = Math.min(1, Math.max(0, worldState.quiet || (worldState.progress >= PROFILE_START ? 0.85 : 0)));
+    const quiet = Math.min(1, Math.max(0, worldState.quiet || 0));
     const live = 1 - quiet;
     const p = worldState.progress;
     const intro = introAmt(p);
@@ -309,51 +295,6 @@ function NeuralField({ count }) {
   );
 }
 
-function Planets() {
-  const group = useRef();
-  useFrame(({ clock }) => {
-    if (!group.current) return;
-    const p = worldState.progress;
-    const idx = projectIndexAt(p);
-    const { t } = projectLocal(p);
-    const stage = idx >= 0 ? projectStage(t).id : "";
-    const pulse = 1 + Math.sin(clock.elapsedTime * 2.05) * 0.08;
-    group.current.children.forEach((child, i) => {
-      const on = idx === i && (stage === "warp" || stage === "arrive" || stage === "read");
-      const leave = idx === i && stage === "leave";
-      const connect = false;
-      const hover = worldState.hoverIndex === i;
-      const target = connect ? 0.62 : on ? 1 : hover ? 0.72 : 0.28;
-      const scale = leave ? 1 - projectStage(t).u * 0.35 : target;
-      child.scale.setScalar(THREE.MathUtils.lerp(child.scale.x, Math.max(0.12, scale), 0.07));
-      const ring = child.children[2];
-      if (!ring) return;
-      const effect = JOURNEY_PROJECTS[i]?.effect;
-      const show = connect || on || hover;
-      ring.visible = show && (effect === "infrastructure" || effect === "mechanical-pulse");
-      ring.rotation.z = clock.elapsedTime * (effect === "infrastructure" ? 0.18 : 0.55);
-      if (effect === "mechanical-pulse" && on) {
-        ring.scale.setScalar(pulse);
-      } else {
-        ring.scale.setScalar(1);
-      }
-      ring.material.opacity = effect === "mechanical-pulse" && on ? 0.12 + (pulse - 1) * 2 : 0.2;
-    });
-  });
-  return (
-    <group ref={group}>
-      {planets().map((pos, i) => (
-        <group key={(liveProjects()[i] || JOURNEY_PROJECTS[i])?.id || i} position={pos}>
-          <mesh geometry={sph} material={planetMat} scale={0.82} />
-          <mesh geometry={sph} material={atmoMat} scale={1.12} />
-          <mesh geometry={torus} rotation={[Math.PI / 2, 0, 0]} visible={false}>
-            <meshBasicMaterial color={GOLD} transparent opacity={0.18} depthWrite={false} />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
 
 function StarField({ count }) {
   const points = useRef();
@@ -421,26 +362,32 @@ function Scene({ count }) {
   return (
     <>
       <AdaptiveDpr />
-      <color attach="background" args={["#050506"]} />
-      <fog attach="fog" args={["#050506", 10, 48]} />
-      <ambientLight intensity={0.32} />
-      <pointLight position={[4, 6, 8]} intensity={8} color={GOLD} />
+      <color attach="background" args={["#030308"]} />
+      <fog attach="fog" args={["#030308", 14, 72]} />
+      <ambientLight intensity={0.22} />
+      <pointLight position={[5, 8, 10]} intensity={12} color={GOLD} />
+      <pointLight position={[-6, -2, -20]} intensity={6} color={CYAN} />
       <Rig />
-      <StarField count={worldState.mobile ? 140 : 260} />
+      <StarField count={worldState.mobile ? 180 : 420} />
       <NeuralField count={count} />
-      <Planets />
+      <Worlds />
     </>
   );
 }
 
 export default function NeuralCanvas() {
-  const count = worldState.mobile ? 160 : 420;
+  const count = worldState.mobile ? 220 : 720;
   return (
     <Canvas
       className="world-canvas"
-      dpr={[1, worldState.mobile ? 1.05 : 1.4]}
+      dpr={[1, worldState.mobile ? 1.1 : 1.6]}
       gl={{ antialias: !worldState.mobile, powerPreference: "high-performance", alpha: false }}
-      camera={{ position: [0, 0.2, 22], fov: 45, near: 0.1, far: 120 }}
+      camera={{ position: [0, 0.18, 16], fov: 42, near: 0.08, far: 280 }}
+      onCreated={({ gl }) => {
+        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMappingExposure = 1.05;
+        gl.outputColorSpace = THREE.SRGBColorSpace;
+      }}
     >
       <Scene count={count} />
     </Canvas>

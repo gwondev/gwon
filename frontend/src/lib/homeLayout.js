@@ -21,7 +21,7 @@ export const HOME_LAYOUT_DOC = {
   profile: "experience 8칸(2x4), career 4칸, certs 8칸(마지막 기타 자격증)",
 };
 
-export const PROFILE_SLOTS = { experience: 8, career: 4, certs: 8 };
+export const PROFILE_SLOTS = { experience: 8, career: 4, certs: 8, profile: 4, infrastructure: 8, awards: 8 };
 
 function str(v, fallback = "") {
   return v == null ? fallback : String(v);
@@ -216,6 +216,38 @@ export function cloneHero(raw) {
     kicker: str(src.kicker, "ENGINEER"),
     name: str(src.name, "이성권"),
     line: str(src.line, "systems from hardware to infrastructure"),
+    tagline: str(src.tagline, "ENGINEERING MY OWN UNIVERSE"),
+    explore: str(src.explore, "EXPLORE"),
+  };
+}
+
+function infraSeed() {
+  const titles = [];
+  for (const p of JOURNEY_PROJECTS) {
+    for (const s of p.stack || []) {
+      if (!titles.includes(s)) titles.push(s);
+    }
+  }
+  return titles.slice(0, 8).map((title, i) => ({ i, id: `infra-${i}`, title, subtitle: "", description: "" }));
+}
+
+function cloneWorldBlock(id, raw, fallbackOne) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  const items = Array.isArray(src.items) ? src.items : id === "infrastructure" ? infraSeed() : [];
+  return {
+    i: 0,
+    id,
+    one: str(src.one, fallbackOne),
+    items: padItems(id, items),
+  };
+}
+
+export function cloneWorlds(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  return {
+    profile: cloneWorldBlock("profile", src.profile, "Identity"),
+    infrastructure: cloneWorldBlock("infrastructure", src.infrastructure, "Systems from the existing stack"),
+    awards: cloneWorldBlock("awards", src.awards, "Recorded outcomes"),
   };
 }
 
@@ -234,6 +266,7 @@ export const HOME_LAYOUT_DEFAULT = {
   nav: cloneNav(null),
   projects: defaultProjects(),
   profile: cloneProfile(null),
+  worlds: cloneWorlds(null),
 };
 
 export function mergeHomeLayout(raw) {
@@ -245,6 +278,7 @@ export function mergeHomeLayout(raw) {
     nav: cloneNav(src.nav),
     projects: incoming.slice(0, 8).map((p, i) => cloneProject(p, i)),
     profile: cloneProfile(src.profile),
+    worlds: cloneWorlds(src.worlds),
   };
 }
 

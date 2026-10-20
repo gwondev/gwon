@@ -48,6 +48,50 @@
   color: rgba(243, 242, 239, 0.58);
 }
 
+.world-line--tag {
+  margin-top: 0.85rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.world-explore {
+  pointer-events: auto;
+  margin: 1.35rem auto 0;
+  border: 1px solid rgba(216, 193, 154, 0.35);
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.2em;
+  padding: 0.45rem 1.1rem;
+  cursor: pointer;
+}
+
+.world-proj-picks {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 0 0 0.4rem;
+  pointer-events: auto;
+}
+
+.world-proj-picks button {
+  min-width: 2.1rem;
+  height: 1.55rem;
+  border: 1px solid rgba(243, 242, 239, 0.12);
+  background: rgba(12, 12, 14, 0.7);
+  color: rgba(243, 242, 239, 0.45);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+
+.world-proj-picks button.is-on {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
 .world-hero {
   position: absolute;
   inset: 0;

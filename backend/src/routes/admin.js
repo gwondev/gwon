@@ -157,7 +157,8 @@ function sanitizeHomeLayout(raw) {
   const nav = src.nav && typeof src.nav === "object" ? src.nav : {};
   const projects = Array.isArray(src.projects) ? src.projects.slice(0, 8) : [];
   const profile = src.profile && typeof src.profile === "object" ? src.profile : { tabs: [] };
-  return { _doc: HOME_LAYOUT_DOC, hero, nav, projects, profile };
+  const worlds = src.worlds && typeof src.worlds === "object" ? src.worlds : {};
+  return { _doc: HOME_LAYOUT_DOC, hero, nav, projects, profile, worlds };
 }
 
 router.get("/home-layout", requireSuperAdmin, async (_req, res) => {

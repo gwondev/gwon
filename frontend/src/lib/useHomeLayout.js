@@ -106,6 +106,35 @@ export function useHomeLayout() {
     [layout, persist]
   );
 
+  const patchWorld = useCallback(
+    (id, fields) => {
+      persist({
+        ...layout,
+        worlds: {
+          ...layout.worlds,
+          [id]: { ...layout.worlds?.[id], ...fields },
+        },
+      });
+    },
+    [layout, persist]
+  );
+
+  const patchWorldItem = useCallback(
+    (worldId, itemId, fields) => {
+      persist({
+        ...layout,
+        worlds: {
+          ...layout.worlds,
+          [worldId]: {
+            ...layout.worlds?.[worldId],
+            items: (layout.worlds?.[worldId]?.items || []).map((it) => (it.id === itemId ? { ...it, ...fields } : it)),
+          },
+        },
+      });
+    },
+    [layout, persist]
+  );
+
   const addProfileItem = useCallback(
     (tabId) => {
       persist({
@@ -131,11 +160,14 @@ export function useHomeLayout() {
     nav: layout.nav,
     projects: layout.projects,
     profile: layout.profile,
+    worlds: layout.worlds,
     patchHero,
     patchNav,
     patchProject,
     patchProfileTab,
     patchProfileItem,
+    patchWorld,
+    patchWorldItem,
     addProfileItem,
   };
 }

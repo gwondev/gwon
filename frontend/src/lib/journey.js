@@ -91,35 +91,68 @@ export const PROFILE_TABS = [
   { id: "certs", label: "CERTIFICATIONS" },
 ];
 
-export const PLANET_POS = [
-  [0.9, 0.15, -4],
-  [-1.35, 0.55, -22],
-  [1.55, -0.35, -40],
-  [-1.05, 0.28, -58],
-  [0.35, 0.48, -76],
+export const WORLDS = [
+  { id: "profile", no: "01", label: "PROFILE", world: "earth", hint: "Homeworld" },
+  { id: "projects", no: "02", label: "PROJECTS", world: "singularity", hint: "Singularity" },
+  { id: "infrastructure", no: "03", label: "INFRASTRUCTURE", world: "station", hint: "Orbital" },
+  { id: "credentials", no: "04", label: "CREDENTIALS", world: "atom", hint: "Nucleus" },
+  { id: "career", no: "05", label: "CAREER", world: "sun", hint: "Solar core" },
+  { id: "activities", no: "06", label: "ACTIVITIES", world: "mars", hint: "Exploration" },
+  { id: "awards", no: "07", label: "AWARDS", world: "nebula", hint: "Remnant" },
 ];
 
-export const INTRO_END = 0.07;
+export const PLANET_POS = [
+  [0.55, 0.12, -14],
+  [-0.7, 0.28, -40],
+  [0.85, -0.18, -66],
+  [-0.5, 0.32, -92],
+  [0.2, 0.08, -118],
+  [-0.9, 0.22, -144],
+  [0.4, -0.12, -170],
+];
+
+export const INTRO_END = 0.08;
+export const CORE_END = INTRO_END;
 export const PROJECT_SPAN = 0.145;
 export const CONNECT_START = 0.82;
 export const PROFILE_START = 0.9;
 export const JOURNEY_END = 0.985;
+export const WORLD_COUNT = WORLDS.length;
 
 export const PROJECT_COUNT = JOURNEY_PROJECTS.length;
 export const INTRO_SCENE = 0;
-export const EXPERIENCE_SCENE = PROJECT_COUNT + 1;
-export const CAREER_SCENE = PROJECT_COUNT + 2;
-export const CERTS_SCENE = PROJECT_COUNT + 3;
-export const PROFILE_SCENE = EXPERIENCE_SCENE;
-export const SCENE_MAX = CERTS_SCENE;
+export const EXPERIENCE_SCENE = 6;
+export const CAREER_SCENE = 5;
+export const CERTS_SCENE = 4;
+export const PROFILE_SCENE = 1;
+export const SCENE_MAX = WORLD_COUNT;
 
 export function makePlanetPos(n) {
   const count = Math.max(1, n);
-  return Array.from({ length: count }, (_, i) => [
-    (i % 2 === 0 ? 0.9 : -1.25) * (1 - (i % 3) * 0.12),
-    0.15 + ((i % 3) - 1) * 0.26,
-    -4 - i * 18,
+  return Array.from({ length: count }, (_, i) => PLANET_POS[i] || [
+    Math.sin(i * 1.7) * 0.9,
+    Math.cos(i * 1.1) * 0.35,
+    -14 - i * 26,
   ]);
+}
+
+export function worldCount() {
+  return WORLD_COUNT;
+}
+
+export function destSpan() {
+  return (JOURNEY_END - CORE_END) / WORLD_COUNT;
+}
+
+export function worldFromScene(scene) {
+  if (scene <= 0) return { id: "core", no: "00", label: "CORE", world: "neural", hint: "Neural core" };
+  return WORLDS[scene - 1] || WORLDS[0];
+}
+
+export function sceneFromWorld(id) {
+  if (id === "core") return 0;
+  const i = WORLDS.findIndex((w) => w.id === id);
+  return i < 0 ? 0 : i + 1;
 }
 
 function liveList() {
@@ -152,37 +185,39 @@ export function profileSpan() {
 }
 
 export function journeyCount() {
-  return projectCount() + profileCount();
+  return WORLD_COUNT;
 }
 
 export function experienceScene() {
-  return projectCount() + 1;
+  return sceneFromWorld("activities");
 }
 
 export function careerScene() {
-  return projectCount() + 2;
+  return sceneFromWorld("career");
 }
 
 export function certsScene() {
-  return projectCount() + 3;
+  return sceneFromWorld("credentials");
 }
 
 export function sceneMax() {
-  return projectCount() + 3;
+  return WORLD_COUNT;
 }
 
 export function livePlanets() {
-  return makePlanetPos(journeyCount());
+  return makePlanetPos(WORLD_COUNT);
 }
 
 export function isProfileScene(scene) {
-  return scene >= experienceScene();
+  const id = worldFromScene(scene).id;
+  return id === "credentials" || id === "career" || id === "activities" || id === "awards" || id === "profile" || id === "infrastructure";
 }
 
 export function profileTabFromScene(scene) {
-  if (scene === careerScene()) return "career";
-  if (scene === certsScene()) return "certs";
-  if (scene >= experienceScene()) return "experience";
+  const id = worldFromScene(scene).id;
+  if (id === "career") return "career";
+  if (id === "credentials") return "certs";
+  if (id === "activities") return "experience";
   return null;
 }
 
@@ -193,83 +228,57 @@ export function sceneFromProfileTab(tab) {
 }
 
 function spanOf(scene) {
-  return scene > projectCount() ? profileSpan() : projectSpan();
+  return scene <= 0 ? CORE_END : destSpan();
 }
 
 function originOf(scene) {
-  const n = projectCount();
-  if (scene <= n) return INTRO_END + (scene - 1) * projectSpan();
-  return CONNECT_START + (scene - n - 1) * profileSpan();
+  if (scene <= 0) return 0;
+  return CORE_END + (scene - 1) * destSpan();
 }
 
-/** Settled progress: 0 intro, 1–N projects, then profile tabs. 프로젝트 구간 비율은 그대로다. */
 export function sceneToProgress(scene) {
-  if (scene <= INTRO_SCENE) return 0.018;
+  if (scene <= INTRO_SCENE) return 0.02;
   return originOf(scene) + spanOf(scene) * 0.8;
 }
 
-/** 장면의 워프 시작/끝 진행도. 이 구간에서는 내용이 보이지 않는다. */
 export function warpStartOf(scene) {
+  if (scene <= 0) return 0.01;
   return originOf(scene) + spanOf(scene) * 0.14;
 }
 
-/** 워프가 끝나는 지점(도착 직전). 여기서부터는 행성에 붙어 내용이 보이기 시작한다. */
 export function warpEndOf(scene) {
   return originOf(scene) + spanOf(scene) * 0.579;
 }
 
-/** 퇴장 구간 중 내용이 이미 안 보이는 지점 */
 export function leaveHiddenOf(scene) {
   return originOf(scene) + spanOf(scene) * 0.96;
 }
 
-/** 진행도가 속한 장면. 0 인트로, 1..N 프로젝트, 그다음 프로필. */
 export function regionSceneAt(p) {
-  const max = sceneMax();
-  if (p >= CONNECT_START) {
-    for (let s = max; s >= experienceScene(); s--) {
-      if (p >= warpStartOf(s)) return s;
-    }
-    return experienceScene();
-  }
-  for (let s = projectCount(); s >= 1; s--) {
+  for (let s = sceneMax(); s >= 1; s--) {
     if (p >= warpStartOf(s)) return s;
   }
   return 0;
 }
 
 export function projectIndexFromScene(scene) {
-  const n = projectCount();
-  if (scene >= 1 && scene <= n) return scene - 1;
-  return -1;
+  return scene <= 0 ? -1 : scene - 1;
 }
 
 export function sceneFromProjectIndex(i) {
-  const n = projectCount();
-  return Math.min(n, Math.max(1, i + 1));
+  return sceneFromWorld("projects");
 }
 
 export function projectIndexAt(p) {
-  const n = projectCount();
-  if (p < INTRO_END) return -1;
-  if (p < CONNECT_START) {
-    return Math.min(n - 1, Math.floor((p - INTRO_END) / projectSpan()));
-  }
-  const i = Math.floor((p - CONNECT_START) / profileSpan());
-  return n + Math.min(profileCount() - 1, Math.max(0, i));
+  if (p < CORE_END) return -1;
+  return Math.min(WORLD_COUNT - 1, Math.floor((p - CORE_END) / destSpan()));
 }
 
 export function projectLocal(p) {
   const i = projectIndexAt(p);
   if (i < 0) return { i, t: 0 };
-  const n = projectCount();
-  if (i < n) {
-    const span = projectSpan();
-    const t = (p - INTRO_END - i * span) / span;
-    return { i, t: Math.min(1, Math.max(0, t)) };
-  }
-  const span = profileSpan();
-  const t = (p - CONNECT_START - (i - n) * span) / span;
+  const span = destSpan();
+  const t = (p - CORE_END - i * span) / span;
   return { i, t: Math.min(1, Math.max(0, t)) };
 }
 

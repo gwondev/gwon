@@ -3,20 +3,18 @@ import gsap from "gsap";
 import { worldState } from "./worldState.js";
 import {
   INTRO_END,
-  JOURNEY_PROJECTS,
   PROFILE_TABS,
-  liveProjects,
+  WORLDS,
   projectCount,
   sceneMax,
   isProfileScene,
   projectIndexAt,
-  projectIndexFromScene,
   projectLocal,
   projectStage,
   profileTabFromScene,
   regionSceneAt,
-  sceneFromProfileTab,
-  sceneFromProjectIndex,
+  sceneFromWorld,
+  worldFromScene,
   sceneToProgress,
   warpStartOf,
 } from "../../lib/journey.js";
@@ -53,14 +51,9 @@ function hasWebGL() {
 }
 
 function setWorldEffect(scene) {
-  const i = projectIndexFromScene(scene);
-  if (i >= 0) {
-    worldState.effect = (liveProjects()[i] || JOURNEY_PROJECTS[i])?.effect || "none";
-    worldState.effectIndex = i;
-    return;
-  }
-  worldState.effect = isProfileScene(scene) ? "network" : "none";
-  worldState.effectIndex = -1;
+  const w = worldFromScene(scene);
+  worldState.effect = w.world || "none";
+  worldState.effectIndex = scene <= 0 ? -1 : scene - 1;
 }
 
 export default function WorldExperience() {
@@ -76,6 +69,7 @@ export default function WorldExperience() {
   const [webgl, setWebgl] = useState(true);
   const [tab, setTab] = useState("experience");
   const [pageI, setPageI] = useState(0);
+  const [projI, setProjI] = useState(0);
 
   const sceneRef = useRef(0);
   const targetSceneRef = useRef(0);
@@ -278,49 +272,37 @@ export default function WorldExperience() {
   }, [scene, tab]);
 
   const idx = projectIndexAt(progress);
-  const navIndex = projectIndexFromScene(scene);
   const { t } = projectLocal(progress);
   const stage = idx >= 0 ? projectStage(t) : { id: progress < INTRO_END ? "intro" : "after", u: 0 };
   const n = projectCount();
-  const project = idx >= 0 && idx < n ? projects[idx] : null;
-  const profileTab = idx >= n ? PROFILE_TABS[idx - n] : null;
-  const stageVisible = stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55);
-  const showHero = progress < INTRO_END + 0.02;
-  const showProject = Boolean(project) && stageVisible;
-  const showProfile = Boolean(profileTab) && stageVisible;
-  const imageReveal = !project && !profileTab
-    ? 0
-    : stage.id === "arrive"
-      ? stage.u
-      : stage.id === "read"
-        ? 1
-        : stage.id === "leave"
-          ? 1 - stage.u
-          : 0;
-  const textReveal = stage.id === "read" ? Math.min(1, stage.u * 1.4) : stage.id === "leave" ? 1 - stage.u : 0;
-
+  const world = worldFromScene(scene);
+  const project = projects[Math.min(projI, Math.max(0, n - 1))] || projects[0] || null;
   const profileTabs = profile?.tabs?.length ? profile.tabs : PROFILE_TABS;
-  const liveProfileTab = profileTab ? profileTabs.find((item) => item.id === profileTab.id) || profileTab : null;
+  const profileTabId = profileTabFromScene(scene);
+  const liveProfileTab = profileTabId ? profileTabs.find((item) => item.id === profileTabId) : null;
   const profileItems = liveProfileTab?.items || [];
   const pages = project?.pages?.length ? project.pages : [];
+  const stageVisible = scene === 0 || stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55);
+  const showHero = scene === 0 && (progress < INTRO_END + 0.04 || stage.id === "intro");
+  const showWorld = scene > 0 && stageVisible;
+  const imageReveal =
+    scene === 0
+      ? 1
+      : stage.id === "arrive"
+        ? stage.u
+        : stage.id === "read"
+          ? 1
+          : stage.id === "leave"
+            ? 1 - stage.u
+            : 0;
+  const textReveal = scene === 0 ? 1 : stage.id === "read" ? Math.min(1, stage.u * 1.4) : stage.id === "leave" ? 1 - stage.u : 0;
 
   useEffect(() => {
     setPageI(0);
   }, [project?.id]);
 
-  const counterLabel =
-    navIndex >= 0
-      ? `${String(navIndex + 1).padStart(2, "0")} / ${String(n).padStart(2, "0")}`
-      : isProfileScene(scene)
-        ? "FILE"
-        : `00 / ${String(n).padStart(2, "0")}`;
-
-  const profileActive = profileTabFromScene(scene);
-  const leverStops = [
-    { scene: 0, label: "INTRO" },
-    ...projects.map((p, i) => ({ scene: i + 1, label: p.title })),
-        ...profileTabs.map((item, i) => ({ scene: n + 1 + i, label: item.label })),
-  ];
+  const counterLabel = `${world.no}  ${world.label}`;
+  const leverStops = [{ scene: 0, label: "CORE" }, ...WORLDS.map((w, i) => ({ scene: i + 1, label: w.label }))];
 
   return (
     <main className="page world-page" ref={root}>
@@ -338,14 +320,25 @@ export default function WorldExperience() {
         <section className={`world-hero${canEditHome ? " is-editing" : ""}`}>
           <Field className="world-kicker" value={home.hero?.kicker} canEdit={canEditHome} onSave={(kicker) => home.patchHero({ kicker })} />
           <Field tag="h1" value={home.hero?.name} canEdit={canEditHome} onSave={(name) => home.patchHero({ name })} />
+          <Field className="world-line world-line--tag" value={home.hero?.tagline} canEdit={canEditHome} onSave={(tagline) => home.patchHero({ tagline })} />
           <Field className="world-line" value={home.hero?.line} canEdit={canEditHome} onSave={(line) => home.patchHero({ line })} />
+          <button type="button" className="world-explore" onClick={() => goToRef.current(1)}>
+            {home.hero?.explore || "EXPLORE"}
+          </button>
         </section>
       )}
 
-      {showProject && project && (
+      {showWorld && world.id === "projects" && project && (
         <section className={`world-stage${canEditHome ? " is-editing" : ""}`} style={{ opacity: Math.max(textReveal, imageReveal * 0.35) }}>
           <Field tag="h2" className="world-stage__title" value={project.title} canEdit={canEditHome} onSave={(title) => home.patchProject(project.id, { title })} />
           <Field className="world-stage__one" value={project.subtitle} canEdit={canEditHome} onSave={(subtitle) => home.patchProject(project.id, { subtitle })} />
+          <div className="world-proj-picks">
+            {projects.map((p, i) => (
+              <button key={p.id} type="button" className={i === projI ? "is-on" : ""} onClick={() => setProjI(i)}>
+                {p.no}
+              </button>
+            ))}
+          </div>
           <MediaPages
             pages={pages.length ? pages : [blankPage(0)]}
             index={pageI}
@@ -369,7 +362,7 @@ export default function WorldExperience() {
         </section>
       )}
 
-      {showProfile && liveProfileTab && (
+      {showWorld && liveProfileTab && (
         <section className={`world-stage${canEditHome ? " is-editing" : ""}`} style={{ opacity: Math.max(textReveal, imageReveal * 0.35) }}>
           <Field
             tag="h2"
@@ -395,6 +388,26 @@ export default function WorldExperience() {
         </section>
       )}
 
+      {showWorld && (world.id === "profile" || world.id === "infrastructure" || world.id === "awards") && (
+        <section className={`world-stage${canEditHome ? " is-editing" : ""}`} style={{ opacity: Math.max(textReveal, imageReveal * 0.35) }}>
+          <h2 className="world-stage__title">{world.label}</h2>
+          <Field
+            className="world-stage__one"
+            value={home.worlds?.[world.id]?.one}
+            canEdit={canEditHome}
+            onSave={(one) => home.patchWorld(world.id, { one })}
+          />
+          <div className="world-stage__media world-stage__media--cards" style={{ opacity: imageReveal }}>
+            <FileCards
+              items={home.worlds?.[world.id]?.items || []}
+              layout={world.id === "profile" ? "career" : world.id === "awards" ? "certs" : "experience"}
+              canEdit={canEditHome}
+              onPatch={(id, fields) => home.patchWorldItem(world.id, id, fields)}
+            />
+          </div>
+        </section>
+      )}
+
       <p className="world-counter" aria-live="polite">
         {counterLabel}
       </p>
@@ -405,47 +418,24 @@ export default function WorldExperience() {
         onCommit={(next) => goToRef.current(next)}
       />
 
-      <nav className="world-nav" aria-label="여정">
-          <Field
-            className="world-nav__label"
-            value={home.nav?.projects}
-            canEdit={canEditHome}
-            onSave={(projects) => home.patchNav({ projects })}
-          />
-          {projects.map((p, i) => (
+      <nav className="world-nav" aria-label="탐험 경로">
+          <p className="world-nav__label">EXPLORE</p>
+          {WORLDS.map((w, i) => (
             <button
-              key={p.id}
+              key={w.id}
               type="button"
-              className={i === navIndex ? "is-on" : ""}
+              className={scene === i + 1 ? "is-on" : ""}
               onMouseEnter={() => {
                 if (!worldState.mobile) worldState.hoverIndex = i;
               }}
               onMouseLeave={() => {
                 worldState.hoverIndex = -1;
               }}
-              onClick={() => goToRef.current(sceneFromProjectIndex(i))}
+              onClick={() => goToRef.current(sceneFromWorld(w.id))}
             >
               <i />
-              <span>{p.no}</span>
-              <em>{p.title}</em>
-            </button>
-          ))}
-          <Field
-            className="world-nav__label world-nav__label--gap"
-            value={home.nav?.profile}
-            canEdit={canEditHome}
-            onSave={(profile) => home.patchNav({ profile })}
-          />
-          {profileTabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={profileActive === item.id ? "is-on" : ""}
-              onClick={() => goToRef.current(sceneFromProfileTab(item.id))}
-            >
-              <i />
-              <span aria-hidden />
-              <em>{item.label}</em>
+              <span>{w.no}</span>
+              <em>{w.label}</em>
             </button>
           ))}
         </nav>
