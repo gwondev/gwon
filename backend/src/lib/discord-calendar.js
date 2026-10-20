@@ -7,6 +7,16 @@ let digestTimer = null;
 let lastDigestDate = "";
 let todayNotifyTimer = null;
 let todayNotifyAction = "edit";
+let todayNotifyEvent = null;
+
+const DEFAULT_KEYWORD_EMOJI = {
+  TODO: "✅",
+  MONEY: "💰",
+  DRINK: "🍻",
+  JOB: "🎓",
+  DATE: "💕",
+  TRIP: "✈️",
+};
 
 function webhookUrl() {
   const raw = String(process.env.DISCORD_CALENDAR_WEBHOOK_URL || "").trim();
@@ -46,11 +56,12 @@ function postWebhook(body) {
     });
 }
 
-export function notifyCalendarChange(action) {
+export function notifyCalendarChange(action, event) {
   todayNotifyAction = action || "edit";
+  todayNotifyEvent = event || null;
   clearTimeout(todayNotifyTimer);
   todayNotifyTimer = setTimeout(() => {
-    sendTodaySnapshot(todayNotifyAction).catch((err) => {
+    sendTodaySnapshot(todayNotifyAction, todayNotifyEvent).catch((err) => {
       console.warn("[discord] today snapshot failed:", err.message);
     });
   }, 500);
@@ -121,18 +132,51 @@ function isAllDay(row) {
   return !timeOf(row.start_time);
 }
 
-function compactTodayEmbed(rows, { today, action = "morning" }) {
+function isFocus(row, event) {
+  if (!event) return false;
+  if (event.id && row.id && Number(event.id) === Number(row.id)) return true;
+  if (event.seriesId && row.series_id && String(event.seriesId) === String(row.series_id)) {
+    if (!event.eventDate || dateKeyOf(row.event_date) === event.eventDate) return true;
+  }
+  return Boolean(
+    event.title &&
+      event.eventDate === dateKeyOf(row.event_date) &&
+      event.title === row.title
+  );
+}
+
+function actionTag(action, focused) {
+  if (!focused) return "";
+  if (action === "add") return " [+추가]";
+  if (action === "edit") return " [★변경]";
+  if (action === "delete") return " [삭제]";
+  return "";
+}
+
+function emojiOf(row, map) {
+  const id = String(row.appointment_type || "").trim();
+  if (id && map[id]) return `${map[id]} `;
+  return "";
+}
+
+function compactTodayEmbed(rows, { today, action = "morning", focus = null, emojis = {} }) {
   const allDay = rows.filter(isAllDay);
   const timed = rows.filter((r) => !isAllDay(r));
   const parts = [];
-  if (allDay.length) {
-    parts.push(`종일 : ${allDay.map((r) => clip(r.title || "", 10)).join(" · ")}`);
+  for (const r of allDay) {
+    parts.push(`종일 : ${emojiOf(r, emojis)}${clip(r.title || "", 10)}${actionTag(action, isFocus(r, focus))}`);
   }
-  const timedBits = timed.map(
-    (r, i) => `일정${i + 1} : ${clip(r.title || "(없음)", 12)} ${eventTime(r)}`
-  );
-  for (let i = 0; i < timedBits.length; i += 2) {
-    parts.push(timedBits.slice(i, i + 2).join("    "));
+  timed.forEach((r, i) => {
+    parts.push(
+      `일정${i + 1} : ${emojiOf(r, emojis)}${clip(r.title || "(없음)", 12)} ${eventTime(r)}${actionTag(action, isFocus(r, focus))}`
+    );
+  });
+  if (action === "delete" && focus && !rows.some((r) => isFocus(r, focus))) {
+    const allDayGone = !focus.startTime;
+    const name = clip(focus.title || "", allDayGone ? 10 : 12);
+    const emo = emojiOf({ appointment_type: focus.appointmentType }, emojis);
+    const time = allDayGone ? "" : ` ${focus.startTime}${focus.endTime ? ` ${focus.endTime}` : ""}`;
+    parts.push(`${allDayGone ? "종일" : "일정"} : ${emo}${name}${time} [삭제]`);
   }
   if (!parts.length) parts.push("일정 없음");
 
@@ -144,12 +188,28 @@ function compactTodayEmbed(rows, { today, action = "morning" }) {
   };
 }
 
-async function sendTodaySnapshot(action) {
+async function loadKeywordEmojis() {
+  const map = { ...DEFAULT_KEYWORD_EMOJI };
+  try {
+    const [rows] = await pool.query("SELECT value FROM settings WHERE `key` = 'calendar_keywords' LIMIT 1");
+    const items = JSON.parse(rows[0]?.value || "[]");
+    if (Array.isArray(items)) {
+      for (const it of items) {
+        if (it?.id && it?.emoji) map[it.id] = String(it.emoji);
+      }
+    }
+  } catch {
+    /* 기본 이모지 유지 */
+  }
+  return map;
+}
+
+async function sendTodaySnapshot(action, focus) {
   if (!webhookUrl()) return;
   const today = kstParts().date;
-  const rows = await loadRange(today, today);
+  const [rows, emojis] = await Promise.all([loadRange(today, today), loadKeywordEmojis()]);
   await postWebhook({
-    embeds: [compactTodayEmbed(rows, { today, action })],
+    embeds: [compactTodayEmbed(rows, { today, action, focus, emojis })],
   });
 }
 
@@ -174,7 +234,7 @@ function weekSummaryEmbed(today, until, rows) {
 
 async function loadRange(startDate, endDate) {
   const [rows] = await pool.query(
-    `SELECT e.title, e.description, e.event_date, e.start_time, e.end_time,
+    `SELECT e.id, e.series_id, e.title, e.description, e.event_date, e.start_time, e.end_time,
             e.location_name, e.appointment_type, e.income_type, e.theme_color, e.is_done
      FROM calendar_events e
      JOIN users u ON u.id = e.owner_id
@@ -195,10 +255,11 @@ export async function sendMorningDigest() {
   const until = addDays(today, 7);
   const rows = await loadRange(today, until);
   const todayRows = rows.filter((r) => dateKeyOf(r.event_date) === today);
+  const emojis = await loadKeywordEmojis();
 
   await postWebhook({
     embeds: [
-      compactTodayEmbed(todayRows, { today, action: "morning" }),
+      compactTodayEmbed(todayRows, { today, action: "morning", emojis }),
       weekSummaryEmbed(today, until, rows),
     ],
   });
