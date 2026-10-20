@@ -2,7 +2,7 @@
  * Neural core + seven destination worlds.
  * Worlds are procedural shaders/geometry — not NASA scans.
  */
-import { useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { AdaptiveDpr, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -52,9 +52,9 @@ function cameraTarget(p) {
   if (p < INTRO_END) {
     const u = p / INTRO_END;
     return {
-      cam: [0, 0.18, 16 - u * 5],
-      look: [0, 0.05, -6],
-      fov: 42,
+      cam: [0.15, 0.55, 12.6 - u * 0.85],
+      look: [0, -0.08, 3.4],
+      fov: 34,
       warp: 0,
     };
   }
@@ -259,7 +259,8 @@ function NeuralField({ count }) {
         s += spark * 1.8 * intro;
         s += event * Math.max(0, Math.sin(t * 0.38 - dummy.position.z * 0.16)) * 0.9 * intro;
       }
-      dummy.scale.set(s, s, s * efx.streak);
+      const veil = 1 - intro * 0.96;
+      dummy.scale.set(s * veil, s * veil, s * efx.streak * veil);
       dummy.updateMatrix();
       meshObj.setMatrixAt(i, dummy.matrix);
 
@@ -276,7 +277,8 @@ function NeuralField({ count }) {
     if (lines.current) {
       const pulse = quiet > 0.85 ? 0 : 0.5 + 0.5 * Math.sin(clock.elapsedTime * 0.45 * Math.max(0.15, live));
       const introPulse = intro * (0.05 + 0.08 * pulse + event * 0.1);
-      lines.current.material.opacity = 0.05 + 0.08 * pulse * live + warp * 0.16 + (worldState.velocity || 0) * 0.08 + introPulse;
+      const veil = 1 - intro * 0.96;
+      lines.current.material.opacity = (0.05 + 0.08 * pulse * live + warp * 0.16 + (worldState.velocity || 0) * 0.08 + introPulse) * veil;
     }
   });
 
@@ -360,14 +362,80 @@ function StarField({ count }) {
 
 function Gargantua() {
   const { scene } = useGLTF("/assets/blackhole/Blackhole.glb");
+  const root = useRef();
+  const body = useRef();
   const spin = useRef();
+  const stars = useMemo(() => {
+    const pos = new Float32Array(520 * 3);
+    for (let i = 0; i < 520; i++) {
+      const r = 3.5 + Math.random() * 26;
+      const a = Math.random() * Math.PI * 2;
+      pos[i * 3] = Math.cos(a) * r;
+      pos[i * 3 + 1] = (Math.random() - 0.42) * r * 0.72;
+      pos[i * 3 + 2] = -8 - Math.random() * 54;
+    }
+    return pos;
+  }, []);
+
+  useLayoutEffect(() => {
+    scene.traverse((obj) => {
+      if (!obj.isMesh) return;
+      obj.frustumCulled = false;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of mats) {
+        if (!mat) continue;
+        mat.fog = false;
+        mat.toneMapped = true;
+        mat.side = THREE.DoubleSide;
+        mat.depthWrite = true;
+        if (mat.transparent && mat.opacity >= 1) mat.transparent = false;
+        if (obj.name === "Blackhole_core_Blackhole_core_0") {
+          const horizon = mat.clone();
+          horizon.depthTest = false;
+          horizon.depthWrite = false;
+          horizon.fog = false;
+          obj.material = horizon;
+          obj.renderOrder = 3;
+          if (!obj.userData.horizonScaled) {
+            obj.scale.multiplyScalar(1.35);
+            obj.userData.horizonScaled = true;
+          }
+        }
+        if (mat.emissiveMap) mat.emissiveIntensity = 1.35;
+      }
+    });
+  }, [scene]);
+
   useFrame((_, delta) => {
-    if (spin.current && !worldState.reduced) spin.current.rotation.z += delta * 0.04;
+    const intro = introAmt(worldState.progress);
+    const shown = intro > 0.04;
+    if (root.current) root.current.visible = shown;
+    if (body.current) {
+      const s = 1.35 * Math.min(1.05, intro / 0.75);
+      body.current.scale.setScalar(Math.max(s, 0.0001));
+    }
+    if (spin.current && shown && !worldState.reduced) spin.current.rotation.z += delta * 0.045;
   });
+
   return (
-    <group position={[0, 0.05, 5.2]} rotation={[1.15, 0.08, 0]} scale={0.042}>
-      <group ref={spin}>
-        <primitive object={scene} />
+    <group ref={root}>
+      <points frustumCulled={false}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[stars, 3]} />
+        </bufferGeometry>
+        <pointsMaterial
+          color="#e4dfd4"
+          size={0.05}
+          sizeAttenuation
+          transparent
+          opacity={0.88}
+          depthWrite={false}
+        />
+      </points>
+      <group ref={body} position={[0, -0.02, 3.2]} rotation={[1.42, 0.04, 0]} scale={1.35}>
+        <group ref={spin}>
+          <primitive object={scene} />
+        </group>
       </group>
     </group>
   );
