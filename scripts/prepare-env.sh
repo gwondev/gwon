@@ -54,9 +54,13 @@ BINANCE_SECRET_KEY="$(read_val BINANCE_SECRET_KEY "$SRC")"
 
 CLOUDFLARE_TUNNEL_TOKEN="$(read_val CLOUDFLARE_TUNNEL_TOKEN "$SRC")"
 
-# 캘린더 아침 알림용 디스코드 웹훅. 없으면 9시 알림과 종 버튼이 전송되지 않는다.
-DISCORD_CALENDAR_WEBHOOK_URL="$(read_val DISCORD_CALENDAR_WEBHOOK_URL "$SRC")"
-[[ -z "$DISCORD_CALENDAR_WEBHOOK_URL" ]] && DISCORD_CALENDAR_WEBHOOK_URL="$(read_val GWON_DISCORD_CALENDAR_WEBHOOK_URL "$SRC")"
+# 캘린더 디스코드 웹훅. #일정-오늘 / #일정-일주일. 없으면 9시 알림·종 버튼이 전송되지 않는다.
+GWON_SCHEDULE_TODAY="$(read_val GWON_SCHEDULE_TODAY "$SRC")"
+[[ -z "$GWON_SCHEDULE_TODAY" ]] && GWON_SCHEDULE_TODAY="$(read_val gwon_schedule_today "$SRC")"
+[[ -z "$GWON_SCHEDULE_TODAY" ]] && GWON_SCHEDULE_TODAY="$(read_val DISCORD_SCHEDULE_TODAY "$SRC")"
+GWON_SCHEDULE_WEEK="$(read_val GWON_SCHEDULE_WEEK "$SRC")"
+[[ -z "$GWON_SCHEDULE_WEEK" ]] && GWON_SCHEDULE_WEEK="$(read_val gwon_schedule_week "$SRC")"
+[[ -z "$GWON_SCHEDULE_WEEK" ]] && GWON_SCHEDULE_WEEK="$(read_val DISCORD_SCHEDULE_WEEK "$SRC")"
 [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]] && CLOUDFLARE_TUNNEL_TOKEN="$(read_val CLOUDFLARE_TUNNEL_TOKEN "$OUT")"
 [[ -z "${DB_ROOT_PASSWORD}" ]] && DB_ROOT_PASSWORD="$(read_val DB_ROOT_PASSWORD "$OUT")"
 
@@ -84,8 +88,8 @@ fi
 if [[ -z "$BINANCE_API_KEY" || -z "$BINANCE_SECRET_KEY" ]]; then
   echo "[prepare-env] 경고: BINANCE_API_KEY / BINANCE_SECRET_KEY 를 찾지 못했습니다. /BINANCE 대시보드의 잔고·포지션 조회가 비활성화됩니다. (공개 스캐너는 정상 동작)" >&2
 fi
-if [[ -z "$DISCORD_CALENDAR_WEBHOOK_URL" ]]; then
-  echo "[prepare-env] 경고: DISCORD_CALENDAR_WEBHOOK_URL 을 찾지 못했습니다. 캘린더 디스코드 알림이 동작하지 않습니다." >&2
+if [[ -z "$GWON_SCHEDULE_TODAY" && -z "$GWON_SCHEDULE_WEEK" ]]; then
+  echo "[prepare-env] 경고: GWON_SCHEDULE_TODAY / GWON_SCHEDULE_WEEK 를 찾지 못했습니다. 캘린더 디스코드 알림이 동작하지 않습니다." >&2
 fi
 
 # ── 4) .env 생성 ─────────────────────────────────────────────────────
@@ -99,7 +103,8 @@ GEMINI_API_KEY=${GEMINI_API_KEY}
 BINANCE_API_KEY=${BINANCE_API_KEY}
 BINANCE_SECRET_KEY=${BINANCE_SECRET_KEY}
 CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-DISCORD_CALENDAR_WEBHOOK_URL=${DISCORD_CALENDAR_WEBHOOK_URL}
+GWON_SCHEDULE_TODAY=${GWON_SCHEDULE_TODAY}
+GWON_SCHEDULE_WEEK=${GWON_SCHEDULE_WEEK}
 EOF
 
 # 시크릿 값이 터미널·로그에 남지 않도록 존재 여부와 길이만 출력한다.
@@ -121,4 +126,5 @@ echo "  - GEMINI_API_KEY         : $(mask "$GEMINI_API_KEY" "없음 — 챗봇 �
 echo "  - BINANCE_API_KEY        : $(mask "$BINANCE_API_KEY" "없음 — 잔고·포지션 비활성")"
 echo "  - BINANCE_SECRET_KEY     : $(mask "$BINANCE_SECRET_KEY" "없음 — 잔고·포지션 비활성")"
 echo "  - CLOUDFLARE_TUNNEL_TOKEN: $(mask "$CLOUDFLARE_TUNNEL_TOKEN" "없음 — 터널 비활성")"
-echo "  - DISCORD_CALENDAR_WEBHOOK_URL: $(mask "$DISCORD_CALENDAR_WEBHOOK_URL" "없음 — 캘린더 알림 비활성")"
+echo "  - GWON_SCHEDULE_TODAY        : $(mask "$GWON_SCHEDULE_TODAY" "없음 — #일정-오늘 비활성")"
+echo "  - GWON_SCHEDULE_WEEK         : $(mask "$GWON_SCHEDULE_WEEK" "없음 — #일정-일주일 비활성")"

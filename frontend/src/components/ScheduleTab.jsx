@@ -108,6 +108,28 @@ function pad2(n) {
   return String(n).padStart(2, "0");
 }
 
+/** 월~일 주에서 오늘을 뺀 날짜들. 종 버튼 → 일주일 채널. */
+function weekDatesExceptToday(todayKey) {
+  const [y, m, d] = todayKey.split("-").map(Number);
+  const utc = Date.UTC(y, m - 1, d);
+  const wd = new Date(utc).getUTCDay();
+  const monOffset = wd === 0 ? -6 : 1 - wd;
+  const out = [];
+  for (let i = 0; i < 7; i += 1) {
+    const dt = new Date(utc + (monOffset + i) * 86400000);
+    const key = `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+    if (key !== todayKey) out.push(key);
+  }
+  return out;
+}
+
+function notifyChannelForDate(dateKey, todayKey) {
+  if (!dateKey || !todayKey) return null;
+  if (dateKey === todayKey) return "today";
+  if (weekDatesExceptToday(todayKey).includes(dateKey)) return "week";
+  return null;
+}
+
 function toDateKey(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
@@ -450,13 +472,25 @@ export default function ScheduleTab() {
     setViewYear(y);
   };
 
-  const sendDiscordDigest = async () => {
-    if (discordBusy) return;
+  const sendDiscordDigest = async (dateKey) => {
+    if (discordBusy || !dateKey) return;
+    const channel = notifyChannelForDate(dateKey, toDateKey(today));
+    if (!channel) {
+      setDiscordNote({ ok: false, text: "오늘·이번 주 일정만 보낼 수 있습니다." });
+      return;
+    }
     setDiscordBusy(true);
     setDiscordNote(null);
     try {
-      await api("/calendar/discord-notify", { method: "POST", token });
-      setDiscordNote({ ok: true, text: "디스코드로 보냈습니다." });
+      await api("/calendar/discord-notify", {
+        method: "POST",
+        token,
+        body: { date: dateKey },
+      });
+      setDiscordNote({
+        ok: true,
+        text: channel === "today" ? "#일정-오늘 에 반영했습니다." : "#일정-일주일 에 반영했습니다.",
+      });
     } catch (e) {
       setDiscordNote({ ok: false, text: e.message || "보내지 못했습니다." });
     } finally {
@@ -801,9 +835,10 @@ export default function ScheduleTab() {
               setDayOpen(null);
               openAdd(dayOpen.dateKey);
             }}
-            onNotify={sendDiscordDigest}
+            onNotify={() => sendDiscordDigest(dayOpen.dateKey)}
             notifyBusy={discordBusy}
             notifyNote={discordNote}
+            notifyChannel={notifyChannelForDate(dayOpen.dateKey, todayKey)}
           />
         )}
       </AnimatePresence>
@@ -1988,7 +2023,7 @@ function DayTimeline({ events, expanded, onToggleExpand }) {
   );
 }
 
-function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd, onNotify, notifyBusy, notifyNote }) {
+function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd, onNotify, notifyBusy, notifyNote, notifyChannel }) {
   const [y, m, d] = dateKey.split("-");
   const [viewMode, setViewMode] = useState("grouped");
   const [tlExpanded, setTlExpanded] = useState(false);
@@ -2018,16 +2053,22 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd, onNotify,
             {y}년 {Number(m)}월 {Number(d)}일
           </h3>
           <div className="schedule__modal-head-actions">
+            {notifyChannel && (
             <button
               type="button"
               className="schedule__day-bell"
               onClick={onNotify}
               disabled={notifyBusy}
-              aria-label="아침 9시 디스코드 알림 다시 보내기"
-              title="아침 9시 알림을 한 번 더 보냅니다. 바뀐 일정은 수정, 삭제로 표시됩니다."
+              aria-label={notifyChannel === "today" ? "오늘 일정을 디스코드에 반영" : "이번 주 일정을 디스코드에 반영"}
+              title={
+                notifyChannel === "today"
+                  ? "#일정-오늘 메시지를 이 내용으로 덮어씁니다."
+                  : "#일정-일주일 메시지를 이번 주(오늘 제외) 일정으로 덮어씁니다."
+              }
             >
               🔔
             </button>
+            )}
             <button type="button" className="btn btn-accent schedule__day-add-top" onClick={onAdd}>
               ＋ 일정 추가
             </button>
