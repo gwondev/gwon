@@ -6,7 +6,7 @@ import {
   isCalendarAdminRole,
   getUserRole,
 } from "../auth-middleware.js";
-import { sendCalendarNotifyForDate } from "../lib/discord-calendar.js";
+import { sendCalendarNotifyForDate, notifyChannelForDate } from "../lib/discord-calendar.js";
 
 const router = Router();
 
@@ -1597,9 +1597,12 @@ router.put("/theme", requireCalendarAdmin, async (req, res, next) => {
 // 오늘 → #일정-오늘, 이번 주(오늘 제외) → #일정-일주일. 같은 메시지를 덮어쓴다.
 router.post("/discord-notify", requireCalendarAdmin, async (req, res, next) => {
   try {
-    const date = String(req.body?.date || "").trim();
+    const date = String(req.body?.date || req.query?.date || "").trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ error: "date(YYYY-MM-DD) 가 필요합니다." });
+    }
+    if (!notifyChannelForDate(date)) {
+      return res.status(400).json({ error: "오늘·이번 주(오늘 제외) 일정만 디스코드로 보낼 수 있습니다." });
     }
     const result = await sendCalendarNotifyForDate(date, { markChanges: true });
     res.json({ ok: true, channel: result.channel, dates: result.dates });

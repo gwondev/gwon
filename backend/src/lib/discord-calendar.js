@@ -144,9 +144,21 @@ function formatLine(event, mark) {
   return mark ? `${base} (${mark})` : base;
 }
 
-function buildEmbeds(dates, current, snapshot, markChanges, { heading } = {}) {
+const SCHEDULE_URL = "https://gwon.run/schedule";
+
+function scheduleBannerEmbed(channel) {
+  const label = channel === "week" ? "일주일 일정" : "오늘 일정";
+  return {
+    title: label,
+    description: `🗓️ 캘린더 바로가기 · **[gwon.run/schedule](${SCHEDULE_URL})**`,
+    url: SCHEDULE_URL,
+    color: 0xd8c19a,
+  };
+}
+
+function buildEmbeds(dates, current, snapshot, markChanges, { heading, channel } = {}) {
   const currentById = new Map(current.map((event) => [event.id, event]));
-  const embeds = [];
+  const embeds = [scheduleBannerEmbed(channel || "today")];
 
   for (const date of dates) {
     const dayEvents = current.filter((event) => event.date === date).sort(compareEvents);
@@ -192,6 +204,7 @@ function buildEmbeds(dates, current, snapshot, markChanges, { heading } = {}) {
     embeds.push(embed);
   }
 
+  // 배너 1 + 일정 embed 최대 9
   return embeds.slice(0, 10);
 }
 
@@ -323,8 +336,9 @@ function mapRows(rows, emojis) {
 
 async function sendChannel(channel, dates, { markChanges = false, now = kstParts(), snapshot } = {}) {
   if (!dates.length) {
-    // 주간 채널에 남은 날이 없으면 "없음" 한 장으로 덮어쓴다.
+    // 주간 채널에 남은 날이 없으면 배너 + "없음"으로 덮어쓴다.
     const embeds = [
+      scheduleBannerEmbed(channel),
       {
         title: channel === "week" ? "이번 주 (오늘 제외)" : todayTitle(now.date),
         description: "없음",
@@ -343,6 +357,7 @@ async function sendChannel(channel, dates, { markChanges = false, now = kstParts
   const current = mapRows(rows, emojis).filter((e) => dates.includes(e.date));
   const embeds = buildEmbeds(dates, current, snap, markChanges, {
     heading: channel === "today" ? todayTitle(dates[0]) : undefined,
+    channel,
   });
   await postOrEdit(channel, embeds);
   return { channel, dates, current, snapshot: snap, embeds };

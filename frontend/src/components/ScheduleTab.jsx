@@ -482,7 +482,8 @@ export default function ScheduleTab() {
     setDiscordBusy(true);
     setDiscordNote(null);
     try {
-      await api("/calendar/discord-notify", {
+      // body + query 둘 다 넣어 프록시/구버전 캐시에서도 date 가 빠지지 않게 한다.
+      await api(`/calendar/discord-notify?date=${encodeURIComponent(dateKey)}`, {
         method: "POST",
         token,
         body: { date: dateKey },
@@ -835,7 +836,7 @@ export default function ScheduleTab() {
               setDayOpen(null);
               openAdd(dayOpen.dateKey);
             }}
-            onNotify={() => sendDiscordDigest(dayOpen.dateKey)}
+            onNotify={sendDiscordDigest}
             notifyBusy={discordBusy}
             notifyNote={discordNote}
             notifyChannel={notifyChannelForDate(dayOpen.dateKey, todayKey)}
@@ -2057,7 +2058,7 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd, onNotify,
             <button
               type="button"
               className="schedule__day-bell"
-              onClick={onNotify}
+              onClick={() => onNotify?.(dateKey)}
               disabled={notifyBusy}
               aria-label={notifyChannel === "today" ? "오늘 일정을 디스코드에 반영" : "이번 주 일정을 디스코드에 반영"}
               title={
