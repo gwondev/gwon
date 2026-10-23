@@ -1,13 +1,11 @@
 import pool from "../db.js";
 
 const WEBHOOK_HOSTS = new Set(["discord.com", "discordapp.com"]);
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const SNAPSHOT_KEY = "calendar_discord_snapshot";
+const LAST_RUN_KEY = "calendar_discord_last_run";
 
 let digestTimer = null;
-let lastDigestDate = "";
-let todayNotifyTimer = null;
-let todayNotifyAction = "edit";
-let todayNotifyEvent = null;
+let ticking = false;
 
 const DEFAULT_KEYWORD_EMOJI = {
   TODO: "✅",
@@ -32,54 +30,6 @@ function webhookUrl() {
   }
 }
 
-function clip(text, max = 400) {
-  const s = String(text || "").replace(/\s+/g, " ").trim();
-  if (s.length <= max) return s;
-  return `${s.slice(0, max)}`;
-}
-
-function postWebhook(body) {
-  const url = webhookUrl();
-  if (!url) return Promise.resolve(false);
-  return fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "gwon 일정", ...body }),
-  })
-    .then((res) => {
-      if (!res.ok) console.warn(`[discord] webhook ${res.status}`);
-      return res.ok;
-    })
-    .catch((err) => {
-      console.warn("[discord] calendar notify failed:", err.message);
-      return false;
-    });
-}
-
-function touchesToday(event, today) {
-  if (!event) return false;
-  const date = String(event.eventDate || "").slice(0, 10);
-  if (date === today) return true;
-  const start = String(event.seriesStartDate || date || "").slice(0, 10);
-  const end = String(event.seriesEndDate || date || "").slice(0, 10);
-  return Boolean(start && end && start <= today && today <= end);
-}
-
-/** 오늘(한국시간)에 해당하는 일정만 추가·변경·삭제될 때 디스코드로 보낸다. */
-export function notifyCalendarChange(action, event) {
-  const today = kstParts().date;
-  if (!touchesToday(event, today)) return;
-
-  todayNotifyAction = action || "edit";
-  todayNotifyEvent = event || null;
-  clearTimeout(todayNotifyTimer);
-  todayNotifyTimer = setTimeout(() => {
-    sendTodaySnapshot(todayNotifyAction, todayNotifyEvent).catch((err) => {
-      console.warn("[discord] today snapshot failed:", err.message);
-    });
-  }, 500);
-}
-
 function kstParts(ms = Date.now()) {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
@@ -91,9 +41,11 @@ function kstParts(ms = Date.now()) {
     hourCycle: "h23",
   });
   const map = Object.fromEntries(fmt.formatToParts(new Date(ms)).map((p) => [p.type, p.value]));
+  let hour = Number(map.hour);
+  if (hour === 24) hour = 0;
   return {
     date: `${map.year}-${map.month}-${map.day}`,
-    hour: Number(map.hour),
+    hour,
     minute: Number(map.minute),
   };
 }
@@ -104,101 +56,74 @@ function addDays(dateKey, n) {
   return dt.toISOString().slice(0, 10);
 }
 
+function weekdayIndex(dateKey) {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+function digestDates(today) {
+  if (weekdayIndex(today) !== 1) return [today];
+  return Array.from({ length: 7 }, (_, i) => addDays(today, i));
+}
+
 function dateKeyOf(value) {
-  if (value instanceof Date) {
-    const y = value.getUTCFullYear();
-    const mo = String(value.getUTCMonth() + 1).padStart(2, "0");
-    const d = String(value.getUTCDate()).padStart(2, "0");
-    return `${y}-${mo}-${d}`;
-  }
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
   return String(value || "").slice(0, 10);
 }
 
 function timeOf(value) {
-  return value ? String(value).slice(0, 5) : "";
+  if (!value) return "";
+  const match = String(value).match(/(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : "";
 }
 
-function weekdayKo(dateKey) {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return WEEKDAYS[new Date(y, m - 1, d).getDay()] || "";
+function dateHeader(dateKey) {
+  const [, month, day] = String(dateKey).split("-");
+  return `${Number(month)}/${Number(day)}`;
 }
 
-function formatDot(dateKey) {
-  const [, m, d] = String(dateKey).split("-");
-  return `${Number(m)}/${Number(d)}`;
+function fingerprint(event) {
+  return [event.date, event.emoji, event.start, event.end, event.title].join("|");
 }
 
-function formatLong(dateKey) {
-  const [, m, d] = String(dateKey).split("-");
-  return `${Number(m)}월 ${Number(d)}일`;
+function compareEvents(a, b) {
+  if (a.start && !b.start) return -1;
+  if (!a.start && b.start) return 1;
+  if (a.start !== b.start) return String(a.start).localeCompare(String(b.start));
+  return String(a.title).localeCompare(String(b.title), "ko");
 }
 
-function eventTime(row) {
-  const start = timeOf(row.start_time);
-  const end = timeOf(row.end_time);
-  if (start && end) return `${start} ${end}`;
-  if (start) return start;
-  return "종일";
+function formatLine(event, mark) {
+  const when = event.start ? `${event.start}${event.end ? ` ${event.end}` : ""}` : "종일";
+  return `${event.emoji || ""}${when} : ${event.title}${mark ? ` (${mark})` : ""}`;
 }
 
-function isAllDay(row) {
-  return !timeOf(row.start_time);
-}
+function buildMessage(dates, current, snapshot, markChanges) {
+  const currentById = new Map(current.map((event) => [event.id, event]));
+  const blocks = [];
 
-function isFocus(row, event) {
-  if (!event) return false;
-  if (event.id && row.id && Number(event.id) === Number(row.id)) return true;
-  if (event.seriesId && row.series_id && String(event.seriesId) === String(row.series_id)) {
-    if (!event.eventDate || dateKeyOf(row.event_date) === event.eventDate) return true;
+  for (const date of dates) {
+    const dayEvents = current.filter((event) => event.date === date).sort(compareEvents);
+    const deleted = markChanges
+      ? Object.values(snapshot)
+          .filter((event) => event?.date === date && !currentById.has(event.id))
+          .sort(compareEvents)
+      : [];
+    const lines = [dateHeader(date)];
+    if (!dayEvents.length && !deleted.length) {
+      lines.push("없음");
+    } else {
+      for (const event of dayEvents) {
+        const prev = snapshot[event.id];
+        const changed = Boolean(markChanges && prev && fingerprint(prev) !== fingerprint(event));
+        lines.push(formatLine(event, changed ? "수정" : ""));
+      }
+      for (const event of deleted) lines.push(formatLine(event, "삭제"));
+    }
+    blocks.push(lines.join("\n"));
   }
-  return Boolean(
-    event.title &&
-      event.eventDate === dateKeyOf(row.event_date) &&
-      event.title === row.title
-  );
-}
 
-function actionTag(action, focused) {
-  if (!focused) return "";
-  if (action === "add") return " [+추가]";
-  if (action === "edit") return " [★변경]";
-  if (action === "delete") return " [삭제]";
-  return "";
-}
-
-function emojiOf(row, map) {
-  const id = String(row.appointment_type || "").trim();
-  if (id && map[id]) return `${map[id]} `;
-  return "";
-}
-
-function compactTodayEmbed(rows, { today, action = "morning", focus = null, emojis = {} }) {
-  const allDay = rows.filter(isAllDay);
-  const timed = rows.filter((r) => !isAllDay(r));
-  const parts = [];
-  for (const r of allDay) {
-    parts.push(`종일 : ${emojiOf(r, emojis)}${clip(r.title || "", 10)}${actionTag(action, isFocus(r, focus))}`);
-  }
-  timed.forEach((r, i) => {
-    parts.push(
-      `일정${i + 1} : ${emojiOf(r, emojis)}${clip(r.title || "(없음)", 12)} ${eventTime(r)}${actionTag(action, isFocus(r, focus))}`
-    );
-  });
-  if (action === "delete" && focus && !rows.some((r) => isFocus(r, focus))) {
-    const allDayGone = !focus.startTime;
-    const name = clip(focus.title || "", allDayGone ? 10 : 12);
-    const emo = emojiOf({ appointment_type: focus.appointmentType }, emojis);
-    const time = allDayGone ? "" : ` ${focus.startTime}${focus.endTime ? ` ${focus.endTime}` : ""}`;
-    parts.push(`${allDayGone ? "종일" : "일정"} : ${emo}${name}${time} [삭제]`);
-  }
-  if (!parts.length) parts.push("일정 없음");
-
-  const colors = { add: 0x86efac, edit: 0xd8c19a, delete: 0xf87171, morning: 0xd8c19a };
-  return {
-    title: `오늘일정 (${formatLong(today)})`,
-    color: colors[action] || 0xd8c19a,
-    description: parts.join("\n"),
-  };
+  return blocks.join("\n\n");
 }
 
 async function loadKeywordEmojis() {
@@ -207,8 +132,8 @@ async function loadKeywordEmojis() {
     const [rows] = await pool.query("SELECT value FROM settings WHERE `key` = 'calendar_keywords' LIMIT 1");
     const items = JSON.parse(rows[0]?.value || "[]");
     if (Array.isArray(items)) {
-      for (const it of items) {
-        if (it?.id && it?.emoji) map[it.id] = String(it.emoji);
+      for (const item of items) {
+        if (item?.id && item?.emoji) map[item.id] = String(item.emoji);
       }
     }
   } catch {
@@ -217,85 +142,129 @@ async function loadKeywordEmojis() {
   return map;
 }
 
-async function sendTodaySnapshot(action, focus) {
-  if (!webhookUrl()) return;
-  const today = kstParts().date;
-  const [rows, emojis] = await Promise.all([loadRange(today, today), loadKeywordEmojis()]);
-  await postWebhook({
-    embeds: [compactTodayEmbed(rows, { today, action, focus, emojis })],
-  });
-}
-
-function weekSummaryEmbed(today, until, rows) {
-  const lines = [];
-  for (let i = 0; i <= 7; i++) {
-    const key = addDays(today, i);
-    const dayRows = rows.filter((r) => dateKeyOf(r.event_date) === key);
-    const items = dayRows.length
-      ? dayRows
-          .map((r) => (isAllDay(r) ? clip(r.title || "", 10) : `${eventTime(r)} ${clip(r.title || "", 16)}`))
-          .join(" · ")
-      : "없음";
-    lines.push(`**${formatDot(key)} (${weekdayKo(key)})**  ${clip(items, 180)}`);
-  }
-  return {
-    title: `일주일 요약  ·  ${formatDot(today)}–${formatDot(until)}`,
-    color: 0xd8c19a,
-    description: lines.join("\n"),
-  };
-}
-
 async function loadRange(startDate, endDate) {
   const [rows] = await pool.query(
-    `SELECT e.id, e.series_id, e.title, e.description, e.event_date, e.start_time, e.end_time,
-            e.location_name, e.appointment_type, e.income_type, e.theme_color, e.is_done
+    `SELECT e.id, e.title, e.event_date, e.start_time, e.end_time, e.appointment_type
      FROM calendar_events e
      JOIN users u ON u.id = e.owner_id
      WHERE u.role IN ('ADMIN', 'SUPER_ADMIN')
        AND e.event_date BETWEEN ? AND ?
-     ORDER BY e.event_date ASC,
-       CASE WHEN e.start_time IS NULL THEN 0 ELSE 1 END,
-       e.start_time ASC,
-       e.id ASC`,
+     ORDER BY e.event_date ASC, e.id ASC`,
     [startDate, endDate]
   );
   return rows || [];
 }
 
-export async function sendMorningDigest() {
-  if (!webhookUrl()) return;
-  const today = kstParts().date;
-  const until = addDays(today, 7);
-  const rows = await loadRange(today, until);
-  const todayRows = rows.filter((r) => dateKeyOf(r.event_date) === today);
-  const emojis = await loadKeywordEmojis();
+async function loadSnapshot() {
+  const [rows] = await pool.query("SELECT value FROM settings WHERE `key` = ?", [SNAPSHOT_KEY]);
+  if (!rows[0]?.value) return {};
+  try {
+    const parsed = JSON.parse(rows[0].value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
-  await postWebhook({
-    embeds: [
-      compactTodayEmbed(todayRows, { today, action: "morning", emojis }),
-      weekSummaryEmbed(today, until, rows),
-    ],
-  });
-  console.log(`[discord] morning digest sent today=${today} cards=${todayRows.length} week=${rows.length}`);
+async function saveSetting(key, value) {
+  await pool.query(
+    `INSERT INTO settings (\`key\`, value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+    [key, value]
+  );
+}
+
+function nextSnapshot(previous, dates, current, today) {
+  const covered = new Set(dates);
+  const cutoff = addDays(today, -21);
+  const next = {};
+  for (const [id, event] of Object.entries(previous)) {
+    if (!event?.date || event.date < cutoff || covered.has(event.date)) continue;
+    next[id] = event;
+  }
+  for (const event of current) {
+    if (covered.has(event.date)) next[event.id] = event;
+  }
+  return next;
+}
+
+async function postContent(content) {
+  const url = webhookUrl();
+  if (!url) {
+    const error = new Error("DISCORD_CALENDAR_WEBHOOK_URL 이 설정되어 있지 않습니다.");
+    error.status = 400;
+    throw error;
+  }
+
+  const chunks = [];
+  let rest = content;
+  while (rest.length > 1900) {
+    const cut = rest.lastIndexOf("\n", 1900);
+    const at = cut > 0 ? cut : 1900;
+    chunks.push(rest.slice(0, at));
+    rest = rest.slice(at).replace(/^\n+/, "");
+  }
+  if (rest) chunks.push(rest);
+
+  for (const chunk of chunks) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "gwon 일정", content: chunk }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      const error = new Error(`Discord 전송 실패 (${res.status}) ${detail.slice(0, 180)}`);
+      error.status = 502;
+      throw error;
+    }
+  }
+}
+
+export async function sendCalendarDigest({ markChanges = false, now = kstParts() } = {}) {
+  const dates = digestDates(now.date);
+  const emojis = await loadKeywordEmojis();
+  const [rows, snapshot] = await Promise.all([
+    loadRange(dates[0], dates[dates.length - 1]),
+    loadSnapshot(),
+  ]);
+  const current = rows.map((row) => ({
+    id: String(row.id),
+    date: dateKeyOf(row.event_date),
+    title: String(row.title || "").trim() || "(제목 없음)",
+    start: timeOf(row.start_time),
+    end: timeOf(row.end_time),
+    emoji: emojis[String(row.appointment_type || "")] || "",
+  }));
+  const content = buildMessage(dates, current, snapshot, markChanges);
+  await postContent(content);
+  await saveSetting(SNAPSHOT_KEY, JSON.stringify(nextSnapshot(snapshot, dates, current, now.date)));
+  return { content, dates };
 }
 
 async function tickDigest() {
-  const { date, hour, minute } = kstParts();
-  if (hour !== 9 || minute > 2) return;
-  if (lastDigestDate === date) return;
-  lastDigestDate = date;
+  if (ticking) return;
+  const now = kstParts();
+  if (now.hour !== 9 || now.minute > 2) return;
+  ticking = true;
   try {
-    await sendMorningDigest();
+    const [rows] = await pool.query("SELECT value FROM settings WHERE `key` = ?", [LAST_RUN_KEY]);
+    if (rows[0]?.value === now.date) return;
+    if (!webhookUrl()) return;
+    await sendCalendarDigest({ markChanges: false, now });
+    await saveSetting(LAST_RUN_KEY, now.date);
+    console.log(`[discord] ${now.date} 알림 전송`);
   } catch (err) {
-    lastDigestDate = "";
     console.warn("[discord] morning digest failed:", err.message);
+  } finally {
+    ticking = false;
   }
 }
 
 export function startCalendarDigestScheduler() {
   if (digestTimer) return;
-  tickDigest().catch(() => {});
   digestTimer = setInterval(() => {
     tickDigest().catch((err) => console.warn("[discord] digest tick:", err.message));
-  }, 60 * 1000);
+  }, 30 * 1000);
+  tickDigest().catch((err) => console.warn("[discord] digest tick:", err.message));
 }

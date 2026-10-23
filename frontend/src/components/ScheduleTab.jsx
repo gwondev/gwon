@@ -265,6 +265,8 @@ export default function ScheduleTab() {
   const [selectedSeriesKeys, setSelectedSeriesKeys] = useState(() => new Set());
   // 이벤트가 갱신될 때마다 오른쪽 할 일 목록(달력 TODO)도 다시 불러오게 하는 신호
   const [calVersion, setCalVersion] = useState(0);
+  const [discordBusy, setDiscordBusy] = useState(false);
+  const [discordNote, setDiscordNote] = useState(null);
   const touchStartRef = useRef(null);
 
   const theme = getThemeById(themeColor || "red");
@@ -446,6 +448,20 @@ export default function ScheduleTab() {
     }
     setViewMonth(m);
     setViewYear(y);
+  };
+
+  const sendDiscordDigest = async () => {
+    if (discordBusy) return;
+    setDiscordBusy(true);
+    setDiscordNote(null);
+    try {
+      await api("/calendar/discord-notify", { method: "POST", token });
+      setDiscordNote({ ok: true, text: "디스코드로 보냈습니다." });
+    } catch (e) {
+      setDiscordNote({ ok: false, text: e.message || "보내지 못했습니다." });
+    } finally {
+      setDiscordBusy(false);
+    }
   };
 
   const openAdd = (dateKey) => {
@@ -785,6 +801,9 @@ export default function ScheduleTab() {
               setDayOpen(null);
               openAdd(dayOpen.dateKey);
             }}
+            onNotify={sendDiscordDigest}
+            notifyBusy={discordBusy}
+            notifyNote={discordNote}
           />
         )}
       </AnimatePresence>
@@ -1969,7 +1988,7 @@ function DayTimeline({ events, expanded, onToggleExpand }) {
   );
 }
 
-function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
+function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd, onNotify, notifyBusy, notifyNote }) {
   const [y, m, d] = dateKey.split("-");
   const [viewMode, setViewMode] = useState("grouped");
   const [tlExpanded, setTlExpanded] = useState(false);
@@ -1999,6 +2018,16 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
             {y}년 {Number(m)}월 {Number(d)}일
           </h3>
           <div className="schedule__modal-head-actions">
+            <button
+              type="button"
+              className="schedule__day-bell"
+              onClick={onNotify}
+              disabled={notifyBusy}
+              aria-label="아침 9시 디스코드 알림 다시 보내기"
+              title="아침 9시 알림을 한 번 더 보냅니다. 바뀐 일정은 수정, 삭제로 표시됩니다."
+            >
+              🔔
+            </button>
             <button type="button" className="btn btn-accent schedule__day-add-top" onClick={onAdd}>
               ＋ 일정 추가
             </button>
@@ -2007,6 +2036,9 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd }) {
             </button>
           </div>
         </div>
+        {notifyNote && (
+          <p className={`schedule__discord-note${notifyNote.ok ? "" : " is-error"}`}>{notifyNote.text}</p>
+        )}
 
         <div className="schedule__day-viewtoggle">
           <button

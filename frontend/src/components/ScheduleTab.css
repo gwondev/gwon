@@ -566,6 +566,41 @@
   border-color: var(--line-strong) !important;
 }
 
+.schedule__day-bell {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.schedule__day-bell:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--line-strong);
+}
+
+.schedule__day-bell:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.schedule__discord-note {
+  margin: 0 1.1rem 0.2rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.schedule__discord-note.is-error {
+  color: #f87171;
+}
+
 .schedule__close {
   width: 32px;
   height: 32px;

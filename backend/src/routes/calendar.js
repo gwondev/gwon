@@ -6,7 +6,7 @@ import {
   isCalendarAdminRole,
   getUserRole,
 } from "../auth-middleware.js";
-import { notifyCalendarChange } from "../lib/discord-calendar.js";
+import { sendCalendarDigest } from "../lib/discord-calendar.js";
 
 const router = Router();
 
@@ -1244,7 +1244,6 @@ router.post("/events", requireCalendarAdmin, async (req, res, next) => {
           `inserted=${created.length} series=${created[0]?.seriesId || "?"} ` +
           `repeat=${repeat?.freq || "none"} title="${title}"`
       );
-      notifyCalendarChange("add", created[0]);
       res.status(201).json({ items: created, item: created[0] });
     } catch (err) {
       await conn.rollback();
@@ -1468,7 +1467,6 @@ router.put("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       ...createdRow,
       sharedOwnerNames: ownerIds.map((id) => ownerNameMap.get(id) || `#${id}`),
     });
-    notifyCalendarChange("edit", item);
     res.json({ item });
   } catch (err) {
     console.error(`[calendar] PUT /events/${req.params.id} error: ${err.code || err.message}`);
@@ -1538,7 +1536,6 @@ router.delete("/events/:id", requireCalendarAdmin, async (req, res, next) => {
       `[calendar] DELETE /events/${req.params.id} uid=${actorId} ` +
         `series=${seriesId || "(none)"} deleted=${result?.affectedRows ?? "?"}`
     );
-    notifyCalendarChange("delete", publicEvent(existing));
     res.status(204).end();
   } catch (err) {
     console.error(`[calendar] DELETE /events/${req.params.id} error: ${err.code || err.message}`);
@@ -1591,6 +1588,17 @@ router.put("/theme", requireCalendarAdmin, async (req, res, next) => {
     ]);
 
     res.json({ ownerId, themeColor, presets: THEME_COLORS });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
+});
+
+// 아침 9시 알림과 같은 내용을 지금 한 번 더 보낸다. 직전 알림과 다르면 수정·삭제를 표시한다.
+router.post("/discord-notify", requireCalendarAdmin, async (req, res, next) => {
+  try {
+    const result = await sendCalendarDigest({ markChanges: true });
+    res.json({ ok: true, dates: result.dates });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
