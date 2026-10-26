@@ -11,7 +11,7 @@ export async function buildChatSystemInstruction(context) {
   return [
     system,
     extra && `\n[관리자 추가 지침]\n${extra}`,
-    "\n[형식] 답변은 줄바꿈 포함 최대 2줄. 세 번째 줄은 쓰지 마라.",
+    "\n[형식] 한국어로 분명하게. 한두 문장이면 충분하고, 목록이 필요하면 항목을 나열해도 된다. 마크다운 굵게(**)는 쓰지 마라.",
     `\n[포트폴리오 데이터]\n${context}`,
   ]
     .filter(Boolean)
@@ -25,5 +25,5 @@ export function sanitizeChatReply(text) {
     .replace(/\*\*/g, "")
     .trim();
   const lines = cleaned.split(/\n+/).map((s) => s.trim()).filter(Boolean);
-  return lines.slice(0, 2).join("\n");
+  return lines.slice(0, 10).join("\n");
 }

@@ -15,18 +15,11 @@ import "./UniverseExperience.css";
 
 const RAIL_STEP = 32;
 
-function RailThumb({ count }) {
+function RailThumb({ index }) {
   const ref = useRef(null);
   useEffect(() => {
-    let raf = 0;
-    const tick = () => {
-      const p = live.active ? live.from + (live.to - live.from) * live.t : live.index;
-      if (ref.current) ref.current.style.transform = `translateY(${p * RAIL_STEP}px)`;
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [count]);
+    if (ref.current) ref.current.style.transform = `translateY(${index * RAIL_STEP}px)`;
+  }, [index]);
   return <i className="uv-rail__thumb" ref={ref} aria-hidden="true" />;
 }
 
@@ -71,7 +64,7 @@ function useMedia(query) {
 }
 
 export default function UniverseExperience() {
-  const { isSuperAdmin, isAdmin, isAuthed, token } = useAuth();
+  const { isSuperAdmin, isAuthed, token } = useAuth();
   const { viewAsUser, setViewAsUser } = useViewMode();
   const navigate = useNavigate();
   const location = useLocation();
@@ -221,7 +214,7 @@ export default function UniverseExperience() {
       {!isGateway && section && (
         <header className="uv-title" key={section.id} style={{ "--len": Math.max(6, (tabLabel || section.label).length) }}>
           <p className="uv-title__line">
-            <span>{section.no}</span> {tabLabel && canEdit ? (
+            <span className="uv-title__no">{section.no}</span> {tabLabel && canEdit ? (
               <Field tag="span" className="uv-title__label" value={tabLabel} canEdit onSave={(label) => home.patchProfileTab(section.source.id, { label })} />
             ) : (
               <span className="uv-title__label">{section.label}</span>
@@ -247,14 +240,14 @@ export default function UniverseExperience() {
 
       {!mobile && (
         <nav className="uv-rail" aria-label="섹션 이동">
-          <RailThumb count={total} />
+          <RailThumb index={snap.active ? snap.from : snap.index} />
           {sections.map((s, i) => (
             <button
               key={s.id}
               type="button"
-              className={`uv-rail__stop${i === shownIndex ? " is-on" : ""}${snap.active && i === snap.target ? " is-target" : ""}`}
+              className={`uv-rail__stop${i === (snap.active ? snap.from : snap.index) ? " is-on" : ""}`}
               onClick={() => goTo(i)}
-              aria-current={i === shownIndex ? "step" : undefined}
+              aria-current={!snap.active && i === snap.index ? "step" : undefined}
               aria-label={`${s.no} ${s.label} ${s.ko}`}
             >
               <span className="uv-rail__label">
@@ -318,11 +311,6 @@ export default function UniverseExperience() {
             <button type="button" className={location.pathname === "/" ? "is-on" : ""} onClick={() => goPage("/")}>
               홈
             </button>
-            {isAdmin && (
-              <button type="button" className={location.pathname === "/schedule" ? "is-on" : ""} onClick={() => goPage("/schedule")}>
-                일정
-              </button>
-            )}
             {isAuthed ? (
               <button type="button" className={location.pathname === "/mypage" ? "is-on" : ""} onClick={() => goPage("/mypage")}>
                 마이페이지
@@ -338,18 +326,29 @@ export default function UniverseExperience() {
                 로그인
               </button>
             )}
-            {isSuperAdmin && (
-              <button type="button" className={location.pathname === "/admin" ? "is-on" : ""} onClick={() => goPage("/admin")}>
-                회원 · DS 관리
-              </button>
-            )}
-            {isAdmin && (
-              <button type="button" className={location.pathname.toLowerCase() === "/binance" ? "is-on" : ""} onClick={() => goPage("/binance")}>
-                바이낸스
-              </button>
-            )}
           </div>
-          <ol>
+          <div className="uv-menu__cards">
+            <button type="button" className={location.pathname === "/schedule" ? "is-on" : ""} onClick={() => goPage("/schedule")}>
+              <span className="uv-menu__emoji" aria-hidden="true">📅</span>
+              <span className="uv-menu__card-label">일정</span>
+            </button>
+            <button type="button" className={location.pathname.toLowerCase() === "/binance" ? "is-on" : ""} onClick={() => goPage("/binance")}>
+              <span className="uv-menu__emoji" aria-hidden="true">📈</span>
+              <span className="uv-menu__card-label">바이낸스</span>
+            </button>
+            <button type="button" className={location.pathname === "/admin" ? "is-on" : ""} onClick={() => goPage("/admin")}>
+              <span className="uv-menu__emoji" aria-hidden="true">⚙️</span>
+              <span className="uv-menu__card-label">관리자페이지</span>
+              <span className="uv-menu__card-sub">회원 · DS</span>
+            </button>
+            <button type="button" className={location.pathname === "/ai" ? "is-on" : ""} onClick={() => goPage("/ai")}>
+              <span className="uv-menu__emoji" aria-hidden="true">✦</span>
+              <span className="uv-menu__card-label">AI 챗봇</span>
+              <span className="uv-menu__card-sub">개설 예정</span>
+            </button>
+          </div>
+          <p className="uv-menu__group">여정</p>
+          <ol className="uv-menu__secs">
             {sections.map((s, i) => (
               <li key={s.id}>
                 <button

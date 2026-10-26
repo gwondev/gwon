@@ -6,7 +6,7 @@
 export const SECTIONS = [
   {
     id: "gateway",
-    no: "00",
+    no: "0",
     label: "GATEWAY",
     world: "Event Horizon",
     ko: "관문",
@@ -17,7 +17,7 @@ export const SECTIONS = [
   },
   {
     id: "projects",
-    no: "01",
+    no: "1",
     label: "PROJECTS",
     world: "Neural Network",
     ko: "프로젝트",
@@ -27,8 +27,19 @@ export const SECTIONS = [
     accent: "#9f8cff",
   },
   {
+    id: "awards",
+    no: "2",
+    label: "AWARDS",
+    world: "Creation Field",
+    ko: "공모전 · 수상",
+    source: { kind: "world", id: "awards", layout: "certs" },
+    veil: "burst",
+    color: "#ff9fcf",
+    accent: "#ffe0a0",
+  },
+  {
     id: "infrastructure",
-    no: "02",
+    no: "3",
     label: "SYSTEMS",
     world: "Circuit City",
     ko: "기술 · 인프라",
@@ -39,7 +50,7 @@ export const SECTIONS = [
   },
   {
     id: "credentials",
-    no: "03",
+    no: "4",
     label: "CERTIFICATIONS",
     world: "Atomic Structure",
     ko: "자격증",
@@ -50,7 +61,7 @@ export const SECTIONS = [
   },
   {
     id: "activities",
-    no: "04",
+    no: "5",
     label: "EXPERIENCE",
     world: "Living Environment",
     ko: "경험 · 활동",
@@ -61,7 +72,7 @@ export const SECTIONS = [
   },
   {
     id: "career",
-    no: "05",
+    no: "6",
     label: "CAREER",
     world: "Orbit of Time",
     ko: "경력",
@@ -71,19 +82,8 @@ export const SECTIONS = [
     accent: "#6f8dff",
   },
   {
-    id: "awards",
-    no: "06",
-    label: "AWARDS",
-    world: "Creation Field",
-    ko: "공모전 · 수상",
-    source: { kind: "world", id: "awards", layout: "certs" },
-    veil: "burst",
-    color: "#ff9fcf",
-    accent: "#ffe0a0",
-  },
-  {
     id: "profile",
-    no: "07",
+    no: "7",
     label: "PROFILE",
     world: "Origin Nebula",
     ko: "프로필",

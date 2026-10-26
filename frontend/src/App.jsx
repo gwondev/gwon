@@ -10,6 +10,7 @@ import MyPage from "./pages/MyPage";
 import SchedulePage from "./pages/SchedulePage";
 import AdminPage from "./pages/AdminPage";
 import BinancePage from "./pages/BinancePage";
+import AiSoonPage from "./pages/AiSoonPage";
 import ScrollToTop from "./components/ScrollToTop";
 import "./styles/cosmic.css";
 
@@ -23,7 +24,8 @@ export default function App() {
     path !== "/schedule" &&
     path !== "/mypage" &&
     path !== "/BINANCE" &&
-    path !== "/binance";
+    path !== "/binance" &&
+    path !== "/ai";
 
   return (
     <div className={`app-shell ${isCosmic ? "cosmic" : ""} ${isHome ? "app-shell--world" : ""}`}>
@@ -47,6 +49,7 @@ export default function App() {
         <Route path="/data" element={<Navigate to="/" replace />} />
         <Route path="/BINANCE" element={<BinancePage />} />
         <Route path="/binance" element={<BinancePage />} />
+        <Route path="/ai" element={<AiSoonPage />} />
         <Route path="/admin/chat" element={<Navigate to="/" replace />} />
         <Route path="*" element={<RootPage />} />
       </Routes>
@@ -56,7 +59,8 @@ export default function App() {
         path !== "/schedule" &&
         path !== "/mypage" &&
         path !== "/BINANCE" &&
-        path !== "/binance" && <ChatWidget />}
+        path !== "/binance" &&
+        path !== "/ai" && <ChatWidget />}
     </div>
   );
 }

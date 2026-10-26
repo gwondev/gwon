@@ -273,13 +273,46 @@
   color: var(--accent);
 }
 
+.portfolio-chat__sub {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
 .portfolio-chat--home {
   display: flex;
   flex-direction: column;
   height: 100%;
   max-height: none;
-  padding: 0.7rem 0.75rem 0.8rem;
-  background: #141416;
+  padding: 0.85rem 0.9rem 0.95rem;
+  background:
+    radial-gradient(120% 160% at 8% -20%, rgba(216, 193, 154, 0.08), transparent 50%),
+    linear-gradient(180deg, #121318, #0b0c10);
+}
+
+.portfolio-chat--home .portfolio-chat__title {
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244, 243, 241, 0.92);
+}
+
+.portfolio-chat--home .portfolio-chat__sub {
+  margin-top: 0.18rem;
+  color: rgba(244, 243, 241, 0.58);
+}
+
+.portfolio-chat--home .portfolio-chat__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border-color: rgba(244, 243, 241, 0.16);
+  color: #f4f3f1;
+}
+
+.portfolio-chat--home .portfolio-chat__example {
+  border-color: rgba(244, 243, 241, 0.18);
+  color: rgba(244, 243, 241, 0.72);
 }
 
 .portfolio-chat--home .portfolio-chat__log {

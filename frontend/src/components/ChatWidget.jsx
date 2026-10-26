@@ -47,13 +47,13 @@ export default function ChatWidget({ home = false }) {
         type="button"
         className={`chat-widget__fab ${open ? "is-open" : ""}`}
         onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "챗봇 닫기" : "AI 챗봇 열기"}
-        whileHover={{ scale: 1.07 }}
+        aria-label={open ? "챗봇 닫기" : "내장 AI 열기"}
+        whileHover={home ? undefined : { scale: 1.07 }}
         whileTap={{ scale: 0.93 }}
       >
-        <span className="chat-widget__ring" aria-hidden />
+        {!home && <span className="chat-widget__ring" aria-hidden />}
         <span className="chat-widget__fab-icon">
-          {open ? "✕" : <IconChat width={home ? 15 : 22} height={home ? 15 : 22} />}
+          {open ? "✕" : <IconChat width={home ? 18 : 22} height={home ? 18 : 22} />}
         </span>
       </motion.button>
     </div>

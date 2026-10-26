@@ -142,8 +142,11 @@ export default function PortfolioChat({ floating = false, home = false, onClose 
       <div className="portfolio-chat__head">
         <div className="portfolio-chat__head-text">
           <span className="portfolio-chat__title">
-            {floating ? "AI 챗봇" : "저에 대해 질문해주세요!!"}
+            {home ? "내장 AI" : floating ? "AI 챗봇" : "저에 대해 질문해주세요!!"}
           </span>
+          {home && (
+            <span className="portfolio-chat__sub">이 사이트의 프로젝트 · 자격증 · 파일을 아는 안내 친구</span>
+          )}
         </div>
         {floating ? (
           <div className="portfolio-chat__head-acts">
@@ -200,17 +203,17 @@ export default function PortfolioChat({ floating = false, home = false, onClose 
             type="button"
             className="portfolio-chat__example"
             disabled={examplesDisabled}
-            onClick={() => askExample("이성권의 강점")}
+            onClick={() => askExample(home ? "자격증이 뭐가 있어?" : "이성권의 강점")}
           >
-            이성권의 강점
+            {home ? "자격증" : "이성권의 강점"}
           </button>
           <button
             type="button"
             className="portfolio-chat__example"
             disabled={examplesDisabled}
-            onClick={() => askExample("자기소개")}
+            onClick={() => askExample(home ? "프로젝트랑 파일은?" : "자기소개")}
           >
-            자기소개
+            {home ? "프로젝트 · 파일" : "자기소개"}
           </button>
         </div>
       )}
