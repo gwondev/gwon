@@ -47,17 +47,18 @@ function sideShift(anchor, aspect) {
 function portraitLift(anchor, aspect) {
   if (aspect >= 1.05) return 0;
   const amt = Math.min(1, (1.05 - aspect) / 0.4);
-  if (anchor === ANCHORS.gateway) return 1.6 * amt;
-  return 4.25 * amt;
+  if (anchor === ANCHORS.gateway) return 2.2 * amt;
+  return 5.5 * amt;
 }
 
 function restPos(anchor, aspect, out, shifted = true) {
   out.copy(anchor.pos);
   if (aspect < 1.6) {
-    const k = THREE.MathUtils.lerp(1, anchor.portrait, Math.min(1, (1.6 - aspect) / 1.05));
+    const extra = aspect < 1.05 ? 0.62 : 0;
+    const k = THREE.MathUtils.lerp(1, anchor.portrait + extra, Math.min(1, (1.6 - aspect) / 1.05));
     out.sub(anchor.look).multiplyScalar(k).add(anchor.look);
   }
-  out.y += portraitLift(anchor, aspect) * 0.78;
+  out.y += portraitLift(anchor, aspect) * 0.9;
   return shifted ? out.addScaledVector(anchor.right, sideShift(anchor, aspect)) : out;
 }
 

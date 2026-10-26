@@ -249,26 +249,24 @@ export default function UniverseExperience() {
         </aside>
       )}
 
-      {!mobile && (
-        <nav className="uv-rail" aria-label="섹션 이동">
-          <RailThumb />
-          {sections.map((s, i) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`uv-rail__stop${i === (snap.active ? snap.to : snap.index) ? " is-on" : ""}`}
-              onClick={() => goTo(i)}
-              aria-current={!snap.active && i === snap.index ? "step" : undefined}
-              aria-label={`${s.no} ${s.label} ${s.ko}`}
-            >
-              <span className="uv-rail__label">
-                <b>{s.no}</b> {s.ko}
-              </span>
-              <i />
-            </button>
-          ))}
-        </nav>
-      )}
+      <nav className="uv-rail" aria-label="섹션 이동">
+        <RailThumb />
+        {sections.map((s, i) => (
+          <button
+            key={s.id}
+            type="button"
+            className={`uv-rail__stop${i === (snap.active ? snap.to : snap.index) ? " is-on" : ""}`}
+            onClick={() => goTo(i)}
+            aria-current={!snap.active && i === snap.index ? "step" : undefined}
+            aria-label={`${s.no} ${s.label} ${s.ko}`}
+          >
+            <span className="uv-rail__label">
+              <b>{s.no}</b> {s.ko}
+            </span>
+            <i />
+          </button>
+        ))}
+      </nav>
 
       <div className="uv-arrows">
         {heading > 0 && (
