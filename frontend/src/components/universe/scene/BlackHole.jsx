@@ -305,6 +305,7 @@ const dustFragment = /* glsl */ `
 
 const _euler = new THREE.Euler();
 const _m4 = new THREE.Matrix4();
+const _ndc = new THREE.Vector3();
 
 export default function BlackHole() {
   const mesh = useRef(null);
@@ -386,6 +387,7 @@ export default function BlackHole() {
     if (dust.current) dust.current.visible = p.visible && !live.reduced;
     if (!p.visible) {
       m.well = 0;
+      live.well = 0;
       return;
     }
 
@@ -407,6 +409,10 @@ export default function BlackHole() {
     const size = state.size;
     const aspect = size.width / Math.max(1, size.height);
     camera.updateMatrixWorld();
+    _ndc.set(0, 0, 0).project(camera);
+    live.holeX = _ndc.x;
+    live.holeY = _ndc.y;
+    live.well = m.well;
 
     const u = material.uniforms;
     u.uInvProj.value.copy(camera.projectionMatrixInverse);

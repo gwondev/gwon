@@ -30,6 +30,9 @@ export const live = {
   pointerX: 0,
   pointerY: 0,
   pointerOn: false,
+  holeX: 0.45,
+  holeY: 0,
+  well: 0,
 };
 
 let ticking = false;

@@ -47,6 +47,39 @@ function RailThumb() {
   return <i className="uv-rail__thumb" ref={ref} aria-hidden="true" />;
 }
 
+function HorizonCursor({ on }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!on) return undefined;
+    let raf = 0;
+    const tick = () => {
+      const el = ref.current;
+      if (el && live.pointerOn) {
+        const root = el.parentElement;
+        const w = root?.clientWidth || window.innerWidth;
+        const h = root?.clientHeight || window.innerHeight;
+        const x = (live.pointerX * 0.5 + 0.5) * w;
+        const y = (-live.pointerY * 0.5 + 0.5) * h;
+        const dx = (live.pointerX - live.holeX) * (w / Math.max(1, h));
+        const dy = live.pointerY - live.holeY;
+        const near = Math.max(0, 1 - Math.hypot(dx, dy) / 0.78);
+        const k = near * near;
+        const blur = live.well * 0.6 + k * 4.2;
+        const fade = 1 - k * 0.32;
+        const scale = 1 - k * 0.16;
+        el.style.opacity = String(Math.max(0.28, fade));
+        el.style.filter = `blur(${blur.toFixed(2)}px)`;
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${scale.toFixed(3)})`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [on]);
+  if (!on) return null;
+  return <i className="uv-horizon-cursor" ref={ref} aria-hidden="true" />;
+}
+
 function indexFromRailY(nav, clientY) {
   const dots = nav.querySelectorAll(".uv-rail__stop i");
   if (!dots.length) return 0;
@@ -215,7 +248,7 @@ export default function UniverseExperience() {
   };
 
   return (
-    <main ref={rootRef} className={`uv${mobile ? " uv--mobile" : ""}${settled ? " is-settled" : " is-warping"}${snap.arriving ? " is-arriving" : ""}${fallback ? " uv--fallback" : ""}${canEdit ? " uv--edit" : ""}`} style={style}>
+    <main ref={rootRef} className={`uv${mobile ? " uv--mobile" : ""}${settled ? " is-settled" : " is-warping"}${snap.arriving ? " is-arriving" : ""}${fallback ? " uv--fallback" : ""}${canEdit ? " uv--edit" : ""}${isGateway && !mobile && !reduced ? " uv--horizon" : ""}`} style={style}>
       <div className="uv-stage">
         {webgl ? (
           <CanvasBoundary onFail={() => setWebgl(false)}>
@@ -466,6 +499,8 @@ export default function UniverseExperience() {
           token={token}
         />
       )}
+
+      <HorizonCursor on={isGateway && !mobile && !reduced} />
     </main>
   );
 }
