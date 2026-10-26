@@ -33,6 +33,7 @@ async function requestOnce(path, { method = "GET", body, token } = {}) {
   if (!res.ok) {
     const err = new Error(data.error || `요청 실패 (${res.status})`);
     err.status = res.status;
+    err.data = data;
     if (data.quota) err.quota = data.quota;
     throw err;
   }

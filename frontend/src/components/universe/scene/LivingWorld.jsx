@@ -321,7 +321,7 @@ export default function LivingWorld({ count }) {
 
   useSectionFrame("activities", group, (state, dt, p) => {
     const t = state.clock.elapsedTime * (live.reduced ? 0.2 : 1);
-    const target = live.focus >= 0 && live.focus < world.spots.length ? live.focus : -1;
+    const target = live.focus >= 0 && world.spots.length ? live.focus % world.spots.length : -1;
     figures.m.uniforms.uTime.value = t;
     figures.m.uniforms.uEnter.value = p.enter;
     figures.m.uniforms.uFocus.value = target;

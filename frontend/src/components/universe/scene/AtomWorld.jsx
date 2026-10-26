@@ -186,7 +186,7 @@ export default function AtomWorld({ count }) {
   useSectionFrame("credentials", group, (state, dt, p) => {
     const calm = live.reduced ? 0.2 : 1;
     const t = state.clock.elapsedTime * calm;
-    const target = live.focus >= 0 && live.focus < k ? live.focus : -1;
+    const target = live.focus >= 0 ? live.focus % k : -1;
     const gather = 0.35 + 0.65 * p.enter;
 
     nucleons.forEach((n, i) => {

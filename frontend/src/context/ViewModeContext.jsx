@@ -1,12 +1,24 @@
 import { createContext, useContext, useState } from "react";
 
-// 관리자가 "사용자 시점"으로 미리보기 할 수 있는 전역 토글 (자격증·활동 등에서 사용)
-const ViewModeContext = createContext({ viewAsUser: false, setViewAsUser: () => {} });
+/**
+ * viewAsUser: true  = 보기 모드 (방문자와 같은 화면). 새로고침하면 항상 이 값으로 시작한다(저장하지 않음).
+ *             false = 슈퍼관리자가 홈에서 명시한 수정 모드. canEdit = isSuperAdmin && !viewAsUser.
+ * editMode:   viewAsUser 의 반대. 구 포트폴리오 페이지의 라디오와 같은 플래그를 쓴다.
+ */
+const ViewModeContext = createContext({
+  viewAsUser: true,
+  setViewAsUser: () => {},
+  editMode: false,
+  setEditMode: () => {},
+});
 
 export function ViewModeProvider({ children }) {
-  const [viewAsUser, setViewAsUser] = useState(false);
+  const [viewAsUser, setViewAsUser] = useState(true);
+  const setEditMode = (on) => setViewAsUser(!on);
   return (
-    <ViewModeContext.Provider value={{ viewAsUser, setViewAsUser }}>
+    <ViewModeContext.Provider
+      value={{ viewAsUser, setViewAsUser, editMode: !viewAsUser, setEditMode }}
+    >
       {children}
     </ViewModeContext.Provider>
   );

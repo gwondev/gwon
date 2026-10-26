@@ -58,14 +58,38 @@ function restLook(anchor, aspect, out) {
 const easeIn = (x) => x * x * x * (0.6 + 0.4 * x);
 const easeOut = (x) => 1 - Math.pow(1 - x, 3.2);
 
+/** 블랙홀로 떨어질 때는 직선이 아니라 원반을 따라 감기며 들어간다. s: 0(바깥)→1(중심). */
+function spiral(out, s, sign) {
+  const ang = sign * 1.15 * Math.pow(s, 1.35);
+  const c = Math.cos(ang);
+  const n = Math.sin(ang);
+  const x = out.x * c - out.z * n;
+  const z = out.x * n + out.z * c;
+  out.x = x;
+  out.z = z;
+  return out;
+}
+
+/** 궤적이 바뀐 순간의 어긋남. 매 프레임 줄어들며 새 궤적으로 합류한다. */
+const offPos = new THREE.Vector3();
+const offLook = new THREE.Vector3();
+let offFov = 0;
+let offRoll = 0;
+let seenSeq = -1;
+let roll = 0;
+const BLEND_RATE = 6.5;
+
 export default function CameraRig() {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
+  if (import.meta.env.DEV && window.__uv) window.__uv.camera = camera;
 
   useFrame((state, dt) => {
     const aspect = size.width / Math.max(1, size.height);
     const t = live.t;
+    const time = state.clock.elapsedTime;
     let fov;
+    let wantRoll = 0;
 
     if (live.active && !live.reduced) {
       if (t < 0.5) {
@@ -76,6 +100,10 @@ export default function CameraRig() {
         _pos.lerpVectors(_a, a.dive, e);
         _look.lerpVectors(_b, a.dive, e * 0.35);
         fov = a.fov + DIVE_FOV * e;
+        if (a === ANCHORS.gateway) {
+          spiral(_pos, e, live.dir);
+          wantRoll = 0.42 * live.dir * Math.pow(e, 1.8);
+        }
       } else {
         const a = anchorOf(live.to);
         const e = easeOut((t - 0.5) / 0.5);
@@ -84,13 +112,44 @@ export default function CameraRig() {
         _pos.lerpVectors(a.inner, _a, e);
         _look.lerpVectors(a.innerLook, _b, Math.min(1, e * 1.25));
         fov = a.fov + DIVE_FOV * (1 - e);
+        if (a === ANCHORS.gateway) {
+          spiral(_pos, 1 - e, -live.dir);
+          wantRoll = -0.42 * live.dir * Math.pow(1 - e, 1.8);
+        }
       }
-      camera.position.copy(_pos);
-      curLook.copy(_look);
+      if (live.seq !== seenSeq) {
+        seenSeq = live.seq;
+        offPos.copy(camera.position).sub(_pos);
+        offLook.copy(curLook).sub(_look);
+        offFov = camera.fov - fov;
+        offRoll = roll - wantRoll;
+      }
+      const k = Math.exp(-dt * BLEND_RATE);
+      offPos.multiplyScalar(k);
+      offLook.multiplyScalar(k);
+      offFov *= k;
+      offRoll *= k;
+      camera.position.copy(_pos).add(offPos);
+      curLook.copy(_look).add(offLook);
+      fov += offFov;
+      roll = wantRoll + offRoll;
     } else {
+      seenSeq = live.seq;
       const a = anchorOf(live.active ? (t < 0.5 ? live.from : live.to) : live.index);
       restPos(a, aspect, _pos, false);
       _look.copy(a.look);
+      if (a === ANCHORS.gateway && !live.reduced) {
+        const az = Math.sin(time * 0.045) * 0.2 + Math.sin(time * 0.11 + 0.7) * 0.05;
+        _pos.sub(a.look);
+        const c = Math.cos(az);
+        const n = Math.sin(az);
+        const x = _pos.x * c - _pos.z * n;
+        _pos.z = _pos.x * n + _pos.z * c;
+        _pos.x = x;
+        _pos.y += Math.sin(time * 0.06 + 0.4) * 0.55;
+        _pos.add(a.look);
+        wantRoll = Math.sin(time * 0.05 + 1.1) * 0.025;
+      }
       if (live.focusPoint && a.focusDist) {
         _dir.copy(_pos).sub(live.focusPoint).normalize();
         _a.copy(live.focusPoint).addScaledVector(_dir, a.focusDist * (aspect < 1 ? a.portrait : 1));
@@ -100,7 +159,6 @@ export default function CameraRig() {
       const s = sideShift(a, aspect);
       _pos.addScaledVector(a.right, s);
       _look.addScaledVector(a.right, s);
-      const time = state.clock.elapsedTime;
       const calm = live.reduced ? 0.15 : 1;
       _pos.x += Math.sin(time * 0.11) * 0.35 * calm + live.pointerX * 0.7 * calm;
       _pos.y += Math.sin(time * 0.09 + 1.2) * 0.22 * calm + live.pointerY * 0.4 * calm;
@@ -112,9 +170,11 @@ export default function CameraRig() {
       curLook.y = damp(curLook.y, _look.y, k, dt);
       curLook.z = damp(curLook.z, _look.z, k, dt);
       fov = damp(camera.fov, a.fov, 4, dt);
+      roll = damp(roll, wantRoll, 3, dt);
     }
 
     camera.lookAt(curLook);
+    if (Math.abs(roll) > 1e-4) camera.rotateZ(roll);
     if (Math.abs(camera.fov - fov) > 0.01) {
       camera.fov = fov;
       camera.updateProjectionMatrix();

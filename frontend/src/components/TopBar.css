@@ -82,6 +82,10 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+.topbar__home.is-editing {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
 .topbar__adminlink span:last-child {
   display: none;
 }

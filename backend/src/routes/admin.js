@@ -148,13 +148,14 @@ const HOME_LAYOUT_DOC = {
   hero: "hero.i=0 — kicker, name, line",
   nav: "nav.i=0 — projects, profile",
   projects: "projects[i].pages[j] — name, left|right {kind, src, caption}",
-  profile: "experience 8칸(2x4), career 4칸, certs 8칸(마지막 기타 자격증)",
+  profile: "experience 16칸, career 8칸, certs 16칸(마지막 기타 자격증), awards 16칸",
 };
 
 function sanitizeHomeLayout(raw) {
   const src = raw && typeof raw === "object" ? raw : {};
   const hero = src.hero && typeof src.hero === "object" ? src.hero : {};
   const nav = src.nav && typeof src.nav === "object" ? src.nav : {};
+  // 프로젝트만 최대 8개. 프로필·월드 항목(자격증·경험 등)은 자르지 않는다.
   const projects = Array.isArray(src.projects) ? src.projects.slice(0, 8) : [];
   const profile = src.profile && typeof src.profile === "object" ? src.profile : { tabs: [] };
   const worlds = src.worlds && typeof src.worlds === "object" ? src.worlds : {};

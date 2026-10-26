@@ -18,6 +18,16 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_EMAILS: ${ADMIN_EMAILS}
+      # SUPER_ADMIN 으로 승격할 이메일 (쉼표 구분). 비어 있으면 자동 승격 없음
+      SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
+      NODE_ENV: production
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://gwon.run}
+      # Google Drive 미니 금고 (SUPER_ADMIN 전용, 서버 시크릿만). 없으면 Drive 연동만 비활성
+      GOOGLE_DRIVE_CLIENT_ID: ${GOOGLE_DRIVE_CLIENT_ID:-}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${GOOGLE_DRIVE_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_REFRESH_TOKEN: ${GOOGLE_DRIVE_REFRESH_TOKEN:-}
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON:-}
+      GOOGLE_DRIVE_ROOT_FOLDER_ID: ${GOOGLE_DRIVE_ROOT_FOLDER_ID:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash}
       # 키가 없어도 배포는 되도록 기본값 지정 (없으면 /BINANCE 잔고 조회만 비활성)

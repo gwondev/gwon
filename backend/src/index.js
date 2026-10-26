@@ -9,6 +9,7 @@ import todosRouter from "./routes/todos.js";
 import techStackRouter from "./routes/tech-stack.js";
 import portfolioRouter from "./routes/portfolio.js";
 import binanceRouter from "./routes/binance.js";
+import driveRouter from "./routes/drive.js";
 import { startNewsDigestScheduler } from "./lib/binance-news.js";
 import { startBotEngine } from "./lib/binance-bot-engine.js";
 import { startCalendarDigestScheduler } from "./lib/discord-calendar.js";
@@ -39,6 +40,7 @@ app.use("/api/todos", todosRouter);
 app.use("/api/tech-stack", techStackRouter);
 app.use("/api/portfolio", portfolioRouter);
 app.use("/api/binance", binanceRouter);
+app.use("/api/drive", driveRouter);
 
 // 공통 에러 핸들러
 app.use((err, _req, res, _next) => {

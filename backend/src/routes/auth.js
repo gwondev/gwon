@@ -8,12 +8,11 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // .env.production -> SUPER_ADMIN_EMAILS / ADMIN_EMAILS (쉼표 구분) 로그인 시 승격
+// 이름은 누구나 바꿀 수 있으므로 승격 근거로 쓰지 않는다 (검증된 이메일만).
 const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS || "")
   .split(",")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
-
-const SUPER_ADMIN_NAMES = ["이성권"];
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .split(",")
@@ -57,12 +56,9 @@ router.post("/google", async (req, res) => {
       [p.sub, p.email, p.name, p.picture]
     );
 
-    // SUPER_ADMIN_EMAILS / 이름 → SUPER_ADMIN, ADMIN_EMAILS → ADMIN (강등하지 않음)
-    const email = p.email?.toLowerCase();
-    const name = String(p.name || "").trim();
+    // SUPER_ADMIN_EMAILS → SUPER_ADMIN, ADMIN_EMAILS → ADMIN (email_verified 필수, 강등하지 않음)
+    const email = p.email_verified === true ? p.email?.trim().toLowerCase() : null;
     if (email && SUPER_ADMIN_EMAILS.includes(email)) {
-      await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [p.sub]);
-    } else if (SUPER_ADMIN_NAMES.some((n) => name.includes(n))) {
       await pool.query("UPDATE users SET role = 'SUPER_ADMIN' WHERE google_sub = ?", [p.sub]);
     } else if (email && ADMIN_EMAILS.includes(email)) {
       await pool.query(

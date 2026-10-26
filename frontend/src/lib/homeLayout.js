@@ -11,17 +11,17 @@ export const HOME_LAYOUT_KEY = "gwon.homeLayout";
  * projects[i]             id, no, title, subtitle, description, pages
  * projects[i].pages[j]    i, name, left, right
  * pages[j].left|right     kind(image|video), src, caption
- * profile.tabs[k]         i, id, label, one, items (experience 8, career 4, certs 8)
+ * profile.tabs[k]         i, id, label, one, items (experience 16, career 8, certs 16)
  * profile.tabs[k].items[n] i, id, title, subtitle, description  (certs 마지막 = 기타 자격증)
  */
 export const HOME_LAYOUT_DOC = {
   hero: "hero.i=0 — kicker, name, line",
   nav: "nav.i=0 — projects, profile",
   projects: "projects[i].pages[j] — name, left|right {kind, src, caption}",
-  profile: "experience 8칸(2x4), career 4칸, certs 8칸(마지막 기타 자격증)",
+  profile: "experience 16칸, career 8칸, certs 16칸(마지막 기타 자격증), awards 16칸",
 };
 
-export const PROFILE_SLOTS = { experience: 8, career: 4, certs: 8, profile: 4, infrastructure: 8, awards: 8 };
+export const PROFILE_SLOTS = { experience: 16, career: 8, certs: 16, profile: 4, infrastructure: 8, awards: 16 };
 
 function str(v, fallback = "") {
   return v == null ? fallback : String(v);

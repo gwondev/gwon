@@ -1,9 +1,13 @@
 import { useEffect } from "react";
 import { goTo, live, step } from "./director.js";
 
-const WHEEL_TRIGGER = 36;
-const WHEEL_GESTURE_IDLE_MS = 220;
-const SWIPE_MIN = 52;
+const GESTURE_GAP_MS = 170;
+const NOTCH_MIN = 40;
+const PAD_STREAM_MS = 12;
+const PAD_TRIGGER = 26;
+const PAD_REPEAT_MS = 200;
+const ISOLATED_TICK_MS = 140;
+const SWIPE_MIN = 46;
 const SWIPE_MAX_MS = 900;
 const IGNORE = ".chat-widget, .chat-widget__scrim, .topbar, .side-drawer, [data-no-nav]";
 
@@ -20,13 +24,71 @@ function isTyping(el) {
 }
 
 /**
- * 휠 한 제스처 = 한 섹션. 제스처가 끝날 때까지(입력이 잠깐 멈출 때까지) 나머지 휠은 버린다.
- * 트랙패드 관성처럼 길게 이어지는 입력도 한 번으로 친다.
+ * 휠 이벤트를 "몇 칸 이동"으로 읽는다. 장치마다 이벤트 수·크기가 달라서 제스처마다 성격을 판별한다.
+ *  - notch: 마우스 휠처럼 띄엄띄엄 오는 큰 값(또는 줄/페이지 단위). 한 칸 = 한 이동.
+ *  - pad:   트랙패드·고해상도 휠처럼 촘촘한 작은 값의 흐름. 누적이 문턱을 넘으면 한 번 이동하고,
+ *           관성 꼬리는 무시하되 손가락으로 다시 밀어 값이 확 커지면 새 이동으로 본다.
+ * 한 이벤트는 아무리 커도 최대 한 칸이다. 칸 수는 목적지에 더해질 뿐 애니메이션을 늘리지 않는다.
  */
+export function createWheelReader(onStep) {
+  const s = { last: -1e9, dir: 0, kind: "", acc: 0, stepped: false, lastStep: -1e9, hist: [], timer: 0 };
+  return (px, mode, now) => {
+    const abs = Math.abs(px);
+    const dir = px > 0 ? 1 : -1;
+    const gap = now - s.last;
+    let fresh = gap > GESTURE_GAP_MS || dir !== s.dir;
+    if (!fresh && s.kind === "pad" && s.stepped && now - s.lastStep > PAD_REPEAT_MS && s.hist.length >= 3) {
+      const prev = s.hist.slice(-4);
+      const avg = prev.reduce((a, b) => a + b, 0) / prev.length;
+      if (abs > Math.max(10, avg * 1.8)) fresh = true;
+    }
+    if (fresh) {
+      s.acc = 0;
+      s.stepped = false;
+      s.hist.length = 0;
+      s.kind = mode !== 0 || abs >= NOTCH_MIN ? "notch" : "pad";
+    } else if (s.kind === "notch" && mode === 0 && (abs < NOTCH_MIN || gap < PAD_STREAM_MS)) {
+      s.kind = "pad";
+      s.stepped = true;
+    }
+    s.last = now;
+    s.dir = dir;
+    s.hist.push(abs);
+    if (s.hist.length > 8) s.hist.shift();
+
+    if (s.kind === "notch") {
+      s.stepped = true;
+      s.lastStep = now;
+      onStep(dir);
+      return;
+    }
+    if (s.stepped) return;
+    s.acc += abs;
+    if (s.acc >= PAD_TRIGGER) {
+      s.stepped = true;
+      s.lastStep = now;
+      window.clearTimeout(s.timer);
+      onStep(dir);
+      return;
+    }
+    if (fresh) {
+      // 맥 마우스처럼 작은 값이 띄엄띄엄 오는 휠: 뒤따르는 흐름이 없으면 한 틱도 한 칸이다.
+      const gesture = now;
+      window.clearTimeout(s.timer);
+      s.timer = window.setTimeout(() => {
+        if (s.stepped || s.hist.length > 2 || s.last - gesture > ISOLATED_TICK_MS) return;
+        s.stepped = true;
+        s.lastStep = gesture;
+        onStep(s.dir);
+      }, ISOLATED_TICK_MS);
+    }
+  };
+}
+
 export function useUniverseInput(enabled = true) {
   useEffect(() => {
     if (!enabled) return undefined;
-    const wheel = { acc: 0, last: 0, locked: false };
+    const readWheel = createWheelReader(step);
     const touch = { y: 0, x: 0, at: 0, skip: false };
 
     const onWheel = (e) => {
@@ -34,25 +96,11 @@ export function useUniverseInput(enabled = true) {
       const target = e.target;
       if (target?.closest?.(IGNORE) || target?.closest?.("[data-modal]")) return;
       if (target?.closest?.("[contenteditable='true']")) return;
-      const px = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 800 : e.deltaY;
+      const px = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * window.innerHeight : e.deltaY;
       if (!px) return;
-      const dir = px > 0 ? 1 : -1;
-      if (canScroll(target, dir)) return;
+      if (canScroll(target, px > 0 ? 1 : -1)) return;
       e.preventDefault();
-
-      const now = performance.now();
-      if (now - wheel.last > WHEEL_GESTURE_IDLE_MS) {
-        wheel.locked = false;
-        wheel.acc = 0;
-      }
-      wheel.last = now;
-      if (wheel.locked) return;
-      if (Math.sign(wheel.acc) !== dir) wheel.acc = 0;
-      wheel.acc += px;
-      if (Math.abs(wheel.acc) < WHEEL_TRIGGER && e.deltaMode === 0) return;
-      wheel.locked = true;
-      wheel.acc = 0;
-      step(dir);
+      readWheel(px, e.deltaMode, e.timeStamp || performance.now());
     };
 
     const onTouchStart = (e) => {

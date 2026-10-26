@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from "react";
 import { blankPage } from "../../../lib/homeLayout.js";
 import Field from "./Field.jsx";
 import MediaPages from "./MediaPages.jsx";
+import { VaultButton, driveKindOf } from "../drive/DriveStore.jsx";
 
 export function sectionOne(section, home) {
   const src = section.source;
@@ -21,12 +23,20 @@ export function patchItem(section, home, id, fields) {
   else if (src.kind === "world") home.patchWorldItem(src.id, id, fields);
 }
 
-export function HeroBlock({ home, canEdit, onEnter }) {
+export function HeroBlock({ home, canEdit, onEnter, showVault, onOpenVault }) {
   const hero = home.hero || {};
   const title = hero.name || hero.line;
   return (
     <section className={`uv-hero${canEdit ? " is-editing" : ""}`} aria-label="소개">
-      <Field className="uv-hero__kicker" value={hero.kicker} canEdit={canEdit} placeholder="KICKER" onSave={(kicker) => home.patchHero({ kicker })} />
+      <div className="uv-hero__kickrow">
+        <Field className="uv-hero__kicker" value={hero.kicker} canEdit={canEdit} placeholder="KICKER" onSave={(kicker) => home.patchHero({ kicker })} />
+        {showVault && (
+          <VaultButton
+            label="히어로 Drive 금고"
+            onClick={() => onOpenVault?.({ contentKind: "hero", contentId: "", title: hero.name || hero.line || "GATEWAY" })}
+          />
+        )}
+      </div>
       {canEdit ? (
         <>
           <Field tag="h1" className="uv-hero__title" value={hero.name} canEdit placeholder="이름" onSave={(name) => home.patchHero({ name })} />
@@ -70,14 +80,25 @@ export function ProjectPicker({ projects, focus, onPick, className = "" }) {
   );
 }
 
-export function ProjectDetail({ project, home, canEdit }) {
+export function ProjectDetail({ project, home, canEdit, showVault, onOpenVault }) {
   if (!project) return null;
   const pages = project.pages?.length ? project.pages : [blankPage(0)];
   const meta = [project.period, project.role].filter(Boolean);
+  const openVault = () => onOpenVault?.({ contentKind: "project", contentId: project.id, title: project.title });
   return (
-    <article className="uv-project">
+    <article
+      className="uv-project"
+      onClick={(e) => {
+        if (showVault && (e.altKey || e.metaKey)) {
+          e.preventDefault();
+          e.stopPropagation();
+          openVault();
+        }
+      }}
+    >
       <header className="uv-project__head">
         <span className="uv-project__no">PROJECT {project.no}</span>
+        {showVault && <VaultButton label={`${project.title || "프로젝트"} Drive 금고`} onClick={openVault} />}
         <Field tag="h2" className="uv-project__title" value={project.title} canEdit={canEdit} placeholder="프로젝트 이름" onSave={(title) => home.patchProject(project.id, { title })} />
         <Field className="uv-project__sub" value={project.subtitle} canEdit={canEdit} placeholder="부제" onSave={(subtitle) => home.patchProject(project.id, { subtitle })} />
         {meta.length > 0 && <p className="uv-project__meta">{meta.join(" · ")}</p>}
@@ -111,7 +132,19 @@ export function ProjectDetail({ project, home, canEdit }) {
   );
 }
 
-export function ItemsList({ section, home, items, canEdit, focus, onPick }) {
+export function ItemsList({ section, home, items, canEdit, focus, onPick, showVault, onOpenVault }) {
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    setQuery("");
+  }, [section.id]);
+
+  const indexed = useMemo(() => items.map((it, i) => ({ it, i })), [items]);
+  const q = query.trim().toLowerCase();
+  const shown = q
+    ? indexed.filter(({ it }) => `${it.title || ""} ${it.subtitle || ""} ${it.description || ""}`.toLowerCase().includes(q))
+    : indexed;
+  const kind = driveKindOf(section);
+
   if (!items.length) {
     return (
       <div className="uv-empty">
@@ -120,54 +153,88 @@ export function ItemsList({ section, home, items, canEdit, focus, onPick }) {
       </div>
     );
   }
+
   return (
-    <ol className={`uv-items uv-items--${section.source.layout || "experience"}`}>
-      {items.map((it, i) => {
-        const on = focus === i;
-        return (
-          <li key={it.id} className={on ? "is-on" : ""}>
-            <div
-              className="uv-item"
-              role={canEdit ? undefined : "button"}
-              tabIndex={canEdit ? undefined : 0}
-              aria-expanded={canEdit ? undefined : on}
-              onClick={() => {
-                if (!canEdit) onPick(on ? -1 : i);
-              }}
-              onKeyDown={(e) => {
-                if (canEdit) return;
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onPick(on ? -1 : i);
-                }
-              }}
-            >
-              <span className="uv-item__idx">{String(i + 1).padStart(2, "0")}</span>
-              <div className="uv-item__body">
-                <Field tag="b" className="uv-item__title" value={it.title} canEdit={canEdit} placeholder="제목" onSave={(title) => patchItem(section, home, it.id, { title })} />
-                <Field tag="span" className="uv-item__sub" value={it.subtitle} canEdit={canEdit} placeholder="기간 · 부제" onSave={(subtitle) => patchItem(section, home, it.id, { subtitle })} />
-                {(canEdit || on) && (
-                  <Field
-                    tag="p"
-                    className="uv-item__desc"
-                    value={it.description || (canEdit ? "" : "등록된 세부 설명이 없습니다.")}
-                    canEdit={canEdit}
-                    multiline
-                    placeholder="설명"
-                    onSave={(description) => patchItem(section, home, it.id, { description })}
-                  />
-                )}
-              </div>
-              {canEdit && (
-                <button type="button" className="uv-item__focus" onClick={() => onPick(on ? -1 : i)} aria-label="3D 위치 보기">
-                  ◎
-                </button>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="uv-items-wrap">
+      {items.length > 8 && (
+        <label className="uv-items__filter" data-no-nav>
+          <span>FILTER</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="검색"
+            aria-label={`${section.ko} 검색`}
+          />
+        </label>
+      )}
+      {shown.length === 0 ? (
+        <div className="uv-empty">
+          <span className="uv-empty__code">NO MATCH</span>
+          <p>해당하는 {section.ko}가 없습니다.</p>
+        </div>
+      ) : (
+        <ol className={`uv-items uv-items--${section.source.layout || "experience"}`}>
+          {shown.map(({ it, i }) => {
+            const on = focus === i;
+            const openVault = () => onOpenVault?.({ contentKind: kind, contentId: it.id, title: it.title });
+            return (
+              <li key={it.id} className={on ? "is-on" : ""}>
+                <div
+                  className="uv-item"
+                  role={canEdit ? undefined : "button"}
+                  tabIndex={canEdit ? undefined : 0}
+                  aria-expanded={canEdit ? undefined : on}
+                  onClick={(e) => {
+                    if (showVault && (e.altKey || e.metaKey)) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openVault();
+                      return;
+                    }
+                    if (!canEdit) onPick(on ? -1 : i);
+                  }}
+                  onKeyDown={(e) => {
+                    if (canEdit) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onPick(on ? -1 : i);
+                    }
+                  }}
+                >
+                  <span className="uv-item__idx">{String(i + 1).padStart(2, "0")}</span>
+                  <div className="uv-item__body">
+                    <Field tag="b" className="uv-item__title" value={it.title} canEdit={canEdit} placeholder="제목" onSave={(title) => patchItem(section, home, it.id, { title })} />
+                    <Field tag="span" className="uv-item__sub" value={it.subtitle} canEdit={canEdit} placeholder="기간 · 부제" onSave={(subtitle) => patchItem(section, home, it.id, { subtitle })} />
+                    {(canEdit || on) && (
+                      <Field
+                        tag="p"
+                        className="uv-item__desc"
+                        value={it.description || (canEdit ? "" : "등록된 세부 설명이 없습니다.")}
+                        canEdit={canEdit}
+                        multiline
+                        placeholder="설명"
+                        onSave={(description) => patchItem(section, home, it.id, { description })}
+                      />
+                    )}
+                  </div>
+                  {(canEdit || showVault) && (
+                    <div className="uv-item__actions">
+                      {showVault && <VaultButton label={`${it.title || "항목"} Drive 금고`} onClick={openVault} />}
+                      {canEdit && (
+                        <button type="button" className="uv-item__focus" onClick={() => onPick(on ? -1 : i)} aria-label="3D 위치 보기">
+                          ◎
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
   );
 }

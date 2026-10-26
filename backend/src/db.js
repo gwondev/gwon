@@ -334,6 +334,86 @@ const SCHEMA = [
     INDEX idx_todo_owner_done (owner_id, done),
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // ── Google Drive 연동 ──────────────────────────────────────────────
+  // 연결된 Drive 계정(싱글턴). refresh token 은 AES-256-GCM 으로 암호화 저장.
+  `CREATE TABLE IF NOT EXISTS drive_credentials (
+    id INT PRIMARY KEY DEFAULT 1,
+    connected_by INT NULL,
+    google_email VARCHAR(255) NULL,
+    scopes TEXT NULL,
+    refresh_token_enc TEXT NOT NULL,
+    connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // Drive 파일/폴더 메타데이터 미러. 동기화는 행을 지우지 않고 status 로만 구분한다.
+  `CREATE TABLE IF NOT EXISTS drive_resources (
+    drive_id VARCHAR(128) PRIMARY KEY,
+    parent_id VARCHAR(128) NULL,
+    name VARCHAR(512) NULL,
+    mime_type VARCHAR(255) NULL,
+    is_folder TINYINT(1) NOT NULL DEFAULT 0,
+    size BIGINT NULL,
+    modified_time VARCHAR(40) NULL,
+    owner_email VARCHAR(255) NULL,
+    web_view_link VARCHAR(1024) NULL,
+    icon_link VARCHAR(1024) NULL,
+    has_thumbnail TINYINT(1) NOT NULL DEFAULT 0,
+    trashed TINYINT(1) NOT NULL DEFAULT 0,
+    status ENUM('ok','pending','trashed','missing','forbidden','error') NOT NULL DEFAULT 'pending',
+    last_error TEXT NULL,
+    last_checked_at TIMESTAMP NULL,
+    first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_drive_res_parent (parent_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // 포트폴리오 콘텐츠 ↔ Drive 폴더/파일 매핑. Drive 파일이 사라져도 행은 지우지 않는다.
+  `CREATE TABLE IF NOT EXISTS drive_links (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    content_kind VARCHAR(32) NOT NULL,
+    content_id VARCHAR(191) NOT NULL DEFAULT '',
+    folder_id VARCHAR(128) NULL,
+    file_id VARCHAR(128) NULL,
+    role VARCHAR(32) NOT NULL DEFAULT 'folder',
+    name VARCHAR(512) NULL,
+    mime VARCHAR(255) NULL,
+    modified_at VARCHAR(40) NULL,
+    sync_status ENUM('ok','pending','syncing','error','missing','forbidden','conflict') NOT NULL DEFAULT 'pending',
+    sync_error TEXT NULL,
+    last_seen_at TIMESTAMP NULL,
+    last_sync_at TIMESTAMP NULL,
+    content_key VARCHAR(191) NULL,
+    drive_id VARCHAR(128) NULL,
+    note VARCHAR(255) NULL,
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_drive_link_kind (content_kind, content_id, role),
+    INDEX idx_drive_link_folder (folder_id),
+    INDEX idx_drive_link_file (file_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS drive_sync_state (
+    id INT PRIMARY KEY DEFAULT 1,
+    page_token VARCHAR(255) NULL,
+    start_page_token VARCHAR(255) NULL,
+    status ENUM('idle','running','ok','error') NOT NULL DEFAULT 'idle',
+    last_sync_at TIMESTAMP NULL,
+    last_full_check_at TIMESTAMP NULL,
+    last_error TEXT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS drive_sync_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    kind VARCHAR(32) NOT NULL,
+    drive_id VARCHAR(128) NULL,
+    name VARCHAR(512) NULL,
+    detail TEXT NULL,
+    INDEX idx_drive_log_at (at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 async function seedDefaultSettings(conn) {
@@ -365,12 +445,20 @@ async function seedDefaultSettings(conn) {
   }
 }
 
+// SUPER_ADMIN_EMAILS 에 명시된 이메일만 승격한다 (이름 기반 승격 금지, 강등하지 않음)
 async function ensureOwnerSuperAdmin(conn) {
+  const emails = (process.env.SUPER_ADMIN_EMAILS || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (!emails.length) return;
   const [result] = await conn.query(
-    "UPDATE users SET role = 'SUPER_ADMIN' WHERE TRIM(name) = '이성권' OR name LIKE '%이성권%'"
+    `UPDATE users SET role = 'SUPER_ADMIN'
+     WHERE LOWER(TRIM(email)) IN (?) AND role <> 'SUPER_ADMIN'`,
+    [emails]
   );
   if (result.affectedRows > 0) {
-    console.log(`[db] promoted ${result.affectedRows} user(s) → SUPER_ADMIN (이성권)`);
+    console.log(`[db] promoted ${result.affectedRows} user(s) → SUPER_ADMIN (SUPER_ADMIN_EMAILS)`);
   }
 }
 
@@ -419,12 +507,30 @@ async function runMigrations(conn) {
     "ALTER TABLE binance_income_ledger DROP INDEX uniq_tran",
     "ALTER TABLE binance_income_ledger ADD UNIQUE KEY uniq_tran_type (binance_tran_id, income_type)",
     "ALTER TABLE calendar_events ADD COLUMN is_done TINYINT(1) NOT NULL DEFAULT 0 AFTER income_type",
+    // Drive 미니 금고: 기존 drive_links / drive_sync_state 에 컬럼만 추가 (DROP 금지)
+    "ALTER TABLE drive_links ADD COLUMN content_kind VARCHAR(32) NOT NULL DEFAULT 'root'",
+    "ALTER TABLE drive_links ADD COLUMN content_id VARCHAR(191) NOT NULL DEFAULT ''",
+    "ALTER TABLE drive_links ADD COLUMN folder_id VARCHAR(128) NULL",
+    "ALTER TABLE drive_links ADD COLUMN file_id VARCHAR(128) NULL",
+    "ALTER TABLE drive_links ADD COLUMN name VARCHAR(512) NULL",
+    "ALTER TABLE drive_links ADD COLUMN mime VARCHAR(255) NULL",
+    "ALTER TABLE drive_links ADD COLUMN modified_at VARCHAR(40) NULL",
+    "ALTER TABLE drive_links ADD COLUMN sync_status ENUM('ok','pending','syncing','error','missing','forbidden','conflict') NOT NULL DEFAULT 'pending'",
+    "ALTER TABLE drive_links ADD COLUMN sync_error TEXT NULL",
+    "ALTER TABLE drive_links ADD COLUMN last_seen_at TIMESTAMP NULL",
+    "ALTER TABLE drive_links ADD COLUMN last_sync_at TIMESTAMP NULL",
+    "ALTER TABLE drive_links ADD UNIQUE KEY uniq_drive_link_kind (content_kind, content_id, role)",
+    "ALTER TABLE drive_links ADD INDEX idx_drive_link_folder (folder_id)",
+    "ALTER TABLE drive_links ADD INDEX idx_drive_link_file (file_id)",
+    "ALTER TABLE drive_sync_state ADD COLUMN page_token VARCHAR(255) NULL",
+    "ALTER TABLE drive_links MODIFY COLUMN drive_id VARCHAR(128) NULL",
+    "ALTER TABLE drive_links MODIFY COLUMN content_key VARCHAR(191) NULL",
   ];
   for (const sql of migrations) {
     try {
       await conn.query(sql);
     } catch (err) {
-      if (!["ER_DUP_FIELDNAME", "ER_CANT_DROP_FIELD_OR_KEY", "ER_DUP_KEYNAME"].includes(err.code)) {
+      if (!["ER_DUP_FIELDNAME", "ER_CANT_DROP_FIELD_OR_KEY", "ER_DUP_KEYNAME", "ER_DUP_ENTRY"].includes(err.code)) {
         console.warn(`[db] migration skipped: ${err.code || err.message}`);
       }
     }

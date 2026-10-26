@@ -8,6 +8,7 @@ import { dispose, getSnapshot, goTo, jump, live, setEnv, setFocus, setSections, 
 import { useUniverseInput } from "./useUniverseInput.js";
 import { HeroBlock, ItemsList, ProjectDetail, ProjectPicker, patchOne, sectionOne } from "./content/Panels.jsx";
 import Field from "./content/Field.jsx";
+import DriveStore from "./drive/DriveStore.jsx";
 import "./UniverseExperience.css";
 
 const UniverseCanvas = lazy(() => import("./scene/UniverseCanvas.jsx"));
@@ -51,15 +52,18 @@ function useMedia(query) {
 }
 
 export default function UniverseExperience() {
-  const { isSuperAdmin } = useAuth();
-  const { viewAsUser } = useViewMode();
+  const { isSuperAdmin, token } = useAuth();
+  const { viewAsUser, setViewAsUser } = useViewMode();
   const home = useHomeLayout();
   const canEdit = isSuperAdmin && !viewAsUser;
+  // 방문자에게는 안 보임. 일반 클릭은 그대로 포커스/펼침. 금고는 아이콘·Alt+클릭만.
+  const showVault = isSuperAdmin;
   const mobile = useMedia("(max-width: 767px)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const [webgl, setWebgl] = useState(() => hasWebGL());
   const [sheet, setSheet] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [vault, setVault] = useState(null);
 
   const sections = useMemo(() => visibleSections(home, canEdit), [home, canEdit]);
   const ids = useMemo(() => sections.map((s) => s.id), [sections]);
@@ -90,6 +94,7 @@ export default function UniverseExperience() {
 
   const snap = useSyncExternalStore(subscribe, getSnapshot);
   const shownIndex = snap.active ? (snap.arriving ? snap.to : snap.from) : snap.index;
+  const heading = snap.active ? snap.target : snap.index;
   const section = sections[shownIndex] || sections[0];
   const settled = !snap.active;
 
@@ -115,7 +120,7 @@ export default function UniverseExperience() {
     [lists]
   );
 
-  useUniverseInput(!sheet && !menu);
+  useUniverseInput(!sheet && !menu && !vault);
 
   useEffect(() => {
     if (!settled) {
@@ -149,7 +154,7 @@ export default function UniverseExperience() {
   const style = { "--uv-color": section?.color, "--uv-accent": section?.accent };
 
   return (
-    <main className={`uv${mobile ? " uv--mobile" : ""}${settled ? " is-settled" : " is-warping"}${snap.arriving ? " is-arriving" : ""}${fallback ? " uv--fallback" : ""}`} style={style}>
+    <main className={`uv${mobile ? " uv--mobile" : ""}${settled ? " is-settled" : " is-warping"}${snap.arriving ? " is-arriving" : ""}${fallback ? " uv--fallback" : ""}${canEdit ? " uv--edit" : ""}`} style={style}>
       <div className="uv-stage">
         {webgl ? (
           <CanvasBoundary onFail={() => setWebgl(false)}>
@@ -173,16 +178,27 @@ export default function UniverseExperience() {
           <span>{settled ? "STABLE ORBIT" : "WARP"}</span>
           <span className="uv-hud__sep" />
           <span>
-            SECTOR {section?.no} / {String(total - 1).padStart(2, "0")}
+            SECTOR {settled ? section?.no : `${section?.no} → ${sections[heading]?.no ?? ""}`} / {String(total - 1).padStart(2, "0")}
           </span>
         </div>
       </div>
+
+      {canEdit && (
+        <div className="uv-hud__edit" role="status" data-no-nav>
+          <span>EDIT MODE</span>
+          <button type="button" onClick={() => setViewAsUser(true)}>
+            EXIT
+          </button>
+        </div>
+      )}
 
       <p className="uv-sr" aria-live="polite">
         {settled && section ? `${section.label} — ${section.ko}` : ""}
       </p>
 
-      {isGateway && settled && <HeroBlock home={home} canEdit={canEdit} onEnter={() => step(1)} />}
+      {isGateway && settled && (
+        <HeroBlock home={home} canEdit={canEdit} onEnter={() => step(1)} showVault={showVault} onOpenVault={setVault} />
+      )}
 
       {!isGateway && section && (
         <header className="uv-title" key={section.id} style={{ "--len": Math.max(6, (tabLabel || section.label).length) }}>
@@ -207,9 +223,9 @@ export default function UniverseExperience() {
       {!mobile && !isGateway && section && (
         <aside className="uv-panel" data-ui-scroll aria-label={`${section.ko} 내용`} key={`p-${section.id}`}>
           {isProjects ? (
-            <ProjectDetail project={project} home={home} canEdit={canEdit} />
+            <ProjectDetail project={project} home={home} canEdit={canEdit} showVault={showVault} onOpenVault={setVault} />
           ) : (
-            <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} />
+            <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} showVault={showVault} onOpenVault={setVault} />
           )}
         </aside>
       )}
@@ -220,7 +236,7 @@ export default function UniverseExperience() {
             <button
               key={s.id}
               type="button"
-              className={`uv-rail__stop${i === shownIndex ? " is-on" : ""}${snap.active && i === snap.to ? " is-target" : ""}`}
+              className={`uv-rail__stop${i === shownIndex ? " is-on" : ""}${snap.active && i === snap.target ? " is-target" : ""}`}
               onClick={() => goTo(i)}
               aria-current={i === shownIndex ? "step" : undefined}
               aria-label={`${s.no} ${s.label} ${s.ko}`}
@@ -236,13 +252,13 @@ export default function UniverseExperience() {
 
       {!mobile && (
         <div className="uv-controls">
-          <button type="button" onClick={() => step(-1)} disabled={shownIndex <= 0} aria-label="이전 섹션">
+          <button type="button" onClick={() => step(-1)} disabled={heading <= 0} aria-label="이전 섹션">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 15l6-6 6 6" />
             </svg>
           </button>
           <span className="uv-controls__hint">{isGateway ? "SCROLL TO ENTER" : "SCROLL · ↑ ↓"}</span>
-          <button type="button" onClick={() => step(1)} disabled={shownIndex >= total - 1} aria-label="다음 섹션">
+          <button type="button" onClick={() => step(1)} disabled={heading >= total - 1} aria-label="다음 섹션">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 9l6 6 6-6" />
             </svg>
@@ -301,9 +317,9 @@ export default function UniverseExperience() {
                 </div>
                 <div className="uv-sheet__body" data-ui-scroll>
                   {isProjects ? (
-                    <ProjectDetail project={project} home={home} canEdit={canEdit} />
+                    <ProjectDetail project={project} home={home} canEdit={canEdit} showVault={showVault} onOpenVault={setVault} />
                   ) : (
-                    <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} />
+                    <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} showVault={showVault} onOpenVault={setVault} />
                   )}
                 </div>
               </div>
@@ -344,6 +360,17 @@ export default function UniverseExperience() {
             document.body
           )}
         </>
+      )}
+
+      {isSuperAdmin && (
+        <DriveStore
+          open={Boolean(vault)}
+          onClose={() => setVault(null)}
+          contentKind={vault?.contentKind}
+          contentId={vault?.contentId}
+          contentTitle={vault?.title}
+          token={token}
+        />
       )}
     </main>
   );

@@ -10,7 +10,7 @@ import "./TopBar.css";
 const VIEWMODE_PATHS = ["/certifications", "/activities", "/competitions", "/projects", "/career"];
 
 export default function TopBar() {
-  const { user, isAuthed, isAdmin } = useAuth();
+  const { user, isAuthed, isAdmin, isSuperAdmin } = useAuth();
   const { viewAsUser, setViewAsUser } = useViewMode();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -18,6 +18,16 @@ export default function TopBar() {
   const location = useLocation();
   const showViewMode = isAdmin && VIEWMODE_PATHS.includes(location.pathname);
   const isSchedule = location.pathname === "/schedule";
+  const onHome = location.pathname === "/";
+  const homeEditing = onHome && isSuperAdmin && !viewAsUser;
+
+  const handleHome = () => {
+    if (!onHome) {
+      navigate("/");
+      return;
+    }
+    if (isSuperAdmin) setViewAsUser((v) => !v);
+  };
 
   useEffect(() => {
     if (isSchedule) {
@@ -56,10 +66,22 @@ export default function TopBar() {
           <div className="topbar__adminlinks">
             <button
               type="button"
-              className={`topbar__adminlink topbar__home ${location.pathname === "/" ? "is-active" : ""}`}
-              onClick={() => navigate("/")}
-              aria-label="홈"
-              title="홈"
+              className={`topbar__adminlink topbar__home ${location.pathname === "/" ? "is-active" : ""}${homeEditing ? " is-editing" : ""}`}
+              onClick={handleHome}
+              aria-label={
+                onHome && isSuperAdmin
+                  ? homeEditing
+                    ? "홈 · 수정 모드 종료"
+                    : "홈 · 다시 누르면 수정 모드"
+                  : "홈"
+              }
+              title={
+                onHome && isSuperAdmin
+                  ? homeEditing
+                    ? "수정 모드 종료"
+                    : "홈 (다시 누르면 수정 모드)"
+                  : "홈"
+              }
             >
               <IconHome width={15} height={15} />
             </button>

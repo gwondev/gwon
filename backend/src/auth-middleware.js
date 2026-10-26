@@ -3,6 +3,19 @@ import pool from "./db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
+if (!process.env.JWT_SECRET) {
+  console.warn(
+    "\n[auth] ⚠️⚠️⚠️ JWT_SECRET 이 설정되지 않아 개발용 기본값을 사용합니다. " +
+      "누구나 관리자 토큰을 위조할 수 있습니다. 운영 환경에서는 반드시 JWT_SECRET 을 설정하세요.\n"
+  );
+} else if (process.env.NODE_ENV === "production" && JWT_SECRET.length < 32) {
+  console.warn("[auth] ⚠️ 운영 환경의 JWT_SECRET 이 32자 미만입니다. 더 긴 랜덤 값을 권장합니다.");
+}
+
+export function getJwtSecret() {
+  return JWT_SECRET;
+}
+
 export function signToken(user) {
   return jwt.sign({ uid: user.id, sub: user.google_sub }, JWT_SECRET, {
     expiresIn: "30d",

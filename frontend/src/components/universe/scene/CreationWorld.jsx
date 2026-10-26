@@ -166,7 +166,7 @@ export default function CreationWorld({ count }) {
 
   useSectionFrame("awards", group, (state, dt, p) => {
     const t = state.clock.elapsedTime * (live.reduced ? 0.2 : 1);
-    const target = live.focus >= 0 && live.focus < k ? live.focus : -1;
+    const target = live.focus >= 0 ? live.focus % k : -1;
     filaments.m.uniforms.uTime.value = t;
     filaments.m.uniforms.uEnter.value = p.enter;
     dust.m.uniforms.uTime.value = t;

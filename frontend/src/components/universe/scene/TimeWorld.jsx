@@ -187,7 +187,7 @@ export default function TimeWorld({ count }) {
 
   useSectionFrame("career", group, (state, dt, p) => {
     const t = state.clock.elapsedTime * (live.reduced ? 0.2 : 1);
-    const target = live.focus >= 0 && live.focus < k ? live.focus : -1;
+    const target = live.focus >= 0 ? live.focus % k : -1;
     helix.m.uniforms.uTime.value = t;
     helix.m.uniforms.uEnter.value = p.enter;
     flow.m.uniforms.uTime.value = t;
