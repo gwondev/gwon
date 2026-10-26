@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useViewMode } from "../context/ViewModeContext";
 import SideDrawer from "./SideDrawer";
-import { IconHome, IconCalendar } from "./ActionIcons";
+import { IconHome } from "./ActionIcons";
 import "./TopBar.css";
 
 const VIEWMODE_PATHS = ["/certifications", "/activities", "/competitions", "/projects", "/career"];
@@ -19,7 +19,7 @@ export default function TopBar() {
   const showViewMode = isAdmin && VIEWMODE_PATHS.includes(location.pathname);
   const isSchedule = location.pathname === "/schedule";
   const onHome = location.pathname === "/";
-  const privateDesk = ["/studio", "/schedule", "/binance"].includes(location.pathname.toLowerCase());
+  const isStudio = location.pathname === "/studio";
   const homeEditing = onHome && isSuperAdmin && !viewAsUser;
 
   const handleHome = () => {
@@ -62,7 +62,7 @@ export default function TopBar() {
 
   return (
     <>
-      <header className={`topbar ${scrolled ? "is-scrolled" : ""}`}>
+      <header className={`topbar ${scrolled ? "is-scrolled" : ""} ${isStudio ? "is-studio" : ""}`}>
         <div className="topbar__left">
           <div className="topbar__adminlinks">
             <button
@@ -84,27 +84,15 @@ export default function TopBar() {
                   : "홈"
               }
             >
-              <IconHome width={15} height={15} />
+              {isStudio ? "홈" : <IconHome width={15} height={15} />}
             </button>
-            {isSuperAdmin && privateDesk && (
+            {isSuperAdmin && isStudio && (
               <>
-                <button
-                  type="button"
-                  className={`topbar__adminlink topbar__b ${location.pathname.toLowerCase() === "/binance" ? "is-active" : ""}`}
-                  onClick={() => navigate("/binance")}
-                  aria-label="바이낸스"
-                  title="바이낸스"
-                >
-                  🪙
+                <button type="button" className="topbar__adminlink" onClick={() => navigate("/binance")}>
+                  코인
                 </button>
-                <button
-                  type="button"
-                  className={`topbar__adminlink ${location.pathname === "/schedule" ? "is-active" : ""}`}
-                  onClick={() => navigate("/schedule")}
-                  aria-label="일정"
-                  title="일정"
-                >
-                  <IconCalendar width={16} height={16} />
+                <button type="button" className="topbar__adminlink" onClick={() => navigate("/schedule")}>
+                  일정
                 </button>
               </>
             )}
@@ -134,7 +122,7 @@ export default function TopBar() {
           </div>
         )}
 
-        <div className="topbar__right">
+        {!isStudio && <div className="topbar__right">
           <button
             type="button"
             className={`topbar__greet ${location.pathname === "/mypage" ? "is-active" : ""}`}
@@ -152,7 +140,7 @@ export default function TopBar() {
               {greeting}
             </motion.span>
           </button>
-        </div>
+        </div>}
       </header>
 
       <SideDrawer open={open} onClose={() => setOpen(false)} />

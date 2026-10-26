@@ -151,6 +151,9 @@ function cloneCard(it, i) {
     title: str(it?.title || it?.name),
     subtitle: str(it?.subtitle || it?.period),
     description: str(it?.description),
+    issuer: str(it?.issuer),
+    acquired: str(it?.acquired),
+    score: str(it?.score),
   };
 }
 

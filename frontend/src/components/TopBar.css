@@ -17,6 +17,14 @@
   pointer-events: none;
 }
 
+.topbar.is-studio {
+  justify-content: center;
+}
+.topbar.is-studio .topbar__left {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
 .topbar.is-scrolled {
   padding-top: clamp(10px, 1.6vw, 16px);
   padding-bottom: clamp(10px, 1.6vw, 16px);

@@ -229,11 +229,11 @@
   margin: 0;
   display: inline-block;
   max-width: 100%;
-  font-family: var(--uv-ko);
+  font-family: "Hahmlet", "Pretendard", serif;
   font-size: clamp(2.7rem, 7.2vw, 6.2rem);
-  line-height: 1.28;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  line-height: 1.22;
+  font-weight: 500;
+  letter-spacing: -0.03em;
   word-break: keep-all;
   padding-bottom: 0.16em;
   background: linear-gradient(180deg, #fff 20%, color-mix(in srgb, var(--uv-color) 78%, #fff));
@@ -724,103 +724,45 @@
   white-space: pre-line;
 }
 
-.uv-poker {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.uv-poker__card {
-  height: 108px;
-  padding: 0;
-  border: 0;
-  background: none;
-  perspective: 900px;
-  color: inherit;
-  text-align: left;
-}
-.uv-poker__inner {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.uv-poker__card.is-flipped .uv-poker__inner {
-  transform: rotateY(180deg);
-}
-.uv-poker__face {
-  position: absolute;
-  inset: 0;
+.uv-item__facts {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.2rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 12px;
-  border: 1px solid rgba(169, 196, 255, 0.28);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  overflow: hidden;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 0.15rem;
 }
-.uv-poker__face--back {
-  align-items: flex-start;
-  background:
-    radial-gradient(120px 80px at 80% 0%, rgba(169, 196, 255, 0.2), transparent 70%),
-    linear-gradient(160deg, #12151e, #07080d);
-}
-.uv-poker__face--back b {
-  font-family: var(--uv-display);
-  font-size: 1.35rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #d7e2ff;
-}
-.uv-poker__face--back small {
-  font-family: var(--uv-display);
-  letter-spacing: 0.22em;
-  font-size: 0.62rem;
-  color: rgba(215, 226, 255, 0.55);
-}
-.uv-poker__ring {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid rgba(215, 226, 255, 0.35);
-  box-shadow: inset 0 0 0 4px rgba(169, 196, 255, 0.08);
-}
-.uv-poker__face--front {
-  transform: rotateY(180deg);
-  background:
-    linear-gradient(180deg, rgba(18, 22, 34, 0.96), rgba(8, 9, 14, 0.94));
-}
-.uv-poker__face--front b {
-  font-size: 0.92rem;
-  line-height: 1.3;
-  font-weight: 600;
-}
-.uv-poker__face--front em {
+.uv-item__facts em {
   font-style: normal;
-  font-family: var(--uv-display);
   font-size: 0.68rem;
-  letter-spacing: 0.03em;
-  color: rgba(215, 226, 255, 0.62);
+  letter-spacing: 0.01em;
+  color: rgba(215, 226, 255, 0.72);
 }
-.uv-poker__face--front p {
-  margin: 0.15rem 0 0;
-  font-size: 0.72rem;
-  line-height: 1.4;
-  color: rgba(244, 243, 241, 0.78);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.uv-items--certs {
+  perspective: 900px;
 }
-.uv-poker__card:hover .uv-poker__face--back {
-  border-color: rgba(215, 226, 255, 0.55);
+.uv-items--certs > li {
+  animation: uv-deal 0.42s var(--uv-ease) both;
+  animation-delay: calc(var(--i, 0) * 42ms);
+}
+.uv-items--certs .uv-item {
+  transform-origin: 80% 50%;
+  transition: transform 0.45s var(--uv-ease), border-color 0.3s var(--uv-ease), background 0.3s var(--uv-ease);
+}
+.uv-items--certs > li.is-on .uv-item {
+  transform: rotateY(-8deg) translateX(-6px);
+}
+.uv-items--certs .uv-item__desc {
+  transform-origin: top center;
+}
+.uv-items--certs > li.is-on .uv-item__desc {
+  animation: uv-cardflip 0.38s var(--uv-ease) both;
+}
+@keyframes uv-deal {
+  from { opacity: 0; transform: translate3d(36px, 0, 0) rotateY(-46deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes uv-cardflip {
+  from { opacity: 0; transform: rotateX(-78deg); }
+  to { opacity: 1; transform: none; }
 }
 .uv-item__focus {
   flex: none;
@@ -1176,9 +1118,6 @@
   .uv-mark {
     right: 118px;
   }
-  .uv-poker {
-    grid-template-columns: 1fr;
-  }
   .uv-rail {
     right: 18px;
   }
@@ -1237,9 +1176,6 @@
 }
 .uv--mobile .uv-mark {
   display: none;
-}
-.uv--mobile .uv-poker {
-  grid-template-columns: 1fr;
 }
 .uv--mobile .uv-mobi-title {
   position: absolute;

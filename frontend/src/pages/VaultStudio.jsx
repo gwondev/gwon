@@ -1,93 +1,87 @@
-import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useHomeLayout } from "../lib/useHomeLayout.js";
-import { api } from "../lib/api.js";
 import { filledItems, sectionItems, visibleSections } from "../components/universe/sections.js";
 import "./VaultStudio.css";
 
+const FACTS = {
+  projects: ["title", "subtitle", "period", "role"],
+  credentials: ["title", "issuer", "acquired", "score", "subtitle"],
+  awards: ["title", "subtitle", "description"],
+  infrastructure: ["title", "subtitle"],
+  activities: ["title", "subtitle", "description"],
+  career: ["title", "subtitle", "description"],
+  profile: ["title", "subtitle", "description"],
+};
+
+function bitsOf(item, keys) {
+  return keys.map((key) => String(item?.[key] || "").trim()).filter(Boolean);
+}
+
 export default function VaultStudio() {
-  const { isSuperAdmin, token } = useAuth();
+  const { isSuperAdmin } = useAuth();
+  const navigate = useNavigate();
   const home = useHomeLayout();
-  const [drive, setDrive] = useState(null);
-  const [error, setError] = useState("");
+  const [copied, setCopied] = useState("");
 
-  const sections = useMemo(() => visibleSections(home, false).filter((s) => s.id !== "gateway"), [home]);
-  const boards = useMemo(
-    () =>
-      sections.map((section) => ({
+  const boards = useMemo(() => {
+    return visibleSections(home, false)
+      .filter((section) => section.id !== "gateway")
+      .map((section) => ({
         section,
-        items: filledItems(sectionItems(section, home)).slice(0, 6),
-      })),
-    [sections, home]
-  );
-
-  useEffect(() => {
-    if (!isSuperAdmin || !token) return undefined;
-    let alive = true;
-    api("/drive/folder", { token })
-      .then((data) => {
-        if (alive) setDrive(data);
-      })
-      .catch((err) => {
-        if (alive) setError(err.data?.error || err.message || "");
-      });
-    return () => {
-      alive = false;
-    };
-  }, [isSuperAdmin, token]);
+        items: filledItems(sectionItems(section, home)).map((item) => ({
+          id: item.id,
+          bits: bitsOf(item, FACTS[section.id] || ["title", "subtitle"]),
+        })).filter((item) => item.bits.length),
+      }))
+      .filter((board) => board.items.length);
+  }, [home]);
 
   if (!isSuperAdmin) return <Navigate to="/" replace />;
 
-  const files = drive?.children || [];
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(text);
+      window.setTimeout(() => setCopied((cur) => (cur === text ? "" : cur)), 900);
+    } catch {
+      setCopied("");
+    }
+  };
 
   return (
-    <main className="page studio">
-      <header className="studio__head">
-        <p>PRIVATE</p>
-        <h1>이력 요약</h1>
-        <span>Drive에 올려 둔 기록과 포트폴리오 단면을 한 장으로 봅니다.</span>
-      </header>
-
-      <section className="studio__drive" aria-label="드라이브">
-        <div className="studio__label">
-          <b>DRIVE</b>
-          <em>{drive?.folder?.name || "ROOT"}</em>
-        </div>
-        {files.length > 0 ? (
-          <ul>
-            {files.slice(0, 12).map((file) => (
-              <li key={file.id}>
-                <strong>{file.name}</strong>
-                <span>{file.isFolder ? "FOLDER" : "FILE"}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="studio__empty">{error || "연결된 폴더가 비어 있거나, 이 환경에서는 Drive를 열 수 없습니다."}</p>
-        )}
-      </section>
-
-      <section className="studio__grid" aria-label="이력">
+    <main className="studio">
+      <button type="button" className="studio-mode is-on" onClick={() => navigate("/")}>
+        관리자모드
+      </button>
+      <div className="studio__rows">
         {boards.map(({ section, items }) => (
-          <article key={section.id} style={{ "--c": section.color }}>
-            <header>
+          <section key={section.id} className="studio__row">
+            <h2>
               <b>{section.no}</b>
-              <h2>{section.ko}</h2>
-              <span>{items.length}</span>
-            </header>
-            <ul>
-              {items.length === 0 && <li className="is-empty">기록 없음</li>}
-              {items.map((it) => (
-                <li key={it.id}>
-                  <strong>{it.title}</strong>
-                  {it.subtitle && <em>{it.subtitle}</em>}
-                </li>
+              {section.ko}
+            </h2>
+            <div className="studio__items">
+              {items.map((item) => (
+                <div key={item.id} className="studio__cluster">
+                  {item.bits.map((bit, index) => (
+                    <button
+                      key={`${item.id}-${index}`}
+                      type="button"
+                      className={copied === bit ? "is-copied" : ""}
+                      onClick={() => copy(bit)}
+                      title="클릭하면 복사"
+                    >
+                      {bit}
+                    </button>
+                  ))}
+                </div>
               ))}
-            </ul>
-          </article>
+            </div>
+          </section>
         ))}
-      </section>
+      </div>
     </main>
   );
 }

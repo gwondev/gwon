@@ -153,42 +153,12 @@ export function ItemsList({ section, home, items, canEdit, focus, onPick }) {
           <span className="uv-empty__code">NO MATCH</span>
           <p>해당하는 {section.ko}가 없습니다.</p>
         </div>
-      ) : section.id === "credentials" && !canEdit ? (
-        <div className="uv-poker" role="list">
-          {shown.map(({ it, i }) => {
-            const on = focus === i;
-            return (
-              <button
-                key={it.id}
-                type="button"
-                role="listitem"
-                className={`uv-poker__card${on ? " is-flipped" : ""}`}
-                style={{ "--i": i }}
-                aria-expanded={on}
-                onClick={() => onPick(on ? -1 : i)}
-              >
-                <span className="uv-poker__inner">
-                  <span className="uv-poker__face uv-poker__face--back">
-                    <span className="uv-poker__ring" aria-hidden="true" />
-                    <b>{String(i + 1).padStart(2, "0")}</b>
-                    <small>CERT</small>
-                  </span>
-                  <span className="uv-poker__face uv-poker__face--front">
-                    <b>{it.title}</b>
-                    {it.subtitle && <em>{it.subtitle}</em>}
-                    <p>{it.description || "등록된 세부 설명이 없습니다."}</p>
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
       ) : (
-        <ol className={`uv-items uv-items--${section.source.layout || "experience"}`}>
+        <ol className={`uv-items uv-items--${section.id === "credentials" ? "certs" : section.source.layout || "experience"}`}>
           {shown.map(({ it, i }) => {
             const on = focus === i;
             return (
-              <li key={it.id} className={on ? "is-on" : ""}>
+              <li key={it.id} className={on ? "is-on" : ""} style={section.id === "credentials" ? { "--i": i } : undefined}>
                 <div
                   className="uv-item"
                   role={canEdit ? undefined : "button"}
@@ -210,6 +180,13 @@ export function ItemsList({ section, home, items, canEdit, focus, onPick }) {
                   <div className="uv-item__body">
                     <Field tag="b" className="uv-item__title" value={it.title} canEdit={canEdit} placeholder="제목" onSave={(title) => patchItem(section, home, it.id, { title })} />
                     <Field tag="span" className="uv-item__sub" value={it.subtitle} canEdit={canEdit} placeholder="기간 · 부제" onSave={(subtitle) => patchItem(section, home, it.id, { subtitle })} />
+                    {section.id === "credentials" && (it.issuer || it.acquired || it.score) && (
+                      <span className="uv-item__facts">
+                        {it.issuer && <em>{it.issuer}</em>}
+                        {it.acquired && <em>{it.acquired}</em>}
+                        {it.score && <em>{it.score}</em>}
+                      </span>
+                    )}
                     {(canEdit || on) && (
                       <Field
                         tag="p"

@@ -388,14 +388,12 @@ export default function UniverseExperience() {
         )}
       </div>
 
-      {mark && (
+      {isSuperAdmin && mark && (
         <button
           type="button"
           className="uv-mark"
-          onClick={() => {
-            if (isSuperAdmin) navigate("/studio");
-          }}
-          aria-label={isSuperAdmin ? "이력 요약 모드" : `${mark.no} ${mark.label}`}
+          onClick={() => navigate("/studio")}
+          aria-label="관리자 모드로 화면 전환"
         >
           <b>{mark.no}</b>
           <span>{mark.label}</span>
