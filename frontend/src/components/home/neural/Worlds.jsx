@@ -234,6 +234,152 @@ function Nebula() {
   );
 }
 
+const HOLO = {
+  profile: "#8fd0ff",
+  projects: "#7ee7ff",
+  infrastructure: "#d8c19a",
+  credentials: "#f0e2bc",
+  career: "#ffb45a",
+  activities: "#9ad7ff",
+  awards: "#ff8866",
+};
+
+function HoloRings({ color }) {
+  const g = useRef();
+  useFrame(({ clock }, delta) => {
+    if (!g.current || worldState.reduced) return;
+    g.current.rotation.y += delta * 0.22;
+    g.current.rotation.x = Math.sin(clock.elapsedTime * 0.35) * 0.18;
+  });
+  return (
+    <group ref={g}>
+      <mesh rotation={[Math.PI / 2.15, 0.2, 0]}>
+        <torusGeometry args={[1.72, 0.008, 8, 96]} />
+        <meshBasicMaterial color={color} transparent opacity={0.72} />
+      </mesh>
+      <mesh rotation={[1.05, 0.6, 0.2]}>
+        <torusGeometry args={[2.08, 0.004, 8, 80]} />
+        <meshBasicMaterial color={color} transparent opacity={0.32} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.28, 1.31, 64]} />
+        <meshBasicMaterial color={color} transparent opacity={0.22} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
+function ExperienceLife() {
+  const seeds = useMemo(() => Array.from({ length: 8 }, (_, i) => i * 0.8), []);
+  const figs = useRef([]);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    figs.current.forEach((fig, i) => {
+      if (!fig) return;
+      const a = t * (0.42 + (i % 3) * 0.06) + seeds[i];
+      const r = 1.45 + (i % 2) * 0.28;
+      const hop = Math.abs(Math.sin(t * 3.2 + seeds[i])) * 0.1;
+      fig.position.set(Math.cos(a) * r, -0.2 + hop, Math.sin(a) * r);
+      fig.rotation.y = -a + Math.PI / 2;
+    });
+  });
+  return (
+    <group>
+      {seeds.map((seed, i) => (
+        <group key={seed} ref={(n) => (figs.current[i] = n)}>
+          <mesh position={[0, 0.28, 0]}>
+            <sphereGeometry args={[0.055, 8, 8]} />
+            <meshBasicMaterial color="#e9fbff" transparent opacity={0.9} />
+          </mesh>
+          <mesh position={[0, 0.1, 0]}>
+            <capsuleGeometry args={[0.04, 0.1, 3, 6]} />
+            <meshBasicMaterial color="#9ad7ff" transparent opacity={0.72} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function ProjectMind() {
+  const nodes = useRef([]);
+  const line = useMemo(() => {
+    const count = 14;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 2 * 3), 3));
+    const mat = new THREE.LineBasicMaterial({ color: "#8eebff", transparent: true, opacity: 0.45 });
+    return new THREE.LineSegments(geo, mat);
+  }, []);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const pts = [];
+    nodes.current.forEach((node, i) => {
+      if (!node) return;
+      const a = t * (0.28 + (i % 4) * 0.04) + i * 0.45;
+      const r = 1.25 + (i % 3) * 0.32;
+      const y = Math.sin(a * 0.7 + i) * 0.42;
+      node.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+      pts.push(node.position.x, node.position.y, node.position.z);
+    });
+    const attr = line.geometry.attributes.position;
+    for (let i = 0; i < pts.length / 3; i++) {
+      const j = (i + 1 + (i % 3)) % (pts.length / 3);
+      attr.setXYZ(i * 2, pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2]);
+      attr.setXYZ(i * 2 + 1, pts[j * 3], pts[j * 3 + 1], pts[j * 3 + 2]);
+    }
+    attr.needsUpdate = true;
+  });
+  return (
+    <group>
+      <primitive object={line} />
+      {Array.from({ length: 14 }, (_, i) => (
+        <mesh key={i} ref={(n) => (nodes.current[i] = n)}>
+          <sphereGeometry args={[0.035, 8, 8]} />
+          <meshBasicMaterial color="#d8fbff" />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function AwardSparks() {
+  const g = useRef();
+  const pos = useMemo(() => {
+    const arr = new Float32Array(40 * 3);
+    for (let i = 0; i < 40; i++) {
+      const a = (i / 40) * Math.PI * 2;
+      const r = 1.5 + (i % 5) * 0.12;
+      arr[i * 3] = Math.cos(a) * r;
+      arr[i * 3 + 1] = Math.sin(i * 1.7) * 0.35;
+      arr[i * 3 + 2] = Math.sin(a) * r;
+    }
+    return arr;
+  }, []);
+  useFrame((_, delta) => {
+    if (g.current && !worldState.reduced) g.current.rotation.y += delta * 0.18;
+  });
+  return (
+    <points ref={g}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[pos, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color="#ffb199" size={0.045} transparent opacity={0.85} depthWrite={false} />
+    </points>
+  );
+}
+
+function WorldHolo({ id }) {
+  const color = HOLO[id] || "#9ad7ff";
+  return (
+    <group>
+      <HoloRings color={color} />
+      {id === "activities" && <ExperienceLife />}
+      {id === "projects" && <ProjectMind />}
+      {id === "awards" && <AwardSparks />}
+    </group>
+  );
+}
+
 const MAP = {
   earth: Earth,
   singularity: Singularity,
@@ -265,6 +411,7 @@ export default function Worlds() {
         return (
           <group key={w.id} position={pos[i]}>
             <Body />
+            <WorldHolo id={w.id} />
           </group>
         );
       })}

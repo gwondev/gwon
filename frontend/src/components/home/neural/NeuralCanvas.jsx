@@ -35,6 +35,8 @@ const _from = new THREE.Vector3();
 const _to = new THREE.Vector3();
 const _cam = new THREE.Vector3();
 const _look = new THREE.Vector3();
+const _backCam = new THREE.Vector3();
+const _backLook = new THREE.Vector3();
 const goldC = new THREE.Color(GOLD);
 const cyanC = new THREE.Color(CYAN);
 const tint = new THREE.Color();
@@ -65,6 +67,36 @@ function holeView(close) {
 
 function cameraTarget(p) {
   const reduced = worldState.reduced;
+  const comingHome = (worldState.warpFrom ?? 0) > 0 && p < INTRO_END;
+  if (comingHome) {
+    const planet = dests()[worldState.warpFrom - 1];
+    const u = Math.min(1, p / 0.02);
+    const e = reduced ? u : warpEase(u);
+    const f = 1 - e;
+    const dive = holeView(1 + f * 1.25);
+    const out = Math.max(0, (f - 0.42) / 0.58);
+    const arrive = lookFrom(planet, 4.6);
+    const settled = lookFrom(planet, 3.2);
+    _from.set(dive.cam[0], dive.cam[1], dive.cam[2]);
+    _to.set(arrive[0], arrive[1], arrive[2]);
+    _from.lerp(_to, out);
+    _backCam.copy(_from);
+    _from.set(dive.look[0], dive.look[1], dive.look[2]);
+    _to.set(planet[0], planet[1], planet[2]);
+    _from.lerp(_to, out);
+    _backLook.copy(_from);
+    const join = Math.min(1, e * 3.2);
+    _to.set(settled[0], settled[1], settled[2]);
+    _backCam.lerp(_to, 1 - join);
+    _to.set(planet[0], planet[1], planet[2]);
+    _backLook.lerp(_to, 1 - join);
+    return {
+      cam: [_backCam.x, _backCam.y, _backCam.z],
+      look: [_backLook.x, _backLook.y, _backLook.z],
+      fov: THREE.MathUtils.lerp(41, dive.fov + out * 8, join),
+      warp: f * 0.22,
+    };
+  }
   if (p < INTRO_END) {
     const u = Math.min(1, p / 0.02);
     const view = holeView(u);
@@ -123,8 +155,8 @@ function cameraTarget(p) {
 }
 
 function lookFrom(planet, dist) {
-  if (!planet) return [0, 0.2, 12];
-  return [planet[0] * 0.15, planet[1] + 0.35, planet[2] + dist];
+  if (!planet) return [0, 0, 12];
+  return [planet[0], planet[1], planet[2] + dist];
 }
 
 function introAmt(p) {
@@ -151,7 +183,7 @@ function Rig() {
         _cam.y += Math.cos(t * 0.08) * 0.12 * idle;
       }
     }
-    const follow = warp > 0.35 ? 4.2 : 2.6;
+    const follow = worldState.warpFrom != null ? 12 : warp > 0.35 ? 4.2 : 2.6;
     const k = 1 - Math.exp(-delta * follow);
     camera.position.lerp(_cam, k);
     camera.lookAt(_look);

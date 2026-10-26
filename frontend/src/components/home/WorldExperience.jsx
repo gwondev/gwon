@@ -70,6 +70,8 @@ export default function WorldExperience() {
   const [tab, setTab] = useState("experience");
   const [pageI, setPageI] = useState(0);
   const [projI, setProjI] = useState(0);
+  const [leverT, setLeverT] = useState(0);
+  const [returningHome, setReturningHome] = useState(false);
 
   const sceneRef = useRef(0);
   const targetSceneRef = useRef(0);
@@ -103,14 +105,21 @@ export default function WorldExperience() {
       setProgress(v);
     };
     const run = (to, duration, ease, then) => {
+      const leverTo = targetSceneRef.current / Math.max(1, sceneMax());
       tweenRef.current = gsap.to(worldState, {
         progress: to,
+        leverT: leverTo,
         duration: worldState.reduced ? 0.2 : duration,
         ease,
         overwrite: true,
-        onUpdate: () => setProgress(worldState.progress),
+        onUpdate: () => {
+          setProgress(worldState.progress);
+          setLeverT(worldState.leverT);
+        },
         onComplete: () => {
           set(to);
+          worldState.leverT = leverTo;
+          setLeverT(leverTo);
           then?.();
         },
       });
@@ -119,9 +128,11 @@ export default function WorldExperience() {
     if (tgt !== k) {
       worldState.warpBack = false;
       worldState.warpFrom = k;
+      setReturningHome(tgt === 0 && k > 0);
       set(warpStartOf(tgt));
       run(sceneToProgress(tgt), WARP_SECONDS, "power2.out", () => {
         worldState.warpFrom = null;
+        setReturningHome(false);
         driveRef.current();
       });
       return;
@@ -274,7 +285,7 @@ export default function WorldExperience() {
   const profileItems = liveProfileTab?.items || [];
   const pages = project?.pages?.length ? project.pages : [];
   const stageVisible = scene === 0 || stage.id === "arrive" || stage.id === "read" || (stage.id === "leave" && stage.u < 0.55);
-  const showHero = scene === 0 && (progress < INTRO_END + 0.04 || stage.id === "intro");
+  const showHero = scene === 0 && !returningHome && (progress < INTRO_END + 0.04 || stage.id === "intro");
   const showWorld = scene > 0 && stageVisible;
   const imageReveal =
     scene === 0
@@ -317,6 +328,13 @@ export default function WorldExperience() {
             {home.hero?.explore || "EXPLORE"}
           </button>
         </section>
+      )}
+
+      {showHero && (
+        <div className="world-scrollcue" aria-hidden="true">
+          <span>SCROLL</span>
+          <i />
+        </div>
       )}
 
       {showWorld && world.id === "projects" && project && (
@@ -404,7 +422,7 @@ export default function WorldExperience() {
       </p>
 
       <JourneyLever
-        scene={scene}
+        t={leverT}
         stops={leverStops}
         onCommit={(next) => goToRef.current(next)}
       />
@@ -472,44 +490,40 @@ const Field = memo(function Field({ tag: Tag = "p", className, value, canEdit, o
   );
 }, (a, b) => a.value === b.value && a.canEdit === b.canEdit && a.className === b.className && a.tag === b.tag && a.placeholder === b.placeholder);
 
-function JourneyLever({ scene, stops, onCommit }) {
+function JourneyLever({ t, stops, onCommit }) {
   const track = useRef(null);
-  const tween = useRef(null);
   const [drag, setDrag] = useState(false);
+  const [row, setRow] = useState(() => window.innerWidth <= 860);
+  const dragT = useRef(t);
+  const [shown, setShown] = useState(t);
   const n = Math.max(1, stops.length - 1);
-  const index = Math.max(0, stops.findIndex((stop) => stop.scene === scene));
-  const obj = useRef({ t: index / n });
-  const [t, setT] = useState(index / n);
 
   useEffect(() => {
-    if (drag) return undefined;
-    const to = index / n;
-    tween.current?.kill();
-    tween.current = gsap.to(obj.current, {
-      t: to,
-      duration: worldState.reduced ? 0.2 : WARP_SECONDS,
-      ease: "power2.out",
-      onUpdate: () => setT(obj.current.t),
-    });
-    return () => tween.current?.kill();
-  }, [index, n, drag]);
+    const onResize = () => setRow(window.innerWidth <= 860);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
-  const yToT = (clientY) => {
+  useEffect(() => {
+    if (!drag) setShown(t);
+  }, [t, drag]);
+
+  const pointToT = (ev) => {
     const rect = track.current?.getBoundingClientRect();
-    if (!rect) return obj.current.t;
-    return Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    if (!rect) return dragT.current;
+    const next = row ? (ev.clientX - rect.left) / Math.max(1, rect.width) : (ev.clientY - rect.top) / Math.max(1, rect.height);
+    return Math.min(1, Math.max(0, next));
   };
 
   const start = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    tween.current?.kill();
     setDrag(true);
     worldState.leverDrag = true;
     const apply = (ev) => {
-      const next = yToT(ev.clientY);
-      obj.current.t = next;
-      setT(next);
+      const next = pointToT(ev);
+      dragT.current = next;
+      setShown(next);
     };
     apply(e);
     const up = (ev) => {
@@ -518,28 +532,36 @@ function JourneyLever({ scene, stops, onCommit }) {
       worldState.leverDrag = false;
       window.removeEventListener("pointermove", apply);
       window.removeEventListener("pointerup", up);
-      const stop = stops[Math.round(obj.current.t * n)];
+      const stop = stops[Math.round(dragT.current * n)];
       if (stop) onCommit(stop.scene);
     };
     window.addEventListener("pointermove", apply);
     window.addEventListener("pointerup", up);
   };
 
-  const pct = t * 100;
-  const near = Math.round(t * n);
+  const value = drag ? shown : t;
+  const pct = value * 100;
+  const near = drag ? Math.round(value * n) : Math.min(n, Math.floor(value * n + 0.18));
+
+  const axisStyle = (amount) => (row ? { left: `${amount}%`, top: "50%" } : { top: `${amount}%` });
 
   return (
-    <div className={`world-lever${drag ? " is-drag" : ""}`} ref={track} onPointerDown={start} style={{ "--lever": `${pct}%` }}>
+    <div
+      className={`world-lever${row ? " is-row" : ""}${drag ? " is-drag" : ""}`}
+      ref={track}
+      onPointerDown={start}
+      style={{ "--lever": `${pct}%` }}
+    >
       <i className="world-lever__rail" />
-      <i className="world-lever__fill" style={{ height: `${pct}%` }} />
+      <i className="world-lever__fill" style={row ? { width: `${pct}%` } : { height: `${pct}%` }} />
       {stops.map((stop, i) => (
         <span
           key={stop.scene}
           className={`world-lever__tick${i === near ? " is-on" : ""}`}
-          style={{ top: `${(i / n) * 100}%` }}
+          style={axisStyle((i / n) * 100)}
         />
       ))}
-      <b className="world-lever__grip" style={{ top: `${pct}%` }} />
+      <b className="world-lever__grip" style={axisStyle(pct)} />
       <span className="world-lever__label">{stops[near]?.label}</span>
     </div>
   );

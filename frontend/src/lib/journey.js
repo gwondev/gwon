@@ -102,13 +102,13 @@ export const WORLDS = [
 ];
 
 export const PLANET_POS = [
-  [0.55, 0.12, -14],
-  [-0.7, 0.28, -40],
-  [0.85, -0.18, -66],
-  [-0.5, 0.32, -92],
-  [0.2, 0.08, -118],
-  [-0.9, 0.22, -144],
-  [0.4, -0.12, -170],
+  [0, 0, -14],
+  [0, 0, -40],
+  [0, 0, -66],
+  [0, 0, -92],
+  [0, 0, -118],
+  [0, 0, -144],
+  [0, 0, -170],
 ];
 
 export const INTRO_END = 0.08;
@@ -129,11 +129,7 @@ export const SCENE_MAX = WORLD_COUNT;
 
 export function makePlanetPos(n) {
   const count = Math.max(1, n);
-  return Array.from({ length: count }, (_, i) => PLANET_POS[i] || [
-    Math.sin(i * 1.7) * 0.9,
-    Math.cos(i * 1.1) * 0.35,
-    -14 - i * 26,
-  ]);
+  return Array.from({ length: count }, (_, i) => PLANET_POS[i] || [0, 0, -14 - i * 26]);
 }
 
 export function worldCount() {

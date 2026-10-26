@@ -15,6 +15,7 @@ export const worldState = {
   // 뒤로 빠지는 워프 중이면 true. 앞으로 가는 추종 속도는 건드리지 않는다.
   warpBack: false,
   leverDrag: false,
+  leverT: 0,
   planets: null,
   liveProjects: null,
 };
