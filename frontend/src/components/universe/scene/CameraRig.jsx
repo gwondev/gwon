@@ -10,14 +10,14 @@ import { damp } from "./util.js";
  */
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const ANCHORS = {
-  gateway: { pos: V(0, 0.82, 14.5), look: V(0, -0.15, 0), fov: 40, dive: V(0, 0.05, 0.35), inner: V(0, 0.02, 0.45), innerLook: V(0, 0, -4), portrait: 2.05, shift: -2.6 },
-  projects: { pos: V(0, 2.4, 19), look: V(0, 0, 0), fov: 48, dive: V(0.3, 0.2, 1.2), inner: V(0, 0.4, -2), innerLook: V(0, 0, -12), portrait: 1.9, focusDist: 8.5, shift: 2.6 },
-  infrastructure: { pos: V(20, 15, 25), look: V(0, 1.2, 0), fov: 40, dive: V(1.4, 0.9, 2.2), inner: V(0, 1.4, -1), innerLook: V(-6, 1.2, -10), portrait: 1.85, focusDist: 10, shift: 3.2 },
-  credentials: { pos: V(0, 1.4, 15.5), look: V(0, 0, 0), fov: 44, dive: V(0, 0, 0.9), inner: V(0, 0, 0.6), innerLook: V(0, 0, -6), portrait: 1.95, focusDist: 9, shift: 2.6 },
-  activities: { pos: V(0, 3.4, 17), look: V(0, 1.4, 0), fov: 48, dive: V(0, 1.6, 1.5), inner: V(0, 22, 9), innerLook: V(0, 6, -6), portrait: 1.8, focusDist: 7.5, shift: 2.2 },
-  career: { pos: V(0, 3.2, 17.5), look: V(0, 0, 0), fov: 46, dive: V(0, 0.3, 2.4), inner: V(0.6, 15, 1.6), innerLook: V(0, 0, 0), portrait: 1.9, focusDist: 8, shift: 2.8 },
-  awards: { pos: V(0, 0.6, 16), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 0.8), inner: V(0, 0, 0.5), innerLook: V(0, 0, -6), portrait: 1.9, focusDist: 8, shift: 2.6 },
-  profile: { pos: V(0, 0.6, 15), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 1.6), inner: V(0, 0, -5), innerLook: V(0, 0, -14), portrait: 1.85, shift: 2.4 },
+  gateway: { pos: V(0, 0.82, 14.5), look: V(0, -0.15, 0), fov: 40, dive: V(0, 0.05, 0.35), inner: V(0, 0.02, 0.45), innerLook: V(0, 0, -4), portrait: 2.05, shift: -2.6, lift: 2.2 },
+  projects: { pos: V(0, 2.4, 19), look: V(0, 0, 0), fov: 48, dive: V(0.3, 0.2, 1.2), inner: V(0, 0.4, -2), innerLook: V(0, 0, -12), portrait: 1.9, focusDist: 8.5, shift: 2.6, lift: 8.6 },
+  infrastructure: { pos: V(20, 15, 25), look: V(0, 1.2, 0), fov: 40, dive: V(1.4, 0.9, 2.2), inner: V(0, 1.4, -1), innerLook: V(-6, 1.2, -10), portrait: 1.85, focusDist: 10, shift: 3.2, lift: 5.5 },
+  credentials: { pos: V(0, 1.4, 15.5), look: V(0, 0, 0), fov: 44, dive: V(0, 0, 0.9), inner: V(0, 0, 0.6), innerLook: V(0, 0, -6), portrait: 1.95, focusDist: 9, shift: 2.6, lift: 6.6 },
+  activities: { pos: V(0, 3.4, 17), look: V(0, 1.4, 0), fov: 48, dive: V(0, 1.6, 1.5), inner: V(0, 22, 9), innerLook: V(0, 6, -6), portrait: 1.8, focusDist: 7.5, shift: 2.2, lift: 5.5 },
+  career: { pos: V(0, 3.2, 17.5), look: V(0, 0, 0), fov: 46, dive: V(0, 0.3, 2.4), inner: V(0.6, 15, 1.6), innerLook: V(0, 0, 0), portrait: 1.9, focusDist: 8, shift: 2.8, lift: 6.6 },
+  awards: { pos: V(0, 0.6, 16), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 0.8), inner: V(0, 0, 0.5), innerLook: V(0, 0, -6), portrait: 1.9, focusDist: 8, shift: 2.6, lift: 6.5 },
+  profile: { pos: V(0, 0.6, 15), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 1.6), inner: V(0, 0, -5), innerLook: V(0, 0, -14), portrait: 1.85, shift: 2.4, lift: 5.5 },
 };
 const UP = V(0, 1, 0);
 Object.values(ANCHORS).forEach((a) => {
@@ -47,8 +47,7 @@ function sideShift(anchor, aspect) {
 function portraitLift(anchor, aspect) {
   if (aspect >= 1.05) return 0;
   const amt = Math.min(1, (1.05 - aspect) / 0.4);
-  if (anchor === ANCHORS.gateway) return 2.2 * amt;
-  return 5.5 * amt;
+  return (anchor.lift ?? 5.5) * amt;
 }
 
 function restPos(anchor, aspect, out, shifted = true) {

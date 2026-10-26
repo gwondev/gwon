@@ -757,7 +757,6 @@
   gap: 4px;
   pointer-events: auto;
   touch-action: none;
-  cursor: ns-resize;
 }
 .uv-rail__thumb {
   position: absolute;
@@ -768,8 +767,13 @@
   border-radius: 50%;
   border: 1px solid color-mix(in srgb, var(--uv-color) 70%, transparent);
   box-shadow: 0 0 14px color-mix(in srgb, var(--uv-color) 45%, transparent);
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: grab;
   will-change: transform;
+  z-index: 2;
+}
+.uv-rail__thumb:active {
+  cursor: grabbing;
 }
 .uv-rail__thumb::after {
   content: "";
@@ -1042,21 +1046,20 @@
   z-index: 141;
 }
 .uv--mobile .uv-rail {
-  right: 0;
-  top: 38%;
-  gap: 1px;
-  padding: 14px 14px 14px 22px;
-  transform: translateY(-50%) scale(0.78);
+  right: 8px;
+  top: 42%;
+  gap: 2px;
+  transform: translateY(-50%) scale(0.72);
   transform-origin: right center;
-  z-index: 15;
 }
 .uv--mobile .uv-rail__label {
   display: none;
 }
 .uv--mobile .uv-dock {
-  left: 10px;
-  right: 30px;
-  bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+  left: 12px;
+  right: 34px;
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  padding: 12px 12px 10px;
 }
 .uv--mobile .uv-arrows {
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
@@ -1095,29 +1098,29 @@
   transition: opacity 0.5s var(--uv-ease), transform 0.6s var(--uv-ease);
 }
 .uv-dock__peek {
-  max-height: min(28vh, 220px);
+  max-height: min(42vh, 340px);
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
   padding-right: 2px;
 }
 .uv-dock__peek .uv-project__title {
-  font-size: 1.05rem;
+  font-size: 1.28rem;
 }
 .uv-dock__peek .uv-project__head {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
 }
 .uv-dock__peek .uv-media {
-  max-height: 88px;
+  max-height: 148px;
 }
 .uv-dock__peek .uv-item {
-  padding: 0.35rem 0;
+  padding: 0.5rem 0;
 }
 .uv-dock__peek .uv-item__title {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
 }
 .uv-dock__peek .uv-item__desc {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
 }
 .uv-dock__peek .uv-empty {
   padding: 0.4rem 0;
