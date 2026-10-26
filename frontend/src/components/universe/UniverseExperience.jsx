@@ -13,15 +13,32 @@ import DriveStore from "./drive/DriveStore.jsx";
 import SideDrawer from "../SideDrawer";
 import "./UniverseExperience.css";
 
-const RAIL_STEP = 32;
+function localCenterY(nav, node) {
+  const box = nav.getBoundingClientRect();
+  const r = node.getBoundingClientRect();
+  const sy = box.height / (nav.offsetHeight || 1);
+  return (r.top + r.height / 2 - box.top) / (sy || 1);
+}
 
 function RailThumb() {
   const ref = useRef(null);
   useEffect(() => {
     let raf = 0;
     const tick = () => {
-      const p = live.active ? live.from + (live.to - live.from) * live.t : live.index;
-      if (ref.current) ref.current.style.transform = `translateY(${p * RAIL_STEP}px)`;
+      const el = ref.current;
+      const nav = el?.parentElement;
+      if (el && nav) {
+        const dots = nav.querySelectorAll(".uv-rail__stop i");
+        const p = live.active ? live.from + (live.to - live.from) * live.t : live.index;
+        if (dots.length) {
+          const max = dots.length - 1;
+          const i0 = Math.max(0, Math.min(max, Math.floor(p)));
+          const i1 = Math.max(0, Math.min(max, i0 + 1));
+          const t = i0 === i1 ? 0 : p - Math.floor(p);
+          const y = localCenterY(nav, dots[i0]) + (localCenterY(nav, dots[i1]) - localCenterY(nav, dots[i0])) * t;
+          el.style.transform = `translateY(${y - el.offsetHeight / 2}px)`;
+        }
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -163,7 +180,7 @@ export default function UniverseExperience() {
     if (!settled) return;
     const id = ids[snap.index];
     const hash = id && id !== "gateway" ? `#${id}` : "";
-    if (window.location.hash !== hash) window.history.replaceState(null, "", `${window.location.pathname}${hash}`);
+    if (window.location.hash !== hash) window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash}`);
     if (id === "projects" && live.focus < 0 && projects.length) setFocus(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settled, snap.index]);
@@ -250,6 +267,12 @@ export default function UniverseExperience() {
           )}
           {isProjects && !mobile && <ProjectPicker projects={projects} focus={snap.focus} onPick={setFocus} />}
         </header>
+      )}
+
+      {mobile && mark?.id === "projects" && (
+        <div className="uv-picker-bar" data-ui-scroll data-no-nav>
+          <ProjectPicker projects={projects} focus={snap.focus} onPick={setFocus} className="uv-picker--row" />
+        </div>
       )}
 
       {!mobile && !isGateway && section && (
@@ -348,11 +371,6 @@ export default function UniverseExperience() {
 
       {mobile && !isGateway && section && (
         <div className="uv-dock">
-          {isProjects && (
-            <div className="uv-dock__scroll" data-ui-scroll>
-              <ProjectPicker projects={projects} focus={snap.focus} onPick={setFocus} className="uv-picker--row" />
-            </div>
-          )}
           <div className="uv-dock__peek" data-ui-scroll aria-label={`${section.ko} 내용`}>
             {isProjects ? (
               <ProjectDetail project={project} home={home} canEdit={canEdit} showVault={showVault} onOpenVault={setVault} />
