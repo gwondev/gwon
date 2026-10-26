@@ -290,12 +290,11 @@
   line-height: 1;
 }
 .uv-title__ko {
-  margin: 0.5rem 0 0;
-  font-size: clamp(1.02rem, 1.8vw, 1.22rem);
-  font-weight: 700;
-  color: rgba(250, 249, 246, 0.94);
-  letter-spacing: 0.06em;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  margin: 0.4rem 0 0;
+  font-size: clamp(0.86rem, 1.45vw, 1rem);
+  font-weight: 500;
+  color: rgba(196, 208, 226, 0.46);
+  letter-spacing: 0.2em;
 }
 .uv-title__one {
   margin: 0.9rem 0 0;
@@ -989,14 +988,14 @@
 .uv--mobile .uv-title {
   top: calc(16px + env(safe-area-inset-top, 0px));
   left: 16px;
-  right: 64px;
+  right: 112px;
   max-width: none;
 }
 .uv--mobile .uv-title__line {
   font-size: clamp(1.15rem, 6.4vw, 1.55rem);
 }
 .uv--mobile .uv-title__ko {
-  font-size: 1.08rem;
+  font-size: 0.92rem;
 }
 .uv--mobile .uv-title__one {
   font-size: 0.8rem;
@@ -1044,6 +1043,18 @@
 }
 .uv-dock__peek .uv-empty {
   padding: 0.4rem 0;
+}
+.uv--mobile .uv-items--experience {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.uv--mobile .uv-items--experience .uv-item {
+  padding: 0.45rem 0.5rem;
+  gap: 8px;
+}
+.uv--mobile .uv-items--experience .uv-item__desc {
+  display: none;
 }
 .is-warping .uv-dock {
   opacity: 0.35;
@@ -1208,7 +1219,6 @@
   overflow-y: auto;
 }
 .uv-menu__head,
-.uv-menu__site,
 .uv-menu__cards,
 .uv-menu__group,
 .uv-menu ol {
@@ -1218,10 +1228,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  gap: 8px;
+  margin-bottom: 12px;
   font: 600 0.6rem/1 var(--uv-mono);
   letter-spacing: 0.45em;
   color: rgba(244, 243, 241, 0.5);
+}
+.uv-menu__head-acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .uv-menu__head button {
   width: 40px;
@@ -1231,40 +1247,27 @@
   background: none;
   color: #fff;
 }
-.uv-menu__site {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 16px;
-}
-.uv-menu__site button {
-  padding: 0.55rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid var(--uv-line);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(244, 243, 241, 0.82);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-.uv-menu__site button.is-on {
-  border-color: color-mix(in srgb, var(--uv-color) 55%, transparent);
-  color: #fff;
-  background: color-mix(in srgb, var(--uv-color) 12%, transparent);
+.uv-menu__head-acts .uv-menu__ghost {
+  width: auto;
+  padding: 0 0.7rem;
+  font: 600 0.62rem/1 var(--uv-mono);
+  letter-spacing: 0.14em;
+  color: rgba(244, 243, 241, 0.7);
 }
 .uv-menu__cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin: 0 0 22px;
+  gap: 6px;
+  margin: 0 0 12px;
 }
 .uv-menu__cards button {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  min-height: 108px;
-  padding: 1rem 1rem 0.95rem;
-  border-radius: 16px;
+  gap: 3px;
+  min-height: 74px;
+  padding: 0.7rem 0.8rem;
+  border-radius: 14px;
   border: 1px solid var(--uv-line);
   background: rgba(255, 255, 255, 0.035);
   color: #fff;
@@ -1288,7 +1291,7 @@
   color: rgba(244, 243, 241, 0.55);
 }
 .uv-menu__group {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   font: 600 0.62rem/1 var(--uv-mono);
   letter-spacing: 0.32em;
   color: rgba(244, 243, 241, 0.42);
@@ -1299,7 +1302,7 @@
   list-style: none;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
 }
 .uv-menu li {
   animation: uv-rise 0.5s var(--uv-ease) both;
@@ -1317,9 +1320,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 0.9rem 0.85rem;
-  border-radius: 14px;
+  gap: 2px;
+  padding: 0.62rem 0.75rem;
+  border-radius: 12px;
   border: 1px solid var(--uv-line);
   background: rgba(255, 255, 255, 0.02);
   color: #fff;

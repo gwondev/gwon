@@ -23,6 +23,7 @@ export default function App() {
     path !== "/" &&
     path !== "/schedule" &&
     path !== "/mypage" &&
+    path !== "/admin" &&
     path !== "/BINANCE" &&
     path !== "/binance" &&
     path !== "/ai";
@@ -58,6 +59,7 @@ export default function App() {
       {!isHome &&
         path !== "/schedule" &&
         path !== "/mypage" &&
+        path !== "/admin" &&
         path !== "/BINANCE" &&
         path !== "/binance" &&
         path !== "/ai" && <ChatWidget />}

@@ -6,7 +6,7 @@
 export const SECTIONS = [
   {
     id: "gateway",
-    no: "0",
+    no: "00",
     label: "GATEWAY",
     world: "Event Horizon",
     ko: "관문",
@@ -17,7 +17,7 @@ export const SECTIONS = [
   },
   {
     id: "projects",
-    no: "1",
+    no: "01",
     label: "PROJECTS",
     world: "Neural Network",
     ko: "프로젝트",
@@ -28,7 +28,7 @@ export const SECTIONS = [
   },
   {
     id: "awards",
-    no: "2",
+    no: "02",
     label: "AWARDS",
     world: "Creation Field",
     ko: "공모전 · 수상",
@@ -39,7 +39,7 @@ export const SECTIONS = [
   },
   {
     id: "infrastructure",
-    no: "3",
+    no: "03",
     label: "SYSTEMS",
     world: "Circuit City",
     ko: "기술 · 인프라",
@@ -50,7 +50,7 @@ export const SECTIONS = [
   },
   {
     id: "credentials",
-    no: "4",
+    no: "04",
     label: "CERTIFICATIONS",
     world: "Atomic Structure",
     ko: "자격증",
@@ -61,7 +61,7 @@ export const SECTIONS = [
   },
   {
     id: "activities",
-    no: "5",
+    no: "05",
     label: "EXPERIENCE",
     world: "Living Environment",
     ko: "경험 · 활동",
@@ -72,7 +72,7 @@ export const SECTIONS = [
   },
   {
     id: "career",
-    no: "6",
+    no: "06",
     label: "CAREER",
     world: "Orbit of Time",
     ko: "경력",
@@ -83,7 +83,7 @@ export const SECTIONS = [
   },
   {
     id: "profile",
-    no: "7",
+    no: "07",
     label: "PROFILE",
     world: "Origin Nebula",
     ko: "프로필",

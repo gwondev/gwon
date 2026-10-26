@@ -55,7 +55,7 @@ export default function TopBar() {
     : "로그인";
 
   const handleGreetClick = () => {
-    if (isAuthed) navigate("/mypage");
+    if (isAuthed) navigate("/admin");
     else setOpen(true);
   };
 
@@ -136,9 +136,9 @@ export default function TopBar() {
         <div className="topbar__right">
           <button
             type="button"
-            className={`topbar__greet ${location.pathname === "/mypage" ? "is-active" : ""}`}
+            className={`topbar__greet ${location.pathname === "/admin" ? "is-active" : ""}`}
             onClick={handleGreetClick}
-            aria-label={isAuthed ? "마이페이지" : "로그인"}
+            aria-label={isAuthed ? "관리자페이지" : "로그인"}
           >
             <motion.span
               key={greeting}

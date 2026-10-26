@@ -66,8 +66,8 @@
 
 .chat-widget--home {
   z-index: 140;
-  top: calc(16px + env(safe-area-inset-top, 0px) + 50px);
-  right: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  right: 66px;
   bottom: auto;
 }
 .chat-widget--home .chat-widget__fab {

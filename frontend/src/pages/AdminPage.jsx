@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import PageTransition from "../components/PageTransition";
+import { roleLabel } from "../lib/calendarTheme";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
@@ -23,8 +25,7 @@ const MOCK_USERS = [
 ];
 
 export function AdminDashboard({ panel = "users" }) {
-  const { isAdmin, loading, token, user, localMode } = useAuth();
-  const navigate = useNavigate();
+  const { isAdmin, token, user, localMode } = useAuth();
 
   const [stats, setStats] = useState(null);
   const [dbLogs, setDbLogs] = useState([]);
@@ -39,10 +40,6 @@ export function AdminDashboard({ panel = "users" }) {
   const [logs, setLogs] = useState([]);
   const [chatBusy, setChatBusy] = useState(false);
   const [chatMsg, setChatMsg] = useState(null);
-
-  useEffect(() => {
-    if (!loading && !isAdmin) navigate("/");
-  }, [loading, isAdmin, navigate]);
 
   const loadStats = useCallback(async () => {
     if (localMode) {
@@ -484,6 +481,141 @@ export function AdminDashboard({ panel = "users" }) {
   );
 }
 
+const TABS = [
+  { id: "me", label: "계정", ko: "프로필" },
+  { id: "users", label: "회원", ko: "권한" },
+  { id: "db", label: "DS", ko: "데이터" },
+  { id: "chat", label: "AI", ko: "지침" },
+];
+
+function resolveTab(raw, isAdmin) {
+  const id = raw === "admin" ? "users" : raw || "me";
+  if (!isAdmin) return "me";
+  return TABS.some((t) => t.id === id) ? id : "me";
+}
+
 export default function AdminPage() {
-  return <Navigate to="/mypage?tab=users" replace />;
+  const { user, isAuthed, loading, isAdmin, updateNickname, logout } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [nickname, setNickname] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const tab = resolveTab(searchParams.get("tab"), isAdmin);
+
+  useEffect(() => {
+    if (!loading && !isAuthed) navigate("/");
+  }, [loading, isAuthed, navigate]);
+
+  useEffect(() => {
+    if (user?.nickname) setNickname(user.nickname);
+  }, [user]);
+
+  if (!isAuthed || !user) return null;
+
+  const saveNickname = async (e) => {
+    e.preventDefault();
+    const v = nickname.trim();
+    if (!v) return setMsg({ type: "err", text: "닉네임을 입력해주세요." });
+    setBusy(true);
+    setMsg(null);
+    try {
+      await updateNickname(v);
+      setMsg({ type: "ok", text: "닉네임이 저장되었습니다." });
+    } catch (e2) {
+      setMsg({ type: "err", text: e2.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const tabs = isAdmin ? TABS : TABS.filter((t) => t.id === "me");
+  const roleClass = user.role?.toLowerCase().replace("_", "-");
+
+  return (
+    <PageTransition className="page admin-world">
+      <header className="admin-world__title">
+        <p className="admin-world__line">
+          <span>01</span> ADMIN
+        </p>
+        <p className="admin-world__ko">관리자</p>
+      </header>
+
+      {tabs.length > 1 && (
+        <nav className="admin-world__tabs" aria-label="관리 메뉴">
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={tab === item.id ? "is-on" : ""}
+              onClick={() => setSearchParams(item.id === "me" ? {} : { tab: item.id })}
+            >
+              <b>{item.label}</b>
+              <span>{item.ko}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {tab === "me" ? (
+        <section className="admin-world__card">
+          <div className="admin-world__profile">
+            <div className="admin-world__avatar">{(user.nickname || user.name || "?").slice(0, 1)}</div>
+            <div className="admin-world__meta">
+              <strong>{user.nickname || user.name}</strong>
+              <span>{user.email}</span>
+            </div>
+            <span className={`admin-world__role admin-world__role--${roleClass}`}>{user.role}</span>
+          </div>
+
+          <dl className="admin-world__info">
+            <div>
+              <dt>이름</dt>
+              <dd>{user.name || "—"}</dd>
+            </div>
+            <div>
+              <dt>이메일</dt>
+              <dd>{user.email || "—"}</dd>
+            </div>
+            <div>
+              <dt>권한</dt>
+              <dd>{roleLabel(user.role)}</dd>
+            </div>
+          </dl>
+
+          <form className="admin-world__form" onSubmit={saveNickname}>
+            <label>
+              닉네임
+              <input
+                value={nickname}
+                maxLength={20}
+                placeholder="예: 이성권"
+                onChange={(e) => setNickname(e.target.value)}
+              />
+            </label>
+            {msg && <p className={`admin-world__msg ${msg.type === "err" ? "is-err" : "is-ok"}`}>{msg.text}</p>}
+            <div className="admin-world__actions">
+              <button type="submit" disabled={busy}>
+                {busy ? "저장 중…" : "닉네임 저장"}
+              </button>
+              <button
+                type="button"
+                className="is-ghost"
+                onClick={() => {
+                  logout();
+                  navigate("/");
+                }}
+              >
+                로그아웃
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : (
+        <div className="admin-world__panel">
+          <AdminDashboard panel={tab} />
+        </div>
+      )}
+    </PageTransition>
+  );
 }

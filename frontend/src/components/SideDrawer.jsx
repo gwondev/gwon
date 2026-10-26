@@ -67,11 +67,11 @@ export default function SideDrawer({ open, onClose }) {
             </div>
 
             <motion.div className="drawer__quick" variants={item} initial="hidden" animate="show">
-              <button type="button" className="drawer__quick-btn" onClick={() => go("/mypage")}>
+              <button type="button" className="drawer__quick-btn" onClick={() => go("/admin")}>
                 <span className="drawer__quick-icon">
                   <IconUser width={16} height={16} />
                 </span>
-                <span className="drawer__quick-label">마이페이지</span>
+                <span className="drawer__quick-label">관리자페이지</span>
               </button>
               <button type="button" className="drawer__quick-btn" onClick={() => go("/schedule")}>
                 <span className="drawer__quick-icon">
@@ -86,7 +86,7 @@ export default function SideDrawer({ open, onClose }) {
                 <motion.button
                   variants={item}
                   className="drawer__link drawer__link--admin"
-                  onClick={() => go("/mypage?tab=users")}
+                  onClick={() => go("/admin?tab=users")}
                 >
                   <span className="drawer__link-no">★</span>
                   <span className="drawer__link-title">ADMIN 페이지</span>

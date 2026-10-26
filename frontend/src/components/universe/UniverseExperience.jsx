@@ -303,29 +303,28 @@ export default function UniverseExperience() {
         <div className="uv-menu" data-modal role="dialog" aria-modal="true" aria-label="메뉴" style={style}>
           <div className="uv-menu__head">
             <span>MENU</span>
-            <button type="button" onClick={() => setMenu(false)} aria-label="닫기">
-              ✕
-            </button>
-          </div>
-          <div className="uv-menu__site">
-            <button type="button" className={location.pathname === "/" ? "is-on" : ""} onClick={() => goPage("/")}>
-              홈
-            </button>
-            {isAuthed ? (
-              <button type="button" className={location.pathname === "/mypage" ? "is-on" : ""} onClick={() => goPage("/mypage")}>
-                마이페이지
+            <div className="uv-menu__head-acts">
+              {isSuperAdmin && (
+                <button type="button" className="uv-menu__ghost" onClick={() => goPage("/")}>
+                  {viewAsUser ? "EDIT" : "VIEW"}
+                </button>
+              )}
+              {!isAuthed && (
+                <button
+                  type="button"
+                  className="uv-menu__ghost"
+                  onClick={() => {
+                    setMenu(false);
+                    setLogin(true);
+                  }}
+                >
+                  LOGIN
+                </button>
+              )}
+              <button type="button" onClick={() => setMenu(false)} aria-label="닫기">
+                ✕
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setMenu(false);
-                  setLogin(true);
-                }}
-              >
-                로그인
-              </button>
-            )}
+            </div>
           </div>
           <div className="uv-menu__cards">
             <button type="button" className={location.pathname === "/schedule" ? "is-on" : ""} onClick={() => goPage("/schedule")}>
@@ -339,7 +338,7 @@ export default function UniverseExperience() {
             <button type="button" className={location.pathname === "/admin" ? "is-on" : ""} onClick={() => goPage("/admin")}>
               <span className="uv-menu__emoji" aria-hidden="true">⚙️</span>
               <span className="uv-menu__card-label">관리자페이지</span>
-              <span className="uv-menu__card-sub">회원 · DS</span>
+              <span className="uv-menu__card-sub">계정 · 회원 · DS</span>
             </button>
             <button type="button" className={location.pathname === "/ai" ? "is-on" : ""} onClick={() => goPage("/ai")}>
               <span className="uv-menu__emoji" aria-hidden="true">✦</span>
