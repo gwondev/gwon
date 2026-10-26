@@ -153,7 +153,13 @@
   left: clamp(24px, 6vw, 96px);
   bottom: clamp(72px, 14vh, 150px);
   max-width: min(620px, 46vw);
+  pointer-events: none;
   animation: uv-rise 1.1s var(--uv-ease) both;
+}
+.uv-hero button,
+.uv-hero .is-edit,
+.uv-enter {
+  pointer-events: auto;
 }
 .uv-hero__kickrow {
   display: flex;
@@ -341,16 +347,6 @@
   font-weight: 700;
   letter-spacing: 0.12em;
 }
-.uv-picker button.is-on .uv-picker__title::after {
-  content: "";
-  display: inline-block;
-  width: 26px;
-  height: 1px;
-  margin-left: 12px;
-  vertical-align: middle;
-  background: var(--uv-color);
-}
-
 /* ───────── content panel (desktop) ───────── */
 .uv-panel {
   position: absolute;

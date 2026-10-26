@@ -141,8 +141,16 @@ export function useUniverseInput(enabled = true) {
 
     const onPointer = (e) => {
       if (e.pointerType !== "mouse") return;
-      live.pointerX = (e.clientX / window.innerWidth) * 2 - 1;
-      live.pointerY = -((e.clientY / window.innerHeight) * 2 - 1);
+      const stage = document.querySelector(".uv-stage");
+      const box = stage?.getBoundingClientRect();
+      if (box && box.width > 1 && box.height > 1) {
+        live.pointerX = ((e.clientX - box.left) / box.width) * 2 - 1;
+        live.pointerY = -(((e.clientY - box.top) / box.height) * 2 - 1);
+      } else {
+        live.pointerX = (e.clientX / window.innerWidth) * 2 - 1;
+        live.pointerY = -((e.clientY / window.innerHeight) * 2 - 1);
+      }
+      live.pointerOn = true;
     };
 
     window.addEventListener("wheel", onWheel, { passive: false });

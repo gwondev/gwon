@@ -29,6 +29,7 @@ export const live = {
   focusPoint: null,
   pointerX: 0,
   pointerY: 0,
+  pointerOn: false,
 };
 
 let ticking = false;

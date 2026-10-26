@@ -11,13 +11,13 @@ import { damp } from "./util.js";
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const ANCHORS = {
   gateway: { pos: V(0, 0.82, 14.5), look: V(0, -0.15, 0), fov: 40, dive: V(0, 0.05, 0.35), inner: V(0, 0.02, 0.45), innerLook: V(0, 0, -4), portrait: 2.05, shift: -2.6, lift: 2.2 },
-  projects: { pos: V(0, 2.4, 19), look: V(0, 0, 0), fov: 48, dive: V(0.3, 0.2, 1.2), inner: V(0, 0.4, -2), innerLook: V(0, 0, -12), portrait: 1.9, focusDist: 8.5, shift: 2.6, lift: 12.4 },
-  infrastructure: { pos: V(20, 15, 25), look: V(0, 1.2, 0), fov: 40, dive: V(1.4, 0.9, 2.2), inner: V(0, 1.4, -1), innerLook: V(-6, 1.2, -10), portrait: 1.85, focusDist: 10, shift: 3.2, lift: 5.5 },
-  credentials: { pos: V(0, 1.4, 15.5), look: V(0, 0, 0), fov: 44, dive: V(0, 0, 0.9), inner: V(0, 0, 0.6), innerLook: V(0, 0, -6), portrait: 1.95, focusDist: 9, shift: 2.6, lift: 8.0 },
-  activities: { pos: V(0, 3.4, 17), look: V(0, 1.4, 0), fov: 48, dive: V(0, 1.6, 1.5), inner: V(0, 22, 9), innerLook: V(0, 6, -6), portrait: 1.8, focusDist: 7.5, shift: 2.2, lift: 5.5 },
-  career: { pos: V(0, 3.2, 17.5), look: V(0, 0, 0), fov: 46, dive: V(0, 0.3, 2.4), inner: V(0.6, 15, 1.6), innerLook: V(0, 0, 0), portrait: 1.9, focusDist: 8, shift: 2.8, lift: 10.0 },
-  awards: { pos: V(0, 0.6, 16), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 0.8), inner: V(0, 0, 0.5), innerLook: V(0, 0, -6), portrait: 1.9, focusDist: 8, shift: 2.6, lift: 6.5 },
-  profile: { pos: V(0, 0.6, 15), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 1.6), inner: V(0, 0, -5), innerLook: V(0, 0, -14), portrait: 1.85, shift: 2.4, lift: 5.5 },
+  projects: { pos: V(0, 2.4, 19), look: V(0, 0, 0), fov: 48, dive: V(0.3, 0.2, 1.2), inner: V(0, 0.4, -2), innerLook: V(0, 0, -12), portrait: 1.9, focusDist: 8.5, shift: 4.0, lift: 12.4 },
+  infrastructure: { pos: V(20, 15, 25), look: V(0, 1.2, 0), fov: 40, dive: V(1.4, 0.9, 2.2), inner: V(0, 1.4, -1), innerLook: V(-6, 1.2, -10), portrait: 1.85, focusDist: 10, shift: 4.2, lift: 5.5 },
+  credentials: { pos: V(0, 1.4, 15.5), look: V(0, 0, 0), fov: 44, dive: V(0, 0, 0.9), inner: V(0, 0, 0.6), innerLook: V(0, 0, -6), portrait: 1.95, focusDist: 9, shift: 4.0, lift: 8.0 },
+  activities: { pos: V(0, 3.4, 17), look: V(0, 1.4, 0), fov: 48, dive: V(0, 1.6, 1.5), inner: V(0, 22, 9), innerLook: V(0, 6, -6), portrait: 1.8, focusDist: 7.5, shift: 3.6, lift: 5.5 },
+  career: { pos: V(0, 3.2, 17.5), look: V(0, 0, 0), fov: 46, dive: V(0, 0.3, 2.4), inner: V(0.6, 15, 1.6), innerLook: V(0, 0, 0), portrait: 1.9, focusDist: 8, shift: 4.0, lift: 10.0 },
+  awards: { pos: V(0, 0.6, 16), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 0.8), inner: V(0, 0, 0.5), innerLook: V(0, 0, -6), portrait: 1.9, focusDist: 8, shift: 4.0, lift: 6.5 },
+  profile: { pos: V(0, 0.6, 15), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 1.6), inner: V(0, 0, -5), innerLook: V(0, 0, -14), portrait: 1.85, shift: 3.6, lift: 5.5 },
 };
 const UP = V(0, 1, 0);
 Object.values(ANCHORS).forEach((a) => {
@@ -38,9 +38,11 @@ function anchorOf(i) {
   return ANCHORS[live.ids[i]] || FALLBACK;
 }
 
-/** 넓은 화면에서는 왼쪽 글자 자리를 비우도록 장면을 오른쪽으로 민다. */
+/** 넓은 화면에서는 오른쪽 카드 자리를 비우도록 장면을 왼쪽으로 민다. 관문은 왼쪽 글자 때문에 반대. */
 function sideShift(anchor, aspect) {
-  return (anchor.shift || 0) * Math.min(1, Math.max(0, (aspect - 1.1) / 0.6));
+  if (aspect < 1.05) return 0;
+  const amt = Math.min(1, Math.max(0, (aspect - 1.05) / 0.7));
+  return (anchor.shift || 0) * amt;
 }
 
 /** 세로 화면에서 장면을 위로 올려, 아래 조작 자리를 비운다. */

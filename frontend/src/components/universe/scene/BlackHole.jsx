@@ -309,7 +309,7 @@ const _m4 = new THREE.Matrix4();
 export default function BlackHole() {
   const mesh = useRef(null);
   const dust = useRef(null);
-  const motion = useRef({ spin: 0, flow: 0, life: 0, pull: 0, well: 0, hasPointer: false });
+  const motion = useRef({ spin: 0, flow: 0, life: 0, pull: 0, well: 0 });
   const camera = useThree((s) => s.camera);
   const mobile = useThree((s) => s.size.width < 768);
   const dpr = useThree((s) => s.viewport.dpr);
@@ -394,9 +394,7 @@ export default function BlackHole() {
     m.spin += step * (1 + m.pull * 3.2);
     m.flow += step * (0.05 + m.pull * 0.55);
     m.life += (step / 45) * (1 + m.pull * 9);
-    const ptr = state.pointer;
-    m.hasPointer = m.hasPointer || ptr.x !== 0 || ptr.y !== 0;
-    const wantWell = m.hasPointer && !live.reduced && !live.mobile ? 1 : 0;
+    const wantWell = live.pointerOn && !live.reduced && !live.mobile ? 1 : 0;
     m.well = damp(m.well, wantWell, 7, step);
 
     const time = state.clock.elapsedTime;
@@ -420,7 +418,7 @@ export default function BlackHole() {
     u.uPull.value = m.pull;
     u.uWell.value = m.well;
     u.uAspect.value = aspect;
-    u.uMouse.value.copy(ptr);
+    u.uMouse.value.set(live.pointerX, live.pointerY);
     u.uSteps.value = mobile ? 110 : 200;
     u.uFade.value = Math.min(1, 0.15 + p.enter * 1.2);
 
