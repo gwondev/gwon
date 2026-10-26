@@ -1,5 +1,5 @@
-import WorldExperience from "../components/home/WorldExperience";
+import UniverseExperience from "../components/universe/UniverseExperience";
 
 export default function RootPage() {
-  return <WorldExperience />;
+  return <UniverseExperience />;
 }

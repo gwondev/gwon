@@ -2,23 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { useAuth } from "../context/AuthContext";
 import { mergeHomeLayout, readStoredLayout, writeStoredLayout } from "./homeLayout.js";
-import { journeyCount, makePlanetPos, setLiveProjects } from "./journey.js";
-import { worldState } from "../components/home/worldState.js";
-
-function syncProjects(projects) {
-  setLiveProjects(projects);
-  worldState.liveProjects = projects;
-  worldState.planets = makePlanetPos(journeyCount());
-}
 
 export function useHomeLayout() {
   const { token } = useAuth();
   const [layout, setLayout] = useState(() => readStoredLayout());
   const loaded = useRef(false);
-
-  useEffect(() => {
-    syncProjects(layout.projects);
-  }, [layout.projects]);
 
   useEffect(() => {
     if (loaded.current) return;
@@ -28,7 +16,6 @@ export function useHomeLayout() {
         const next = mergeHomeLayout(data?.layout);
         setLayout(next);
         writeStoredLayout(next);
-        syncProjects(next.projects);
       })
       .catch(() => {});
   }, []);
@@ -38,7 +25,6 @@ export function useHomeLayout() {
       const merged = mergeHomeLayout(next);
       setLayout(merged);
       writeStoredLayout(merged);
-      syncProjects(merged.projects);
       if (!token) return merged;
       try {
         const data = await api("/admin/home-layout", {
@@ -49,7 +35,6 @@ export function useHomeLayout() {
         const saved = mergeHomeLayout(data?.layout || merged);
         setLayout(saved);
         writeStoredLayout(saved);
-        syncProjects(saved.projects);
         return saved;
       } catch {
         return merged;

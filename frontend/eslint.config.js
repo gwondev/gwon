@@ -35,4 +35,11 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // R3F useFrame 안에서 three 객체(uniform·camera)를 매 프레임 직접 바꾸는 것이 정상 패턴이다.
+    files: ['src/components/universe/scene/**/*.{js,jsx}'],
+    rules: {
+      'react-hooks/immutability': 'off',
+    },
+  },
 ])
