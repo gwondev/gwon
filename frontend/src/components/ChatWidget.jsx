@@ -53,7 +53,7 @@ export default function ChatWidget({ home = false }) {
       >
         <span className="chat-widget__ring" aria-hidden />
         <span className="chat-widget__fab-icon">
-          {open ? "✕" : <IconChat width={22} height={22} />}
+          {open ? "✕" : <IconChat width={home ? 15 : 22} height={home ? 15 : 22} />}
         </span>
       </motion.button>
     </div>

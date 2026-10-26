@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useViewMode } from "../../context/ViewModeContext";
 import { useHomeLayout } from "../../lib/useHomeLayout.js";
@@ -9,7 +10,25 @@ import { useUniverseInput } from "./useUniverseInput.js";
 import { HeroBlock, ItemsList, ProjectDetail, ProjectPicker, patchOne, sectionOne } from "./content/Panels.jsx";
 import Field from "./content/Field.jsx";
 import DriveStore from "./drive/DriveStore.jsx";
+import SideDrawer from "../SideDrawer";
 import "./UniverseExperience.css";
+
+const RAIL_STEP = 32;
+
+function RailThumb({ count }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const p = live.active ? live.from + (live.to - live.from) * live.t : live.index;
+      if (ref.current) ref.current.style.transform = `translateY(${p * RAIL_STEP}px)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [count]);
+  return <i className="uv-rail__thumb" ref={ref} aria-hidden="true" />;
+}
 
 const UniverseCanvas = lazy(() => import("./scene/UniverseCanvas.jsx"));
 
@@ -52,8 +71,10 @@ function useMedia(query) {
 }
 
 export default function UniverseExperience() {
-  const { isSuperAdmin, token } = useAuth();
+  const { isSuperAdmin, isAdmin, isAuthed, token } = useAuth();
   const { viewAsUser, setViewAsUser } = useViewMode();
+  const navigate = useNavigate();
+  const location = useLocation();
   const home = useHomeLayout();
   const canEdit = isSuperAdmin && !viewAsUser;
   // 방문자에게는 안 보임. 일반 클릭은 그대로 포커스/펼침. 금고는 아이콘·Alt+클릭만.
@@ -61,8 +82,8 @@ export default function UniverseExperience() {
   const mobile = useMedia("(max-width: 767px)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const [webgl, setWebgl] = useState(() => hasWebGL());
-  const [sheet, setSheet] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [login, setLogin] = useState(false);
   const [vault, setVault] = useState(null);
 
   const sections = useMemo(() => visibleSections(home, canEdit), [home, canEdit]);
@@ -120,13 +141,10 @@ export default function UniverseExperience() {
     [lists]
   );
 
-  useUniverseInput(!sheet && !menu && !vault);
+  useUniverseInput(!menu && !vault && !login);
 
   useEffect(() => {
-    if (!settled) {
-      setSheet(false);
-      return;
-    }
+    if (!settled) return;
     const id = ids[snap.index];
     const hash = id && id !== "gateway" ? `#${id}` : "";
     if (window.location.hash !== hash) window.history.replaceState(null, "", `${window.location.pathname}${hash}`);
@@ -153,6 +171,15 @@ export default function UniverseExperience() {
   const fallback = !webgl;
   const style = { "--uv-color": section?.color, "--uv-accent": section?.accent };
 
+  const goPage = (path) => {
+    setMenu(false);
+    if (path === "/" && location.pathname === "/") {
+      if (isSuperAdmin) setViewAsUser((v) => !v);
+      return;
+    }
+    navigate(path);
+  };
+
   return (
     <main className={`uv${mobile ? " uv--mobile" : ""}${settled ? " is-settled" : " is-warping"}${snap.arriving ? " is-arriving" : ""}${fallback ? " uv--fallback" : ""}${canEdit ? " uv--edit" : ""}`} style={style}>
       <div className="uv-stage">
@@ -172,15 +199,6 @@ export default function UniverseExperience() {
         <i className="uv-hud__corner uv-hud__corner--tr" />
         <i className="uv-hud__corner uv-hud__corner--bl" />
         <i className="uv-hud__corner uv-hud__corner--br" />
-        <div className="uv-hud__telemetry">
-          <span>GWON.RUN</span>
-          <span className="uv-hud__sep" />
-          <span>{settled ? "STABLE ORBIT" : "WARP"}</span>
-          <span className="uv-hud__sep" />
-          <span>
-            SECTOR {settled ? section?.no : `${section?.no} → ${sections[heading]?.no ?? ""}`} / {String(total - 1).padStart(2, "0")}
-          </span>
-        </div>
       </div>
 
       {canEdit && (
@@ -202,19 +220,16 @@ export default function UniverseExperience() {
 
       {!isGateway && section && (
         <header className="uv-title" key={section.id} style={{ "--len": Math.max(6, (tabLabel || section.label).length) }}>
-          <p className="uv-title__no">
-            <span>{section.no}</span>
-            <i />
-            <span>{section.world}</span>
+          <p className="uv-title__line">
+            <span>{section.no}</span> {tabLabel && canEdit ? (
+              <Field tag="span" className="uv-title__label" value={tabLabel} canEdit onSave={(label) => home.patchProfileTab(section.source.id, { label })} />
+            ) : (
+              <span className="uv-title__label">{section.label}</span>
+            )}
           </p>
-          {tabLabel && canEdit ? (
-            <Field tag="h2" className="uv-title__label" value={tabLabel} canEdit onSave={(label) => home.patchProfileTab(section.source.id, { label })} />
-          ) : (
-            <h2 className="uv-title__label">{section.label}</h2>
-          )}
           <p className="uv-title__ko">{section.ko}</p>
-          {section.source.kind !== "projects" && (
-            <Field className="uv-title__one" value={one} canEdit={canEdit} placeholder="한 줄 소개" onSave={(v) => patchOne(section, home, v)} />
+          {canEdit && section.source.kind !== "projects" && (
+            <Field className="uv-title__one" value={one} canEdit placeholder="한 줄 소개" onSave={(v) => patchOne(section, home, v)} />
           )}
           {isProjects && !mobile && <ProjectPicker projects={projects} focus={snap.focus} onPick={setFocus} />}
         </header>
@@ -232,6 +247,7 @@ export default function UniverseExperience() {
 
       {!mobile && (
         <nav className="uv-rail" aria-label="섹션 이동">
+          <RailThumb count={total} />
           {sections.map((s, i) => (
             <button
               key={s.id}
@@ -250,117 +266,113 @@ export default function UniverseExperience() {
         </nav>
       )}
 
-      {!mobile && (
-        <div className="uv-controls">
-          <button type="button" onClick={() => step(-1)} disabled={heading <= 0} aria-label="이전 섹션">
+      <div className="uv-arrows">
+        {heading > 0 && (
+          <button type="button" className="uv-arrows__btn uv-arrows__btn--up" onClick={() => step(-1)} aria-label="이전 섹션">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 15l6-6 6 6" />
             </svg>
           </button>
-          <span className="uv-controls__hint">{isGateway ? "SCROLL TO ENTER" : "SCROLL · ↑ ↓"}</span>
-          <button type="button" onClick={() => step(1)} disabled={heading >= total - 1} aria-label="다음 섹션">
+        )}
+        {heading < total - 1 && (
+          <button type="button" className="uv-arrows__btn uv-arrows__btn--down" onClick={() => step(1)} aria-label="다음 섹션">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
+        )}
+      </div>
+
+      <button type="button" className="uv-burger" onClick={() => setMenu(true)} aria-label="메뉴 열기">
+        <i />
+        <i />
+        <i />
+      </button>
+
+      {mobile && !isGateway && section && (
+        <div className="uv-dock">
+          {isProjects && (
+            <div className="uv-dock__scroll" data-ui-scroll>
+              <ProjectPicker projects={projects} focus={snap.focus} onPick={setFocus} className="uv-picker--row" />
+            </div>
+          )}
+          <div className="uv-dock__peek" data-ui-scroll aria-label={`${section.ko} 내용`}>
+            {isProjects ? (
+              <ProjectDetail project={project} home={home} canEdit={canEdit} showVault={showVault} onOpenVault={setVault} />
+            ) : (
+              <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} showVault={showVault} onOpenVault={setVault} />
+            )}
+          </div>
         </div>
       )}
 
-      {mobile && (
-        <>
-          <div className="uv-m-top">
-            <span className="uv-m-top__no">
-              {section?.no}
-              <em>/{String(total - 1).padStart(2, "0")}</em>
-            </span>
-            <span className="uv-m-top__label">{section?.label}</span>
-            <button type="button" className="uv-m-top__menu" onClick={() => setMenu(true)} aria-label="섹션 목록 열기">
-              <i />
-              <i />
-              <i />
+      {menu && createPortal(
+        <div className="uv-menu" data-modal role="dialog" aria-modal="true" aria-label="메뉴" style={style}>
+          <div className="uv-menu__head">
+            <span>MENU</span>
+            <button type="button" onClick={() => setMenu(false)} aria-label="닫기">
+              ✕
             </button>
           </div>
-
-          {!isGateway && section && (
-            <div className="uv-dock">
-              {isProjects && (
-                <div className="uv-dock__scroll" data-ui-scroll>
-                  <ProjectPicker projects={projects} focus={snap.focus} onPick={setFocus} className="uv-picker--row" />
-                </div>
-              )}
-              <div className="uv-dock__row">
-                <div className="uv-dock__progress" aria-hidden="true">
-                  {sections.map((s, i) => (
-                    <i key={s.id} className={i === shownIndex ? "is-on" : ""} />
-                  ))}
-                </div>
-                <button type="button" className="uv-dock__open" onClick={() => setSheet(true)}>
-                  {isProjects ? (project?.title || "프로젝트") + " 자세히" : `${section.ko} 보기`}
-                  <span aria-hidden="true">↑</span>
+          <div className="uv-menu__site">
+            <button type="button" className={location.pathname === "/" ? "is-on" : ""} onClick={() => goPage("/")}>
+              홈
+            </button>
+            {isAdmin && (
+              <button type="button" className={location.pathname === "/schedule" ? "is-on" : ""} onClick={() => goPage("/schedule")}>
+                일정
+              </button>
+            )}
+            {isAuthed ? (
+              <button type="button" className={location.pathname === "/mypage" ? "is-on" : ""} onClick={() => goPage("/mypage")}>
+                마이페이지
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenu(false);
+                  setLogin(true);
+                }}
+              >
+                로그인
+              </button>
+            )}
+            {isSuperAdmin && (
+              <button type="button" className={location.pathname === "/admin" ? "is-on" : ""} onClick={() => goPage("/admin")}>
+                회원 · DS 관리
+              </button>
+            )}
+            {isAdmin && (
+              <button type="button" className={location.pathname.toLowerCase() === "/binance" ? "is-on" : ""} onClick={() => goPage("/binance")}>
+                바이낸스
+              </button>
+            )}
+          </div>
+          <ol>
+            {sections.map((s, i) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className={i === shownIndex ? "is-on" : ""}
+                  style={{ "--uv-color": s.color }}
+                  onClick={() => {
+                    setMenu(false);
+                    goTo(i);
+                  }}
+                >
+                  <span className="uv-menu__no">{s.no}</span>
+                  <span className="uv-menu__label">{s.label}</span>
+                  <span className="uv-menu__world">{s.ko}</span>
                 </button>
-              </div>
-              <p className="uv-dock__hint">위아래로 밀어 이동</p>
-            </div>
-          )}
-
-          {sheet && section && createPortal(
-            <div className="uv-sheet" data-modal role="dialog" aria-modal="true" aria-label={`${section.ko} 내용`} style={style}>
-              <button type="button" className="uv-sheet__scrim" onClick={() => setSheet(false)} aria-label="닫기" />
-              <div className="uv-sheet__box">
-                <div className="uv-sheet__bar">
-                  <span>
-                    {section.no} · {section.label}
-                  </span>
-                  <button type="button" onClick={() => setSheet(false)} aria-label="닫기">
-                    ✕
-                  </button>
-                </div>
-                <div className="uv-sheet__body" data-ui-scroll>
-                  {isProjects ? (
-                    <ProjectDetail project={project} home={home} canEdit={canEdit} showVault={showVault} onOpenVault={setVault} />
-                  ) : (
-                    <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} showVault={showVault} onOpenVault={setVault} />
-                  )}
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
-
-          {menu && createPortal(
-            <div className="uv-menu" data-modal role="dialog" aria-modal="true" aria-label="섹션 목록" style={style}>
-              <div className="uv-menu__head">
-                <span>NAVIGATION</span>
-                <button type="button" onClick={() => setMenu(false)} aria-label="닫기">
-                  ✕
-                </button>
-              </div>
-              <ol>
-                {sections.map((s, i) => (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      className={i === shownIndex ? "is-on" : ""}
-                      style={{ "--uv-color": s.color }}
-                      onClick={() => {
-                        setMenu(false);
-                        goTo(i);
-                      }}
-                    >
-                      <span className="uv-menu__no">{s.no}</span>
-                      <span className="uv-menu__label">{s.label}</span>
-                      <span className="uv-menu__world">
-                        {s.world} · {s.ko}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </div>,
-            document.body
-          )}
-        </>
+              </li>
+            ))}
+          </ol>
+        </div>,
+        document.body
       )}
+
+      <SideDrawer open={login} onClose={() => setLogin(false)} />
 
       {isSuperAdmin && (
         <DriveStore

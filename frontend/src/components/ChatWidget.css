@@ -66,6 +66,19 @@
 
 .chat-widget--home {
   z-index: 140;
+  top: calc(16px + env(safe-area-inset-top, 0px) + 50px);
+  right: 16px;
+  bottom: auto;
+}
+.chat-widget--home .chat-widget__fab {
+  width: 32px;
+  height: 32px;
+}
+.chat-widget--home .chat-widget__fab-icon {
+  font-size: 0.78rem;
+}
+.chat-widget--home .chat-widget__ring {
+  inset: -4px;
 }
 
 .chat-widget__scrim {

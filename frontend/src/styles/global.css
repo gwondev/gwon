@@ -123,14 +123,7 @@ body::after {
    버튼은 각자 배경을 가지므로 헤더 자체는 투명하게 둔다. */
 .app-shell--world .topbar,
 .app-shell--world .topbar.is-scrolled {
-  position: fixed;
-  width: 100%;
-  z-index: 40;
-  background: none;
-  border-bottom-color: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  padding-top: calc(clamp(16px, 2.6vw, 26px) + env(safe-area-inset-top, 0px));
+  display: none;
 }
 
 html:has(.app-shell--world),
