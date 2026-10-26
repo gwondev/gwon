@@ -113,22 +113,22 @@ const fragment = /* glsl */ `
         vec3 off = vec3(hash13(cell + 1.3), hash13(cell + 2.7), hash13(cell + 5.1)) - 0.5;
         float dist = length(f - off * 0.7);
         float b = smoothstep(0.22, 0.0, dist) * (h - 0.965) * 28.0;
-        vec3 tint = mix(vec3(1.0, 0.82, 0.62), vec3(0.7, 0.82, 1.0), hash13(cell + 9.0));
+        vec3 tint = mix(vec3(1.0, 0.96, 0.9), vec3(0.78, 0.86, 1.0), hash13(cell + 9.0));
         col += tint * b * (layer == 0 ? 1.0 : 0.55);
       }
     }
     float band = exp(-pow(d.y * 3.2 + d.x * 0.6, 2.0));
     float neb = fbm(vec2(atan(d.z, d.x) * 3.0, d.y * 6.0));
-    col += vec3(0.22, 0.17, 0.12) * band * neb * 0.35;
+    col += vec3(0.14, 0.12, 0.11) * band * neb * 0.22;
     return col;
   }
 
   vec3 diskColor(float r) {
     float x = clamp((r - R_IN) / (R_OUT - R_IN), 0.0, 1.0);
-    vec3 hot = vec3(1.0, 0.93, 0.8);
-    vec3 mid = vec3(1.0, 0.62, 0.26);
-    vec3 cool = vec3(0.62, 0.2, 0.06);
-    return x < 0.3 ? mix(hot, mid, x / 0.3) : mix(mid, cool, (x - 0.3) / 0.7);
+    vec3 hot = vec3(1.0, 0.99, 0.96);
+    vec3 mid = vec3(0.92, 0.78, 0.62);
+    vec3 cool = vec3(0.38, 0.24, 0.16);
+    return x < 0.22 ? mix(hot, mid, x / 0.22) : mix(mid, cool, (x - 0.22) / 0.78);
   }
 
   /* 한 위상의 원반 무늬. phase 만큼 케플러 회전시키고 uFlow 만큼 안쪽으로 끌어당긴다. */
@@ -157,17 +157,18 @@ const fragment = /* glsl */ `
     float hs = pnoise(vec2(fract(hsAng / TAU) * 7.0, r * 1.4 + 3.0), 7.0);
     hs = pow(smoothstep(0.58, 1.0, hs), 2.0) * smoothstep(6.0, 3.0, r) * (0.65 + 0.35 * sin(uTime * 1.9 + r * 3.1 + ang));
 
-    float dens = 0.42 + 0.78 * pat + hs * 0.9;
+    float dens = 0.48 + 0.82 * pat + hs * 1.05;
     float edge = smoothstep(R_IN, R_IN + 0.35, r) * smoothstep(R_OUT, R_OUT - 3.2, r);
 
     vec3 vel = normalize(vec3(-hit.z, 0.0, hit.x)) * sqrt(0.5 / r);
-    float dop = 1.0 / (1.0 - dot(vel, -dir) * 1.6);
-    float beam = pow(clamp(dop, 0.3, 1.9), 3.0);
+    float dop = 1.0 / (1.0 - dot(vel, -dir) * 1.7);
+    float beam = pow(clamp(dop, 0.3, 2.6), 4.2);
     float grav = sqrt(max(0.0, 1.0 - 1.0 / r));
+    float inner = smoothstep(R_IN + 2.4, R_IN, r);
 
     vec3 col = diskColor(r) * dens * beam * grav * (0.95 + uPull * 0.55);
-    col = mix(col, col * vec3(0.75, 0.85, 1.25), clamp(dop - 1.0, 0.0, 1.0) * 0.5 + uPull * 0.25);
-    col += vec3(1.0, 0.9, 0.75) * hs * beam * 0.6;
+    col = mix(col, vec3(1.0, 0.99, 0.96) * dens * beam, clamp(dop - 1.0, 0.0, 1.0) * 0.92);
+    col += vec3(1.0, 0.98, 0.94) * (hs * beam * 1.1 + inner * beam * beam * 1.35);
     float alpha = clamp(edge * dens * 1.1, 0.0, 1.0);
     return vec4(col * edge, alpha);
   }
@@ -233,20 +234,22 @@ const fragment = /* glsl */ `
       col += trans * sc;
     }
     float ring = exp(-pow((minR - 1.55) * 14.0, 2.0)) * (captured ? 0.0 : 1.0);
-    col += vec3(1.0, 0.8, 0.55) * ring * (0.4 + uPull * 0.9) * trans;
-    col += vec3(1.0, 0.6, 0.28) * glow * trans * (1.0 + uPull * 0.8);
+    float halo = exp(-pow((minR - 1.72) * 5.5, 2.0)) * (captured ? 0.0 : 1.0);
+    col += vec3(1.0, 0.98, 0.95) * ring * (1.8 + uPull * 1.2) * trans;
+    col += vec3(1.0, 0.96, 0.9) * halo * 0.42 * trans;
+    col += vec3(1.0, 0.94, 0.86) * glow * trans * (1.35 + uPull * 0.8);
 
     if (uWell > 0.001) {
       float core = smoothstep(0.07, 0.018, pokeR) * uWell;
       col *= 1.0 - core * 0.86;
       float photon = exp(-pow((pokeR - 0.052) * 42.0, 2.0)) * uWell;
-      col += vec3(1.0, 0.8, 0.5) * photon * 0.95;
+      col += vec3(1.0, 0.97, 0.92) * photon * 0.95;
       float bowl = exp(-pokeR * pokeR / 0.07) * uWell * 0.18 * (1.0 - core);
-      col += vec3(1.0, 0.55, 0.22) * bowl;
+      col += vec3(0.95, 0.82, 0.68) * bowl;
     }
 
-    col = 1.0 - exp(-col * 0.95);
-    col = pow(col, vec3(0.92));
+    col = 1.0 - exp(-col * 1.22);
+    col = pow(col, vec3(0.88));
     gl_FragColor = vec4(col * uFade, 1.0);
   }
 `;
@@ -284,7 +287,7 @@ const dustVertex = /* glsl */ `
     float heat = 1.0 - (r - R_INNER) / b;
     float fade = smoothstep(0.0, 0.1, life) * smoothstep(1.0, 0.86, life);
     vAlpha = fade * (1.0 - hidden) * (0.25 + 0.55 * aSeed.w) * (1.0 + uPull * 0.8);
-    vColor = mix(vec3(0.85, 0.4, 0.16), vec3(1.0, 0.93, 0.82), heat * heat) * (0.55 + heat * 1.3);
+    vColor = mix(vec3(0.62, 0.42, 0.26), vec3(1.0, 0.97, 0.92), heat * heat) * (0.55 + heat * 1.3);
     gl_PointSize = (0.8 + aSeed.w * 1.9) * uPixel * (14.0 / max(0.5, -mv.z)) * (1.0 + uPull * 0.7);
   }
 `;

@@ -2,7 +2,7 @@
 .uv,
 .uv-sheet,
 .uv-menu {
-  --uv-color: #f0c890;
+  --uv-color: #f4f0e8;
   --uv-accent: #ffb066;
   --uv-mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   --uv-line: rgba(255, 255, 255, 0.09);
@@ -1086,23 +1086,39 @@
   display: block;
   position: absolute;
   z-index: 13;
-  top: calc(58px + env(safe-area-inset-top, 0px));
-  left: 12px;
-  right: 36px;
+  top: calc(54px + env(safe-area-inset-top, 0px));
+  left: 10px;
+  right: 32px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
   pointer-events: auto;
-  mask-image: linear-gradient(90deg, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, #000 92%, transparent);
 }
 .uv--mobile .uv-picker-bar::-webkit-scrollbar {
   display: none;
 }
+.uv--mobile .uv-picker-bar .uv-picker--row {
+  width: max-content;
+  gap: 4px;
+}
 .uv--mobile .uv-picker-bar .uv-picker--row button {
+  flex: 0 0 auto;
+  justify-content: center;
+  gap: 3px;
+  padding: 0.2rem 0.48rem;
   background: rgba(8, 9, 13, 0.62);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+.uv--mobile .uv-picker-bar .uv-picker__no {
+  display: none;
+}
+.uv--mobile .uv-picker-bar .uv-picker__title {
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 .uv--mobile .uv-dock {
   left: 12px;

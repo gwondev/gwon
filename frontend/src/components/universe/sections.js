@@ -12,8 +12,8 @@ export const SECTIONS = [
     ko: "관문",
     source: { kind: "hero" },
     veil: "horizon",
-    color: "#f0c890",
-    accent: "#ffb066",
+    color: "#f4f0e8",
+    accent: "#ffffff",
   },
   {
     id: "projects",

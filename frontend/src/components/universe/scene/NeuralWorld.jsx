@@ -84,9 +84,12 @@ const EDGE_FRAG = /* glsl */ `
 `;
 
 function hubPositions(n) {
-  return Array.from({ length: n }, (_, i) => {
-    const th = Math.PI / 2 + (i / n) * Math.PI * 2;
-    return new THREE.Vector3(Math.cos(th) * 7.2, Math.sin(th) * 3.6, Math.sin(th * 2 + 0.6) * 2.4 - 0.5);
+  const count = Math.max(1, n);
+  const rx = count >= 6 ? 6.5 : 7.2;
+  const ry = count >= 6 ? 3.2 : 3.6;
+  return Array.from({ length: count }, (_, i) => {
+    const th = Math.PI / 2 + (i / count) * Math.PI * 2;
+    return new THREE.Vector3(Math.cos(th) * rx, Math.sin(th) * ry, Math.sin(th * 2 + 0.6) * 2.4 - 0.5);
   });
 }
 
@@ -318,7 +321,7 @@ export default function NeuralWorld({ projects }) {
   const group = useRef(null);
   const mobile = useThree((s) => s.size.width < 768);
   const dpr = useThree((s) => s.viewport.dpr);
-  const n = Math.max(1, projects.length);
+  const n = Math.max(6, projects.length);
   const hubs = useMemo(() => hubPositions(n), [n]);
   const net = useMemo(() => buildNetwork(hubs, mobile), [hubs, mobile]);
   const hubRefs = useRef([]);
@@ -358,7 +361,7 @@ export default function NeuralWorld({ projects }) {
 
   useSectionFrame("projects", group, (state, dt, p) => {
     const t = state.clock.elapsedTime * (live.reduced ? 0.25 : 1);
-    const target = live.focus >= 0 && live.focus < n ? live.focus : -1;
+    const target = live.focus >= 0 && live.focus < projects.length ? live.focus : -1;
     for (const m of [nodeMat, edgeMat]) {
       m.uniforms.uTime.value = t;
       m.uniforms.uActive.value = target;
@@ -367,7 +370,8 @@ export default function NeuralWorld({ projects }) {
     nodeMat.uniforms.uPixel.value = dpr * (mobile ? 0.8 : 1);
     hubRefs.current.forEach((h, k) => {
       if (!h) return;
-      const s = target === k ? 1.25 : target < 0 ? 1 : 0.8;
+      const filled = k < projects.length;
+      const s = !filled ? 0.55 : target === k ? 1.25 : target < 0 ? 1 : 0.8;
       h.scale.setScalar(damp(h.scale.x, s, 5, dt));
     });
     group.current.rotation.y = Math.sin(t * 0.05) * 0.12 + live.pointerX * 0.05;
@@ -380,10 +384,10 @@ export default function NeuralWorld({ projects }) {
       <points geometry={net.nGeo} material={nodeMat} frustumCulled={false} />
       {hubs.map((h, k) => (
         <group key={k} position={h} ref={(el) => (hubRefs.current[k] = el)}>
-          <sprite scale={[2.4, 2.4, 1]}>
-            <spriteMaterial map={glowTexture()} color={PALETTE[k % PALETTE.length]} transparent opacity={0.55} blending={THREE.AdditiveBlending} depthWrite={false} />
+          <sprite scale={projects[k] ? [2.4, 2.4, 1] : [1.4, 1.4, 1]}>
+            <spriteMaterial map={glowTexture()} color={PALETTE[k % PALETTE.length]} transparent opacity={projects[k] ? 0.55 : 0.22} blending={THREE.AdditiveBlending} depthWrite={false} />
           </sprite>
-          <Motif effect={projects[k]?.effect || "none"} color={PALETTE[k % PALETTE.length]} />
+          {projects[k] && <Motif effect={projects[k].effect || "none"} color={PALETTE[k % PALETTE.length]} />}
         </group>
       ))}
     </group>
