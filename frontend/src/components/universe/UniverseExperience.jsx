@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useViewMode } from "../../context/ViewModeContext";
 import { useHomeLayout } from "../../lib/useHomeLayout.js";
 import { filledItems, sectionItems, visibleSections } from "./sections.js";
-import { dispose, getSnapshot, goTo, jump, live, setEnv, setFocus, setSections, step, subscribe } from "./director.js";
+import { dispose, getSnapshot, goTo, jump, live, releaseScrub, scrubTo, setEnv, setFocus, setSections, step, subscribe } from "./director.js";
 import { useUniverseInput } from "./useUniverseInput.js";
 import { HeroBlock, ItemsList, ProjectDetail, ProjectPicker, patchOne, sectionOne } from "./content/Panels.jsx";
 import Field from "./content/Field.jsx";
@@ -28,6 +28,18 @@ function RailThumb() {
     return () => cancelAnimationFrame(raf);
   }, []);
   return <i className="uv-rail__thumb" ref={ref} aria-hidden="true" />;
+}
+
+function indexFromRailY(nav, clientY) {
+  const dots = nav.querySelectorAll(".uv-rail__stop i");
+  if (!dots.length) return 0;
+  const first = dots[0].getBoundingClientRect();
+  const last = dots[dots.length - 1].getBoundingClientRect();
+  const y0 = first.top + first.height / 2;
+  const y1 = last.top + last.height / 2;
+  if (Math.abs(y1 - y0) < 1) return 0;
+  const t = (clientY - y0) / (y1 - y0);
+  return Math.max(0, Math.min(dots.length - 1, t * (dots.length - 1)));
 }
 
 const UniverseCanvas = lazy(() => import("./scene/UniverseCanvas.jsx"));
@@ -88,6 +100,7 @@ export default function UniverseExperience() {
   const [login, setLogin] = useState(false);
   const [vault, setVault] = useState(null);
   const rootRef = useRef(null);
+  const railDrag = useRef({ on: false, moved: false, y: 0 });
 
   const sections = useMemo(() => visibleSections(home, canEdit), [home, canEdit]);
   const ids = useMemo(() => sections.map((s) => s.id), [sections]);
@@ -249,14 +262,44 @@ export default function UniverseExperience() {
         </aside>
       )}
 
-      <nav className="uv-rail" aria-label="섹션 이동">
+      <nav
+        className="uv-rail"
+        aria-label="섹션 이동"
+        data-no-nav
+        onPointerDown={(e) => {
+          if (e.button && e.button !== 0) return;
+          railDrag.current = { on: true, moved: false, y: e.clientY };
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const d = railDrag.current;
+          if (!d.on) return;
+          if (!d.moved && Math.abs(e.clientY - d.y) < 6) return;
+          d.moved = true;
+          scrubTo(indexFromRailY(e.currentTarget, e.clientY));
+        }}
+        onPointerUp={(e) => {
+          const d = railDrag.current;
+          if (!d.on) return;
+          d.on = false;
+          if (d.moved) releaseScrub();
+        }}
+        onPointerCancel={() => {
+          if (!railDrag.current.on) return;
+          railDrag.current.on = false;
+          if (railDrag.current.moved) releaseScrub();
+        }}
+      >
         <RailThumb />
         {sections.map((s, i) => (
           <button
             key={s.id}
             type="button"
             className={`uv-rail__stop${i === (snap.active ? snap.to : snap.index) ? " is-on" : ""}`}
-            onClick={() => goTo(i)}
+            onClick={() => {
+              if (railDrag.current.moved) return;
+              goTo(i);
+            }}
             aria-current={!snap.active && i === snap.index ? "step" : undefined}
             aria-label={`${s.no} ${s.label} ${s.ko}`}
           >

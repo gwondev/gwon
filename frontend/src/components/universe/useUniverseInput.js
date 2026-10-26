@@ -9,7 +9,7 @@ const PAD_REPEAT_MS = 90;
 const ISOLATED_TICK_MS = 40;
 const SWIPE_MIN = 46;
 const SWIPE_MAX_MS = 900;
-const IGNORE = ".chat-widget, .chat-widget__scrim, .topbar, .side-drawer, [data-no-nav]";
+const IGNORE = ".chat-widget, .chat-widget__scrim, .topbar, .side-drawer, .uv-rail, [data-no-nav]";
 
 function canScroll(el, dir) {
   const box = el?.closest?.("[data-ui-scroll]");

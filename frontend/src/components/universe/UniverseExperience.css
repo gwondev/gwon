@@ -747,7 +747,7 @@
 /* ───────── sector rail ───────── */
 .uv-rail {
   position: absolute;
-  z-index: 11;
+  z-index: 13;
   right: 22px;
   top: 50%;
   transform: translateY(-50%);
@@ -755,7 +755,9 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
-  pointer-events: none;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: ns-resize;
 }
 .uv-rail__thumb {
   position: absolute;
@@ -1040,11 +1042,13 @@
   z-index: 141;
 }
 .uv--mobile .uv-rail {
-  right: 6px;
+  right: 0;
   top: 38%;
   gap: 1px;
-  transform: translateY(-50%) scale(0.72);
+  padding: 14px 14px 14px 22px;
+  transform: translateY(-50%) scale(0.78);
   transform-origin: right center;
+  z-index: 15;
 }
 .uv--mobile .uv-rail__label {
   display: none;

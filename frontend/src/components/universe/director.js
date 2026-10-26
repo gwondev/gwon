@@ -109,6 +109,7 @@ function tick(_time, deltaMs) {
     stopTicker();
     return;
   }
+  if (live.rate === 0) return;
   const before = live.t;
   live.t += (live.rate * Math.min(deltaMs, 100)) / 1000 / duration();
   if (live.rate > 0 && live.t >= 1) {
@@ -213,6 +214,49 @@ export function step(dir) {
   goTo((live.active ? live.target : live.index) + dir);
 }
 
+/** 레일을 손가락·마우스로 잡고 있는 동안 위치를 바로 맞춘다. */
+export function scrubTo(p) {
+  const max = Math.max(0, live.ids.length - 1);
+  const x = Math.max(0, Math.min(max, p));
+  const a = Math.min(Math.floor(x), max);
+  const b = Math.min(a + 1, max);
+  const frac = a === b ? 1 : x - a;
+  const onStop = frac < 0.02 || frac > 0.98;
+  const nextFrom = onStop ? Math.round(x) : a;
+  const nextTo = onStop ? nextFrom : b;
+  const crossed = live.from !== nextFrom || live.to !== nextTo;
+  live.focus = -1;
+  live.focusPoint = null;
+  live.dir = x >= travelPos() ? 1 : -1;
+  if (onStop) {
+    if (live.index !== nextFrom || live.active) live.seq += 1;
+    settle(nextFrom);
+    return;
+  }
+  stopTicker();
+  live.from = nextFrom;
+  live.to = nextTo;
+  live.index = nextFrom;
+  live.target = frac >= 0.5 ? nextTo : nextFrom;
+  live.t = frac;
+  live.rate = 0;
+  live.active = true;
+  if (crossed) live.seq += 1;
+  emit();
+}
+
+/** 레일에서 손을 떼면 가까운 칸으로 붙인다. */
+export function releaseScrub() {
+  live.rate = 1;
+  const p = travelPos();
+  const i = clamp(Math.round(p));
+  if (Math.abs(p - i) < 0.03) {
+    settle(i);
+    return;
+  }
+  goTo(i);
+}
+
 export function dispose() {
   stopTicker();
 }
@@ -238,5 +282,5 @@ export function sectionIndex(id) {
 }
 
 if (import.meta.env.DEV) {
-  window.__uv = { live, goTo, step, jump, gsap };
+  window.__uv = { live, goTo, step, jump, scrubTo, releaseScrub, gsap };
 }
