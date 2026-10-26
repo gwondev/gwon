@@ -119,6 +119,64 @@ body::after {
   overflow: hidden;
 }
 
+/* 데스크톱에서 아이폰 논리 픽셀(390×844)로 홈을 본다. 창을 옆으로 줄이면
+   HUD만 좁아지고 3D 가로세로 비율은 그대로라 폰이 아니다. */
+.app-shell--phone {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 38%, #16181f 0%, #05060a 68%);
+}
+.phone-desk__hint {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  font: 600 0.68rem/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  letter-spacing: 0.14em;
+  color: rgba(244, 243, 241, 0.38);
+  pointer-events: none;
+}
+.phone-frame {
+  position: relative;
+  width: 390px;
+  height: 844px;
+  overflow: hidden;
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #020203;
+  box-shadow:
+    0 0 0 8px #0c0d11,
+    0 0 0 9px rgba(255, 255, 255, 0.16),
+    0 28px 70px rgba(0, 0, 0, 0.55);
+  transform: scale(min(1, (100vw - 28px) / 390, (100dvh - 48px) / 844));
+  transform-origin: center center;
+}
+.app-shell--phone .uv,
+.app-shell--phone .uv-menu,
+.app-shell--phone .chat-widget,
+.app-shell--phone .chat-widget__scrim {
+  position: absolute;
+}
+.app-shell--phone .uv,
+.app-shell--phone .uv-menu,
+.app-shell--phone .chat-widget__scrim {
+  inset: 0;
+}
+.app-shell--phone .chat-widget--home {
+  top: 16px;
+  right: 66px;
+  bottom: auto;
+}
+.app-shell--phone .topbar,
+.app-shell--phone .site-footer {
+  display: none;
+}
+
 /* 3D 장면 위에 떠 있는 헤더. 배경·블러를 두면 헤더 높이에서 장면이 잘린 띠처럼 보인다.
    버튼은 각자 배경을 가지므로 헤더 자체는 투명하게 둔다. */
 .app-shell--world .topbar,

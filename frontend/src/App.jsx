@@ -19,6 +19,7 @@ export default function App() {
   const path = location.pathname;
   // 홈·일정·바이낸스·마이페이지는 블랙 골드 톤. 세부 포트폴리오 페이지만 코스믹.
   const isHome = path === "/";
+  const phone = new URLSearchParams(location.search).has("phone");
   const isCosmic =
     path !== "/" &&
     path !== "/schedule" &&
@@ -28,8 +29,8 @@ export default function App() {
     path !== "/binance" &&
     path !== "/ai";
 
-  return (
-    <div className={`app-shell ${isCosmic ? "cosmic" : ""} ${isHome ? "app-shell--world" : ""}`}>
+  const inner = (
+    <>
       <ScrollToTop />
       {isCosmic && <Starfield />}
       {isCosmic && <ScrollProgress />}
@@ -63,6 +64,19 @@ export default function App() {
         path !== "/BINANCE" &&
         path !== "/binance" &&
         path !== "/ai" && <ChatWidget />}
+    </>
+  );
+
+  return (
+    <div className={`app-shell ${isCosmic ? "cosmic" : ""} ${isHome ? "app-shell--world" : ""} ${phone ? "app-shell--phone" : ""}`}>
+      {phone ? (
+        <>
+          <p className="phone-desk__hint">PHONE PREVIEW · 390×844 · 주소에서 ?phone 을 빼면 원래 화면</p>
+          <div className="phone-frame">{inner}</div>
+        </>
+      ) : (
+        inner
+      )}
     </div>
   );
 }

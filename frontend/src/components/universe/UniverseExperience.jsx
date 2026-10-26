@@ -79,12 +79,15 @@ export default function UniverseExperience() {
   const canEdit = isSuperAdmin && !viewAsUser;
   // 방문자에게는 안 보임. 일반 클릭은 그대로 포커스/펼침. 금고는 아이콘·Alt+클릭만.
   const showVault = isSuperAdmin;
-  const mobile = useMedia("(max-width: 767px)");
+  const narrow = useMedia("(max-width: 767px)");
+  const phonePreview = new URLSearchParams(location.search).has("phone");
+  const mobile = phonePreview || narrow;
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const [webgl, setWebgl] = useState(() => hasWebGL());
   const [menu, setMenu] = useState(false);
   const [login, setLogin] = useState(false);
   const [vault, setVault] = useState(null);
+  const rootRef = useRef(null);
 
   const sections = useMemo(() => visibleSections(home, canEdit), [home, canEdit]);
   const ids = useMemo(() => sections.map((s) => s.id), [sections]);
@@ -182,7 +185,7 @@ export default function UniverseExperience() {
   };
 
   return (
-    <main className={`uv${mobile ? " uv--mobile" : ""}${settled ? " is-settled" : " is-warping"}${snap.arriving ? " is-arriving" : ""}${fallback ? " uv--fallback" : ""}${canEdit ? " uv--edit" : ""}`} style={style}>
+    <main ref={rootRef} className={`uv${mobile ? " uv--mobile" : ""}${settled ? " is-settled" : " is-warping"}${snap.arriving ? " is-arriving" : ""}${fallback ? " uv--fallback" : ""}${canEdit ? " uv--edit" : ""}`} style={style}>
       <div className="uv-stage">
         {webgl ? (
           <CanvasBoundary onFail={() => setWebgl(false)}>
@@ -389,7 +392,7 @@ export default function UniverseExperience() {
             ))}
           </ol>
         </div>,
-        document.body
+        phonePreview && rootRef.current ? rootRef.current : document.body
       )}
 
       <SideDrawer open={login} onClose={() => setLogin(false)} />
