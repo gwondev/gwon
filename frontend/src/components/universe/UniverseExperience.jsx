@@ -15,11 +15,18 @@ import "./UniverseExperience.css";
 
 const RAIL_STEP = 32;
 
-function RailThumb({ index }) {
+function RailThumb() {
   const ref = useRef(null);
   useEffect(() => {
-    if (ref.current) ref.current.style.transform = `translateY(${index * RAIL_STEP}px)`;
-  }, [index]);
+    let raf = 0;
+    const tick = () => {
+      const p = live.active ? live.from + (live.to - live.from) * live.t : live.index;
+      if (ref.current) ref.current.style.transform = `translateY(${p * RAIL_STEP}px)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
   return <i className="uv-rail__thumb" ref={ref} aria-hidden="true" />;
 }
 
@@ -240,18 +247,18 @@ export default function UniverseExperience() {
 
       {!mobile && (
         <nav className="uv-rail" aria-label="섹션 이동">
-          <RailThumb index={snap.active ? snap.from : snap.index} />
+          <RailThumb />
           {sections.map((s, i) => (
             <button
               key={s.id}
               type="button"
-              className={`uv-rail__stop${i === (snap.active ? snap.from : snap.index) ? " is-on" : ""}`}
+              className={`uv-rail__stop${i === (snap.active ? snap.to : snap.index) ? " is-on" : ""}`}
               onClick={() => goTo(i)}
               aria-current={!snap.active && i === snap.index ? "step" : undefined}
               aria-label={`${s.no} ${s.label} ${s.ko}`}
             >
               <span className="uv-rail__label">
-                <b>{s.no}</b> {s.label}
+                <b>{s.no}</b> {s.ko}
               </span>
               <i />
             </button>
@@ -346,7 +353,7 @@ export default function UniverseExperience() {
               <span className="uv-menu__card-sub">개설 예정</span>
             </button>
           </div>
-          <p className="uv-menu__group">여정</p>
+          <p className="uv-menu__group">JOURNEY</p>
           <ol className="uv-menu__secs">
             {sections.map((s, i) => (
               <li key={s.id}>
@@ -359,9 +366,11 @@ export default function UniverseExperience() {
                     goTo(i);
                   }}
                 >
-                  <span className="uv-menu__no">{s.no}</span>
+                  <span className="uv-menu__head-line">
+                    <span className="uv-menu__no">{s.no}</span>
+                    <span className="uv-menu__world">{s.ko}</span>
+                  </span>
                   <span className="uv-menu__label">{s.label}</span>
-                  <span className="uv-menu__world">{s.ko}</span>
                 </button>
               </li>
             ))}

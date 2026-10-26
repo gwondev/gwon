@@ -131,15 +131,10 @@ function wanted() {
   const fromId = live.ids[live.from];
   const toId = live.ids[live.to];
   const dest = SECTION_BY_ID[toId] || SECTION_BY_ID.gateway;
-  const style = live.reduced ? "fade" : fromId === "gateway" || toId === "gateway" ? "horizon" : dest.veil;
-  let look = toId === "gateway" ? SECTION_BY_ID[fromId] || dest : dest;
-  const span = Math.abs(live.to - live.from);
-  if (span > 1 && live.t < 0.5 && !live.reduced) {
-    const k = Math.round(live.from + (live.to - live.from) * smooth(0.12, 0.48, live.t));
-    look = SECTION_BY_ID[live.ids[k]] || look;
-  }
+  const look = toId === "gateway" ? SECTION_BY_ID[fromId] || dest : dest;
+  const style = live.reduced ? "fade" : "horizon";
   const color = style === "horizon" ? "#f0c890" : look.color;
-  return { style: STYLES[style] ?? 0, color, accent: look.accent, span, key: `${style}|${color}|${look.accent}` };
+  return { style: STYLES[style] ?? 0, color, accent: look.accent, span: 1, key: `${style}|${color}|${look.accent}` };
 }
 
 export default function TransitionVeil() {
@@ -203,8 +198,8 @@ export default function TransitionVeil() {
     u.uAmt.value = amt;
     u.uTime.value = frame.clock.elapsedTime;
     u.uAspect.value = size.width / Math.max(1, size.height);
-    u.uDir.value = live.dir;
-    u.uSpan.value = THREE.MathUtils.lerp(u.uSpan.value, w.span, 1 - Math.exp(-dt * 6));
+    u.uDir.value = 1;
+    u.uSpan.value = 1;
   });
 
   return (

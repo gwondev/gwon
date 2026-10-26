@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { goTo, live, step } from "./director.js";
 
-const GESTURE_GAP_MS = 170;
-const NOTCH_MIN = 40;
+const GESTURE_GAP_MS = 80;
+const NOTCH_MIN = 18;
 const PAD_STREAM_MS = 12;
-const PAD_TRIGGER = 26;
-const PAD_REPEAT_MS = 200;
-const ISOLATED_TICK_MS = 140;
+const PAD_TRIGGER = 6;
+const PAD_REPEAT_MS = 90;
+const ISOLATED_TICK_MS = 40;
 const SWIPE_MIN = 46;
 const SWIPE_MAX_MS = 900;
 const IGNORE = ".chat-widget, .chat-widget__scrim, .topbar, .side-drawer, [data-no-nav]";

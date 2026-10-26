@@ -10,21 +10,22 @@ import { damp } from "./util.js";
  */
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const ANCHORS = {
-  gateway: { pos: V(0, 0.82, 14.5), look: V(0, -0.15, 0), fov: 40, dive: V(0, 0.05, 0.35), inner: V(0, 0.02, 0.45), innerLook: V(0, 0, -4), portrait: 1.75, shift: -2.6 },
-  projects: { pos: V(0, 2.4, 19), look: V(0, 0, 0), fov: 48, dive: V(0.3, 0.2, 1.2), inner: V(0, 0.4, -2), innerLook: V(0, 0, -12), portrait: 1.55, focusDist: 8.5, shift: 2.6 },
-  infrastructure: { pos: V(20, 15, 25), look: V(0, 1.2, 0), fov: 40, dive: V(1.4, 0.9, 2.2), inner: V(0, 1.4, -1), innerLook: V(-6, 1.2, -10), portrait: 1.5, focusDist: 10, shift: 3.2 },
-  credentials: { pos: V(0, 1.4, 15.5), look: V(0, 0, 0), fov: 44, dive: V(0, 0, 0.9), inner: V(0, 0, 0.6), innerLook: V(0, 0, -6), portrait: 1.6, focusDist: 9, shift: 2.6 },
-  activities: { pos: V(0, 3.4, 17), look: V(0, 1.4, 0), fov: 48, dive: V(0, 1.6, 1.5), inner: V(0, 22, 9), innerLook: V(0, 6, -6), portrait: 1.45, focusDist: 7.5, shift: 2.2 },
-  career: { pos: V(0, 3.2, 17.5), look: V(0, 0, 0), fov: 46, dive: V(0, 0.3, 2.4), inner: V(0.6, 15, 1.6), innerLook: V(0, 0, 0), portrait: 1.55, focusDist: 8, shift: 2.8 },
-  awards: { pos: V(0, 0.6, 16), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 0.8), inner: V(0, 0, 0.5), innerLook: V(0, 0, -6), portrait: 1.55, focusDist: 8, shift: 2.6 },
-  profile: { pos: V(0, 0.6, 15), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 1.6), inner: V(0, 0, -5), innerLook: V(0, 0, -14), portrait: 1.5, shift: 2.4 },
+  gateway: { pos: V(0, 0.82, 14.5), look: V(0, -0.15, 0), fov: 40, dive: V(0, 0.05, 0.35), inner: V(0, 0.02, 0.45), innerLook: V(0, 0, -4), portrait: 2.05, shift: -2.6 },
+  projects: { pos: V(0, 2.4, 19), look: V(0, 0, 0), fov: 48, dive: V(0.3, 0.2, 1.2), inner: V(0, 0.4, -2), innerLook: V(0, 0, -12), portrait: 1.9, focusDist: 8.5, shift: 2.6 },
+  infrastructure: { pos: V(20, 15, 25), look: V(0, 1.2, 0), fov: 40, dive: V(1.4, 0.9, 2.2), inner: V(0, 1.4, -1), innerLook: V(-6, 1.2, -10), portrait: 1.85, focusDist: 10, shift: 3.2 },
+  credentials: { pos: V(0, 1.4, 15.5), look: V(0, 0, 0), fov: 44, dive: V(0, 0, 0.9), inner: V(0, 0, 0.6), innerLook: V(0, 0, -6), portrait: 1.95, focusDist: 9, shift: 2.6 },
+  activities: { pos: V(0, 3.4, 17), look: V(0, 1.4, 0), fov: 48, dive: V(0, 1.6, 1.5), inner: V(0, 22, 9), innerLook: V(0, 6, -6), portrait: 1.8, focusDist: 7.5, shift: 2.2 },
+  career: { pos: V(0, 3.2, 17.5), look: V(0, 0, 0), fov: 46, dive: V(0, 0.3, 2.4), inner: V(0.6, 15, 1.6), innerLook: V(0, 0, 0), portrait: 1.9, focusDist: 8, shift: 2.8 },
+  awards: { pos: V(0, 0.6, 16), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 0.8), inner: V(0, 0, 0.5), innerLook: V(0, 0, -6), portrait: 1.9, focusDist: 8, shift: 2.6 },
+  profile: { pos: V(0, 0.6, 15), look: V(0, 0, 0), fov: 46, dive: V(0, 0, 1.6), inner: V(0, 0, -5), innerLook: V(0, 0, -14), portrait: 1.85, shift: 2.4 },
 };
 const UP = V(0, 1, 0);
 Object.values(ANCHORS).forEach((a) => {
   a.right = new THREE.Vector3().subVectors(a.look, a.pos).cross(UP).normalize();
 });
 const FALLBACK = ANCHORS.gateway;
-const DIVE_FOV = 30;
+const DIVE_FOV = 14;
+const DIVE_IN = 0.82;
 
 const _pos = new THREE.Vector3();
 const _look = new THREE.Vector3();
@@ -42,10 +43,10 @@ function sideShift(anchor, aspect) {
   return (anchor.shift || 0) * Math.min(1, Math.max(0, (aspect - 1.1) / 0.6));
 }
 
-/** 세로 화면에서 블랙홀 이외의 세계를 살짝 위로 올려, 아래 조작 자리를 비운다. */
+/** 세로 화면에서 블랙홀 이외의 세계를 위로 올려, 아래 조작 자리를 비운다. */
 function portraitLift(anchor, aspect) {
   if (aspect >= 1.05 || anchor === ANCHORS.gateway) return 0;
-  return 1.55 * Math.min(1, (1.05 - aspect) / 0.4);
+  return 2.45 * Math.min(1, (1.05 - aspect) / 0.4);
 }
 
 function restPos(anchor, aspect, out, shifted = true) {
@@ -54,7 +55,7 @@ function restPos(anchor, aspect, out, shifted = true) {
     const k = THREE.MathUtils.lerp(1, anchor.portrait, Math.min(1, (1.6 - aspect) / 1.05));
     out.sub(anchor.look).multiplyScalar(k).add(anchor.look);
   }
-  out.y += portraitLift(anchor, aspect) * 0.2;
+  out.y += portraitLift(anchor, aspect) * 0.55;
   return shifted ? out.addScaledVector(anchor.right, sideShift(anchor, aspect)) : out;
 }
 
@@ -64,19 +65,14 @@ function restLook(anchor, aspect, out) {
   return out;
 }
 
-const easeIn = (x) => x * x * x * (0.6 + 0.4 * x);
-const easeOut = (x) => 1 - Math.pow(1 - x, 3.2);
+const easeIn = (x) => x * x;
+const easeOut = (x) => 1 - (1 - x) * (1 - x);
 
-/** 블랙홀로 떨어질 때는 직선이 아니라 원반을 따라 감기며 들어간다. s: 0(바깥)→1(중심). */
-function spiral(out, s, sign) {
-  const ang = sign * 1.15 * Math.pow(s, 1.35);
-  const c = Math.cos(ang);
-  const n = Math.sin(ang);
-  const x = out.x * c - out.z * n;
-  const z = out.x * n + out.z * c;
-  out.x = x;
-  out.z = z;
-  return out;
+/** 시선 방향으로만 들어간다. 세계마다 다른 좌표로 옆으로 날아가지 않는다. */
+function dolly(anchor, aspect, inward, outPos, outLook) {
+  restPos(anchor, aspect, outPos);
+  restLook(anchor, aspect, outLook);
+  outPos.lerp(outLook, inward * DIVE_IN);
 }
 
 /** 궤적이 바뀐 순간의 어긋남. 매 프레임 줄어들며 새 궤적으로 합류한다. */
@@ -85,8 +81,9 @@ const offLook = new THREE.Vector3();
 let offFov = 0;
 let offRoll = 0;
 let seenSeq = -1;
+let seenHalf = -1;
 let roll = 0;
-const BLEND_RATE = 6.5;
+const BLEND_RATE = 10;
 
 export default function CameraRig() {
   const camera = useThree((s) => s.camera);
@@ -104,34 +101,35 @@ export default function CameraRig() {
       if (t < 0.5) {
         const a = anchorOf(live.from);
         const e = easeIn(t / 0.5);
-        restPos(a, aspect, _a);
-        restLook(a, aspect, _b);
-        _pos.lerpVectors(_a, a.dive, e);
-        _look.lerpVectors(_b, a.dive, e * 0.35);
+        dolly(a, aspect, e, _pos, _look);
         fov = a.fov + DIVE_FOV * e;
-        if (a === ANCHORS.gateway) {
-          spiral(_pos, e, live.dir);
-          wantRoll = 0.42 * live.dir * Math.pow(e, 1.8);
-        }
+        seenHalf = -1;
       } else {
         const a = anchorOf(live.to);
         const e = easeOut((t - 0.5) / 0.5);
-        restPos(a, aspect, _a);
-        restLook(a, aspect, _b);
-        _pos.lerpVectors(a.inner, _a, e);
-        _look.lerpVectors(a.innerLook, _b, Math.min(1, e * 1.25));
+        dolly(a, aspect, 1 - e, _pos, _look);
         fov = a.fov + DIVE_FOV * (1 - e);
-        if (a === ANCHORS.gateway) {
-          spiral(_pos, 1 - e, -live.dir);
-          wantRoll = -0.42 * live.dir * Math.pow(1 - e, 1.8);
-        }
       }
       if (live.seq !== seenSeq) {
         seenSeq = live.seq;
-        offPos.copy(camera.position).sub(_pos);
-        offLook.copy(curLook).sub(_look);
-        offFov = camera.fov - fov;
-        offRoll = roll - wantRoll;
+        if (t < 0.5) {
+          offPos.copy(camera.position).sub(_pos);
+          offLook.copy(curLook).sub(_look);
+          offFov = camera.fov - fov;
+          offRoll = roll - wantRoll;
+        } else {
+          offPos.set(0, 0, 0);
+          offLook.set(0, 0, 0);
+          offFov = 0;
+          offRoll = 0;
+          seenHalf = live.seq;
+        }
+      } else if (t >= 0.5 && seenHalf !== live.seq) {
+        seenHalf = live.seq;
+        offPos.set(0, 0, 0);
+        offLook.set(0, 0, 0);
+        offFov = 0;
+        offRoll = 0;
       }
       const k = Math.exp(-dt * BLEND_RATE);
       offPos.multiplyScalar(k);
@@ -147,6 +145,7 @@ export default function CameraRig() {
       const a = anchorOf(live.active ? (t < 0.5 ? live.from : live.to) : live.index);
       restPos(a, aspect, _pos, false);
       _look.copy(a.look);
+      _look.y -= portraitLift(a, aspect);
       if (a === ANCHORS.gateway && !live.reduced) {
         const az = Math.sin(time * 0.045) * 0.2 + Math.sin(time * 0.11 + 0.7) * 0.05;
         _pos.sub(a.look);

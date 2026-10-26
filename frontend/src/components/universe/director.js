@@ -1,23 +1,12 @@
 import gsap from "gsap";
 
 /**
- * 하나뿐인 전환 상태 기계(목적지 기반).
- * 휠·터치·키보드·클릭은 모두 goTo()/step() 으로 "목적지"만 바꾼다. 애니메이션은 하나뿐이고,
- * 진행값 t(0→1) 하나가 카메라·장면·전환 효과를 모두 움직인다. 한 칸이든 여섯 칸이든 걸리는 시간은 같다.
- *
- *  t < 0.5  지금 세계(from) 안으로 빨려 들어가는 중. 목적지가 바뀌면 to 만 바꾼다(화면은 그대로).
- *  t ≥ 0.5  다음 세계(to) 에서 빠져나오는 중.
- *           장막이 아직 짙을 때(t < SWAP_LATE) 목적지가 바뀌면 장막 뒤에서 세계만 바꿔 끼운다.
- *           그 뒤라면 지금 세계를 출발점으로 삼아 남은 진행을 뒤집어 이어 간다(t → 1 - t).
- *  출발 세계로 되돌아오라는 입력이 들어오면 진행을 거꾸로 돌려 제자리에 내려앉는다.
- *
- * 카메라가 궤적을 갈아탈 때마다 seq 가 올라가고, CameraRig 는 그 순간의 카메라 자세에서
- * 새 궤적으로 부드럽게 합류한다(관성 블렌딩). 따라서 어떤 입력에도 카메라가 순간이동하지 않는다.
+ * 멈춰 있을 때만 짧은 전환을 돌린다. 이미 움직이는 중에 입력이 오면 그 화면으로 즉시 선다.
+ * t(0→1) 하나가 카메라·장막을 움직인다. t < 0.5 안으로, t ≥ 0.5 다음 세계에서 빠져나온다.
  */
-const DURATION = 1.25;
-const DURATION_MOBILE = 1.1;
-const DURATION_REDUCED = 0.45;
-const SWAP_LATE = 0.64;
+const DURATION = 0.52;
+const DURATION_MOBILE = 0.46;
+const DURATION_REDUCED = 0.26;
 
 export const live = {
   ids: ["gateway"],
@@ -162,63 +151,38 @@ export function setFocus(i) {
   emit();
 }
 
-/** 목적지를 i 로 바꾼다. 진행 중인 전환은 끊지 않고 그 자리에서 궤적만 바꾼다. */
+/** 멈춰 있으면 짧은 전환을 시작하고, 이미 움직이는 중이면 그 화면으로 바로 붙는다. */
 export function goTo(target) {
   const i = clamp(target);
 
-  if (!live.active) {
-    if (i === live.index) return;
-    live.from = live.index;
-    live.to = i;
-    live.target = i;
-    live.dir = i > live.index ? 1 : -1;
-    live.t = 0;
-    live.rate = 1;
-    live.active = true;
-    live.focus = -1;
-    live.focusPoint = null;
-    live.seq += 1;
-    emit();
-    startTicker();
+  if (live.active) {
+    if (i === live.index && i === live.to) return;
+    jump(i);
     return;
   }
 
-  if (i === live.target) return;
-  live.target = i;
-
-  if (live.t < 0.5) {
-    if (i === live.from) {
-      live.rate = -1;
-    } else {
-      live.to = i;
-      live.rate = 1;
-      live.dir = i > live.from ? 1 : -1;
-    }
-    emit();
-    return;
-  }
-
-  if (i === live.to) return;
-  if (live.t < SWAP_LATE && i !== live.from) {
-    live.to = i;
-    live.dir = i > live.from ? 1 : -1;
-    live.seq += 1;
-    emit();
-    return;
-  }
-  live.from = live.to;
-  live.index = live.to;
+  if (i === live.index) return;
+  live.from = live.index;
   live.to = i;
-  live.dir = i > live.from ? 1 : -1;
-  live.t = Math.min(0.49, 1 - live.t);
+  live.target = i;
+  live.dir = i > live.index ? 1 : -1;
+  live.t = 0;
   live.rate = 1;
+  live.active = true;
+  live.focus = -1;
+  live.focusPoint = null;
   live.seq += 1;
   emit();
+  startTicker();
 }
 
-/** 지금 향하고 있는 목적지에서 한 칸 더. 연속 입력은 목적지를 계속 밀어낸다. */
+/** 지금 향하고 있는 목적지에서 한 칸 더. 움직이는 중이면 그 칸으로 즉시 선다. */
 export function step(dir) {
-  goTo((live.active ? live.target : live.index) + dir);
+  if (live.active) {
+    jump(clamp(live.target + dir));
+    return;
+  }
+  goTo(live.index + dir);
 }
 
 export function dispose() {
