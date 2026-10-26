@@ -24,7 +24,7 @@ function publicUser(row) {
     id: row.id,
     email: row.email,
     name: row.name,
-    picture: row.picture,
+    picture: row.avatar || row.picture,
     nickname: row.nickname,
     role: row.role || "GUEST",
     calendarThemeColor: row.calendar_theme_color || null,
@@ -91,6 +91,20 @@ router.put("/nickname", requireAuth, async (req, res) => {
   if (nickname.length > 20) return res.status(400).json({ error: "닉네임은 20자 이하여야 합니다." });
 
   await pool.query("UPDATE users SET nickname = ? WHERE id = ?", [nickname, req.auth.uid]);
+  const user = await findUserById(req.auth.uid);
+  res.json({ user: publicUser(user) });
+});
+
+// PUT /api/auth/avatar  { avatar: dataURL | null }
+router.put("/avatar", requireAuth, async (req, res) => {
+  const avatar = req.body?.avatar;
+  if (avatar != null && avatar !== "") {
+    if (typeof avatar !== "string" || !avatar.startsWith("data:image/")) {
+      return res.status(400).json({ error: "이미지 파일이 아닙니다." });
+    }
+    if (avatar.length > 480000) return res.status(400).json({ error: "사진이 너무 큽니다. 더 작은 이미지로 올려주세요." });
+  }
+  await pool.query("UPDATE users SET avatar = ? WHERE id = ?", [avatar || null, req.auth.uid]);
   const user = await findUserById(req.auth.uid);
   res.json({ user: publicUser(user) });
 });

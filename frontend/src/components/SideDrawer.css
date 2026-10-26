@@ -177,6 +177,12 @@
   font-weight: 800;
   color: #1a1408;
   background: linear-gradient(180deg, #ebe2d2, color-mix(in srgb, var(--accent) 80%, var(--bg-soft)));
+  overflow: hidden;
+}
+.drawer__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .drawer__profile-meta {
   display: flex;

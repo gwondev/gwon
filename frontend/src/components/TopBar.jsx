@@ -19,6 +19,7 @@ export default function TopBar() {
   const showViewMode = isAdmin && VIEWMODE_PATHS.includes(location.pathname);
   const isSchedule = location.pathname === "/schedule";
   const onHome = location.pathname === "/";
+  const privateDesk = ["/studio", "/schedule", "/binance"].includes(location.pathname.toLowerCase());
   const homeEditing = onHome && isSuperAdmin && !viewAsUser;
 
   const handleHome = () => {
@@ -55,7 +56,7 @@ export default function TopBar() {
     : "로그인";
 
   const handleGreetClick = () => {
-    if (isAuthed) navigate("/admin");
+    if (isAuthed) navigate("/mypage");
     else setOpen(true);
   };
 
@@ -85,7 +86,7 @@ export default function TopBar() {
             >
               <IconHome width={15} height={15} />
             </button>
-            {isAdmin && (
+            {isSuperAdmin && privateDesk && (
               <>
                 <button
                   type="button"
@@ -136,9 +137,9 @@ export default function TopBar() {
         <div className="topbar__right">
           <button
             type="button"
-            className={`topbar__greet ${location.pathname === "/admin" ? "is-active" : ""}`}
+            className={`topbar__greet ${location.pathname === "/mypage" ? "is-active" : ""}`}
             onClick={handleGreetClick}
-            aria-label={isAuthed ? "관리자페이지" : "로그인"}
+            aria-label={isAuthed ? "마이페이지" : "로그인"}
           >
             <motion.span
               key={greeting}

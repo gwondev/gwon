@@ -9,7 +9,6 @@ import { dispose, getSnapshot, goTo, jump, live, releaseScrub, scrubTo, setEnv, 
 import { useUniverseInput } from "./useUniverseInput.js";
 import { HeroBlock, ItemsList, ProjectDetail, ProjectPicker, patchOne, sectionOne } from "./content/Panels.jsx";
 import Field from "./content/Field.jsx";
-import DriveStore from "./drive/DriveStore.jsx";
 import SideDrawer from "../SideDrawer";
 import "./UniverseExperience.css";
 
@@ -62,14 +61,18 @@ function HorizonCursor({ on }) {
         const y = (-live.pointerY * 0.5 + 0.5) * h;
         const dx = (live.pointerX - live.holeX) * (w / Math.max(1, h));
         const dy = live.pointerY - live.holeY;
-        const near = Math.max(0, 1 - Math.hypot(dx, dy) / 0.78);
-        const k = near * near;
-        const blur = live.well * 0.6 + k * 4.2;
-        const fade = 1 - k * 0.32;
-        const scale = 1 - k * 0.16;
-        el.style.opacity = String(Math.max(0.28, fade));
-        el.style.filter = `blur(${blur.toFixed(2)}px)`;
-        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${scale.toFixed(3)})`;
+        const dist = Math.hypot(dx, dy);
+        const near = Math.max(0, 1 - dist / 0.7);
+        const k = near * near * (0.4 + 0.6 * near);
+        const ang = Math.atan2(dy, dx);
+        const shrink = 1 - k * 0.74;
+        const stretch = 1 + k * 1.35;
+        const squash = Math.max(0.22, 1 - k * 0.7);
+        el.style.opacity = live.pointerOn ? "1" : "0";
+        el.style.setProperty("--k", k.toFixed(3));
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) rotate(${ang.toFixed(3)}rad) scale(${(shrink * stretch).toFixed(3)}, ${(shrink * squash).toFixed(3)})`;
+      } else if (el) {
+        el.style.opacity = "0";
       }
       raf = requestAnimationFrame(tick);
     };
@@ -77,7 +80,11 @@ function HorizonCursor({ on }) {
     return () => cancelAnimationFrame(raf);
   }, [on]);
   if (!on) return null;
-  return <i className="uv-horizon-cursor" ref={ref} aria-hidden="true" />;
+  return (
+    <i className="uv-horizon-cursor" ref={ref} aria-hidden="true">
+      <b />
+    </i>
+  );
 }
 
 function indexFromRailY(nav, clientY) {
@@ -133,14 +140,12 @@ function useMedia(query) {
 }
 
 export default function UniverseExperience() {
-  const { isSuperAdmin, isAuthed, token } = useAuth();
+  const { isSuperAdmin, isAuthed } = useAuth();
   const { viewAsUser, setViewAsUser } = useViewMode();
   const navigate = useNavigate();
   const location = useLocation();
   const home = useHomeLayout();
   const canEdit = isSuperAdmin && !viewAsUser;
-  // 방문자에게는 안 보임. 일반 클릭은 그대로 포커스/펼침. 금고는 아이콘·Alt+클릭만.
-  const showVault = isSuperAdmin;
   const narrow = useMedia("(max-width: 767px)");
   const phonePreview = new URLSearchParams(location.search).has("phone");
   const mobile = phonePreview || narrow;
@@ -148,7 +153,6 @@ export default function UniverseExperience() {
   const [webgl, setWebgl] = useState(() => hasWebGL());
   const [menu, setMenu] = useState(false);
   const [login, setLogin] = useState(false);
-  const [vault, setVault] = useState(null);
   const rootRef = useRef(null);
   const railDrag = useRef({ on: false, moved: false, y: 0 });
 
@@ -207,7 +211,7 @@ export default function UniverseExperience() {
     [lists]
   );
 
-  useUniverseInput(!menu && !vault && !login);
+  useUniverseInput(!menu && !login);
 
   useEffect(() => {
     if (!settled) return;
@@ -282,7 +286,7 @@ export default function UniverseExperience() {
       </p>
 
       {isGateway && settled && (
-        <HeroBlock home={home} canEdit={canEdit} onEnter={() => step(1)} showVault={showVault} onOpenVault={setVault} />
+        <HeroBlock home={home} canEdit={canEdit} onEnter={() => step(1)} />
       )}
 
       {!isGateway && section && (
@@ -311,9 +315,9 @@ export default function UniverseExperience() {
       {!mobile && !isGateway && section && (
         <aside className="uv-panel" data-ui-scroll aria-label={`${section.ko} 내용`} key={`p-${section.id}`}>
           {isProjects ? (
-            <ProjectDetail project={project} home={home} canEdit={canEdit} showVault={showVault} onOpenVault={setVault} />
+            <ProjectDetail project={project} home={home} canEdit={canEdit} />
           ) : (
-            <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} showVault={showVault} onOpenVault={setVault} />
+            <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} />
           )}
         </aside>
       )}
@@ -388,11 +392,24 @@ export default function UniverseExperience() {
         <button
           type="button"
           className="uv-mark"
-          onClick={() => setMenu(true)}
-          aria-label={`${mark.no} ${mark.label} ${mark.ko}, 메뉴 열기`}
+          onClick={() => {
+            if (isSuperAdmin) navigate("/studio");
+          }}
+          aria-label={isSuperAdmin ? "이력 요약 모드" : `${mark.no} ${mark.label}`}
         >
           <b>{mark.no}</b>
           <span>{mark.label}</span>
+        </button>
+      )}
+      {mobile && mark && !isGateway && (
+        <div className="uv-mobi-title">
+          <b>{mark.no} {mark.label}</b>
+          <span>{mark.ko}</span>
+        </div>
+      )}
+      {mobile && isSuperAdmin && (
+        <button type="button" className="uv-mode" onClick={() => navigate("/studio")}>
+          요약
         </button>
       )}
 
@@ -406,9 +423,9 @@ export default function UniverseExperience() {
         <div className="uv-dock">
           <div className="uv-dock__peek" data-ui-scroll aria-label={`${section.ko} 내용`}>
             {isProjects ? (
-              <ProjectDetail project={project} home={home} canEdit={canEdit} showVault={showVault} onOpenVault={setVault} />
+              <ProjectDetail project={project} home={home} canEdit={canEdit} />
             ) : (
-              <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} showVault={showVault} onOpenVault={setVault} />
+              <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} />
             )}
           </div>
         </div>
@@ -442,23 +459,9 @@ export default function UniverseExperience() {
             </div>
           </div>
           <div className="uv-menu__cards">
-            <button type="button" className={location.pathname === "/schedule" ? "is-on" : ""} onClick={() => goPage("/schedule")}>
-              <span className="uv-menu__emoji" aria-hidden="true">📅</span>
-              <span className="uv-menu__card-label">일정</span>
-            </button>
-            <button type="button" className={location.pathname.toLowerCase() === "/binance" ? "is-on" : ""} onClick={() => goPage("/binance")}>
-              <span className="uv-menu__emoji" aria-hidden="true">📈</span>
-              <span className="uv-menu__card-label">바이낸스</span>
-            </button>
-            <button type="button" className={location.pathname === "/admin" ? "is-on" : ""} onClick={() => goPage("/admin")}>
-              <span className="uv-menu__emoji" aria-hidden="true">⚙️</span>
-              <span className="uv-menu__card-label">관리자페이지</span>
-              <span className="uv-menu__card-sub">계정 · 회원 · DS</span>
-            </button>
-            <button type="button" className={location.pathname === "/ai" ? "is-on" : ""} onClick={() => goPage("/ai")}>
-              <span className="uv-menu__emoji" aria-hidden="true">✦</span>
-              <span className="uv-menu__card-label">AI 챗봇</span>
-              <span className="uv-menu__card-sub">개설 예정</span>
+            <button type="button" className={location.pathname === "/mypage" ? "is-on" : ""} onClick={() => goPage("/mypage")}>
+              <span className="uv-menu__card-label">마이페이지</span>
+              <span className="uv-menu__card-sub">프로필 · 사진</span>
             </button>
           </div>
           <p className="uv-menu__group">JOURNEY</p>
@@ -488,17 +491,6 @@ export default function UniverseExperience() {
       )}
 
       <SideDrawer open={login} onClose={() => setLogin(false)} />
-
-      {isSuperAdmin && (
-        <DriveStore
-          open={Boolean(vault)}
-          onClose={() => setVault(null)}
-          contentKind={vault?.contentKind}
-          contentId={vault?.contentId}
-          contentTitle={vault?.title}
-          token={token}
-        />
-      )}
 
       <HorizonCursor on={isGateway && !mobile && !reduced} />
     </main>

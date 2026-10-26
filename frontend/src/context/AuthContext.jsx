@@ -7,12 +7,13 @@ const TOKEN_KEY = "gwon_token";
 // 구글 클라이언트 ID 가 주입되지 않은 환경 = 로컬 미리보기 모.
 // 실제 로그인 없이 "로컬 사용자" 로 전체 UI(관리자 화면 포함)를 확인할 수 있다.
 const LOCAL_MODE = !import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const LOCAL_AVATAR_KEY = "gwon_local_avatar";
 const LOCAL_USER = {
   id: 0,
   email: "local@preview",
   name: "이성권",
   nickname: "이성권",
-  picture: null,
+  picture: typeof localStorage !== "undefined" ? localStorage.getItem(LOCAL_AVATAR_KEY) : null,
   role: "SUPER_ADMIN",
   calendarThemeColor: "red",
   local: true,
@@ -78,6 +79,21 @@ export function AuthProvider({ children }) {
     [token]
   );
 
+  const updateAvatar = useCallback(
+    async (avatar) => {
+      if (LOCAL_MODE) {
+        if (avatar) localStorage.setItem(LOCAL_AVATAR_KEY, avatar);
+        else localStorage.removeItem(LOCAL_AVATAR_KEY);
+        setUser((u) => ({ ...(u || LOCAL_USER), picture: avatar || null }));
+        return;
+      }
+      const data = await api("/auth/avatar", { method: "PUT", body: { avatar }, token });
+      setUser(data.user);
+      return data.user;
+    },
+    [token]
+  );
+
   const logout = useCallback(() => {
     if (LOCAL_MODE) return;
     localStorage.removeItem(TOKEN_KEY);
@@ -98,6 +114,7 @@ export function AuthProvider({ children }) {
     isAdmin: LOCAL_MODE || user?.role === "SUPER_ADMIN",
     loginWithGoogle,
     updateNickname,
+    updateAvatar,
     logout,
   };
 

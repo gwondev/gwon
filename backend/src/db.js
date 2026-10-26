@@ -467,6 +467,7 @@ async function runMigrations(conn) {
     "ALTER TABLE users ADD COLUMN role ENUM('GUEST','ADMIN') NOT NULL DEFAULT 'GUEST'",
     "ALTER TABLE users MODIFY COLUMN role ENUM('GUEST','ADMIN','SUPER_ADMIN') NOT NULL DEFAULT 'GUEST'",
     "ALTER TABLE users ADD COLUMN calendar_theme_color VARCHAR(32) DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN avatar MEDIUMTEXT NULL",
     "DROP TABLE IF EXISTS projects",
     "DROP TABLE IF EXISTS activities",
     "DROP TABLE IF EXISTS certifications",

@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { IconCalendar, IconUser } from "./ActionIcons";
+import { IconUser } from "./ActionIcons";
 import "./SideDrawer.css";
 
 const panel = {
@@ -20,7 +20,7 @@ const item = {
 };
 
 export default function SideDrawer({ open, onClose }) {
-  const { user, isAuthed, isAdmin, localMode, loginWithGoogle, logout } = useAuth();
+  const { user, isAuthed, localMode, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
 
   const go = (path) => {
@@ -67,40 +67,20 @@ export default function SideDrawer({ open, onClose }) {
             </div>
 
             <motion.div className="drawer__quick" variants={item} initial="hidden" animate="show">
-              <button type="button" className="drawer__quick-btn" onClick={() => go("/admin")}>
+              <button type="button" className="drawer__quick-btn" onClick={() => go("/mypage")}>
                 <span className="drawer__quick-icon">
                   <IconUser width={16} height={16} />
                 </span>
-                <span className="drawer__quick-label">관리자페이지</span>
-              </button>
-              <button type="button" className="drawer__quick-btn" onClick={() => go("/schedule")}>
-                <span className="drawer__quick-icon">
-                  <IconCalendar width={16} height={16} />
-                </span>
-                <span className="drawer__quick-label">일정</span>
+                <span className="drawer__quick-label">마이페이지</span>
               </button>
             </motion.div>
-
-            <motion.nav className="drawer__nav" variants={stagger} initial="hidden" animate="show">
-              {isAdmin && (
-                <motion.button
-                  variants={item}
-                  className="drawer__link drawer__link--admin"
-                  onClick={() => go("/admin?tab=users")}
-                >
-                  <span className="drawer__link-no">★</span>
-                  <span className="drawer__link-title">ADMIN 페이지</span>
-                  <span className="drawer__link-arrow">→</span>
-                </motion.button>
-              )}
-            </motion.nav>
 
             <motion.div className="drawer__auth" variants={item} initial="hidden" animate="show">
               {isAuthed ? (
                 <div className="drawer__profile">
                   <div className="drawer__profile-row">
                     <div className="drawer__avatar">
-                      {(user.nickname || user.name || "?").slice(0, 1)}
+                      {user.picture ? <img src={user.picture} alt="" /> : (user.nickname || user.name || "?").slice(0, 1)}
                     </div>
                     <div className="drawer__profile-meta">
                       <strong>{user.nickname || user.name}</strong>

@@ -8,7 +8,7 @@ import { damp, rng } from "./util.js";
  * 슈바르츠실트 블랙홀을 화면 전체 레이마칭으로 그린다(rs = 1).
  * 광선마다 실제 카메라 위치·방향에서 출발해 광자 측지선 근사식
  *   a = -1.5 · h² · x / |x|^5
- * 으로 휘어지며, 원반 평면을 지날 때마다 강착원반(r = 2.6..9.5)을 앞에서부터 합성한다.
+ * 으로 휘어지며, 원반 평면을 지날 때마다 강착원반(r = 2.6..12.2)을 앞에서부터 합성한다.
  * 원반 위쪽·아래쪽 호(아인슈타인 링 형태)와 광자 고리는 이 적분에서 저절로 생긴다.
  *
  * 움직임
@@ -46,7 +46,7 @@ const fragment = /* glsl */ `
   uniform int uSteps;
 
   const float R_IN = 2.6;
-  const float R_OUT = 9.5;
+  const float R_OUT = 12.2;
   const float TAU = 6.2831853;
   const float AZ = 32.0;
   const float SPIN = 2.5;
@@ -158,7 +158,7 @@ const fragment = /* glsl */ `
     hs = pow(smoothstep(0.58, 1.0, hs), 2.0) * smoothstep(6.0, 3.0, r) * (0.65 + 0.35 * sin(uTime * 1.9 + r * 3.1 + ang));
 
     float dens = 0.48 + 0.82 * pat + hs * 1.05;
-    float edge = smoothstep(R_IN, R_IN + 0.35, r) * smoothstep(R_OUT, R_OUT - 3.2, r);
+    float edge = smoothstep(R_IN, R_IN + 0.35, r) * smoothstep(R_OUT, R_OUT - 4.4, r);
 
     vec3 vel = normalize(vec3(-hit.z, 0.0, hit.x)) * sqrt(0.5 / r);
     float dop = 1.0 / (1.0 - dot(vel, -dir) * 1.7);
@@ -264,7 +264,7 @@ const dustVertex = /* glsl */ `
   varying vec3 vColor;
   varying float vAlpha;
 
-  const float R_OUTER = 15.0;
+  const float R_OUTER = 19.2;
   const float R_INNER = 2.5;
   const float C = 260.0;
 

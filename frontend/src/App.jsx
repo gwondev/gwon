@@ -8,9 +8,8 @@ import RootPage from "./pages/RootPage";
 import NicknameSetupPage from "./pages/NicknameSetupPage";
 import MyPage from "./pages/MyPage";
 import SchedulePage from "./pages/SchedulePage";
-import AdminPage from "./pages/AdminPage";
 import BinancePage from "./pages/BinancePage";
-import AiSoonPage from "./pages/AiSoonPage";
+import VaultStudio from "./pages/VaultStudio";
 import ScrollToTop from "./components/ScrollToTop";
 import "./styles/cosmic.css";
 
@@ -24,10 +23,9 @@ export default function App() {
     path !== "/" &&
     path !== "/schedule" &&
     path !== "/mypage" &&
-    path !== "/admin" &&
+    path !== "/studio" &&
     path !== "/BINANCE" &&
-    path !== "/binance" &&
-    path !== "/ai";
+    path !== "/binance";
 
   const inner = (
     <>
@@ -47,11 +45,12 @@ export default function App() {
         <Route path="/setup-nickname" element={<NicknameSetupPage />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/schedule" element={<SchedulePage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/studio" element={<VaultStudio />} />
+        <Route path="/admin" element={<Navigate to="/mypage" replace />} />
         <Route path="/data" element={<Navigate to="/" replace />} />
         <Route path="/BINANCE" element={<BinancePage />} />
         <Route path="/binance" element={<BinancePage />} />
-        <Route path="/ai" element={<AiSoonPage />} />
+        <Route path="/ai" element={<Navigate to="/" replace />} />
         <Route path="/admin/chat" element={<Navigate to="/" replace />} />
         <Route path="*" element={<RootPage />} />
       </Routes>
@@ -60,10 +59,9 @@ export default function App() {
       {!isHome &&
         path !== "/schedule" &&
         path !== "/mypage" &&
-        path !== "/admin" &&
+        path !== "/studio" &&
         path !== "/BINANCE" &&
-        path !== "/binance" &&
-        path !== "/ai" && <ChatWidget />}
+        path !== "/binance" && <ChatWidget />}
     </>
   );
 
