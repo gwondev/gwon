@@ -20,6 +20,9 @@ export default function TopBar() {
   const isSchedule = location.pathname === "/schedule";
   const onHome = location.pathname === "/";
   const isStudio = location.pathname === "/studio";
+  const onSchedule = location.pathname === "/schedule";
+  const onCoin = location.pathname.toLowerCase() === "/binance";
+  const isDesk = isSuperAdmin && (isStudio || onSchedule || onCoin);
   const homeEditing = onHome && isSuperAdmin && !viewAsUser;
 
   const handleHome = () => {
@@ -62,36 +65,23 @@ export default function TopBar() {
 
   return (
     <>
-      <header className={`topbar ${scrolled ? "is-scrolled" : ""} ${isStudio ? "is-studio" : ""}`}>
+      <header className={`topbar ${scrolled ? "is-scrolled" : ""} ${isDesk ? "is-desk" : ""}`}>
         <div className="topbar__left">
           <div className="topbar__adminlinks">
             <button
               type="button"
-              className={`topbar__adminlink topbar__home ${location.pathname === "/" ? "is-active" : ""}${homeEditing ? " is-editing" : ""}`}
+              className={`topbar__adminlink topbar__home ${onHome ? "is-active" : ""}${homeEditing ? " is-editing" : ""}`}
               onClick={handleHome}
-              aria-label={
-                onHome && isSuperAdmin
-                  ? homeEditing
-                    ? "홈 · 수정 모드 종료"
-                    : "홈 · 다시 누르면 수정 모드"
-                  : "홈"
-              }
-              title={
-                onHome && isSuperAdmin
-                  ? homeEditing
-                    ? "수정 모드 종료"
-                    : "홈 (다시 누르면 수정 모드)"
-                  : "홈"
-              }
+              aria-label={isDesk ? "홈" : "홈"}
             >
-              {isStudio ? "홈" : <IconHome width={15} height={15} />}
+              {isDesk ? "홈" : <IconHome width={15} height={15} />}
             </button>
-            {isSuperAdmin && isStudio && (
+            {isDesk && (
               <>
-                <button type="button" className="topbar__adminlink" onClick={() => navigate("/binance")}>
+                <button type="button" className={`topbar__adminlink${onCoin ? " is-active" : ""}`} onClick={() => navigate("/binance")}>
                   코인
                 </button>
-                <button type="button" className="topbar__adminlink" onClick={() => navigate("/schedule")}>
+                <button type="button" className={`topbar__adminlink${onSchedule ? " is-active" : ""}`} onClick={() => navigate("/schedule")}>
                   일정
                 </button>
               </>
@@ -122,7 +112,14 @@ export default function TopBar() {
           </div>
         )}
 
-        {!isStudio && <div className="topbar__right">
+        {isDesk ? (
+          <div className="topbar__right">
+            <button type="button" className="topbar__adminlink desk-mode is-active" onClick={() => navigate(isStudio ? "/" : "/studio")}>
+              관리자모드
+            </button>
+          </div>
+        ) : (
+        <div className="topbar__right">
           <button
             type="button"
             className={`topbar__greet ${location.pathname === "/mypage" ? "is-active" : ""}`}
@@ -140,7 +137,8 @@ export default function TopBar() {
               {greeting}
             </motion.span>
           </button>
-        </div>}
+        </div>
+        )}
       </header>
 
       <SideDrawer open={open} onClose={() => setOpen(false)} />

@@ -216,11 +216,15 @@ export function cloneHero(raw) {
   const src = raw && typeof raw === "object" ? raw : {};
   return {
     i: 0,
-    kicker: str(src.kicker, "ENGINEER"),
+    kicker: ["", "ENGINEER"].includes(str(src.kicker, "")) ? "RECORD" : str(src.kicker, "RECORD"),
     name: str(src.name, "이성권"),
-    line: str(src.line, "systems from hardware to infrastructure"),
-    tagline: str(src.tagline, "ENGINEERING MY OWN UNIVERSE"),
-    explore: str(src.explore, "EXPLORE"),
+    line: ["", "systems from hardware to infrastructure"].includes(str(src.line, ""))
+      ? "career, work, and the record I keep"
+      : str(src.line, "career, work, and the record I keep"),
+    tagline: ["", "ENGINEERING MY OWN UNIVERSE"].includes(str(src.tagline, ""))
+      ? "WORK AND THE LIFE AROUND IT"
+      : str(src.tagline, "WORK AND THE LIFE AROUND IT"),
+    explore: ["", "EXPLORE"].includes(str(src.explore, "")) ? "ENTER" : str(src.explore, "ENTER"),
   };
 }
 

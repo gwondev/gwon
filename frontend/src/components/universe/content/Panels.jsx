@@ -46,7 +46,7 @@ export function HeroBlock({ home, canEdit, onEnter }) {
         <span className="uv-enter__ring" aria-hidden="true" />
         <span className="uv-enter__label">{hero.explore || "EXPLORE"}</span>
         <span className="uv-enter__hint" aria-hidden="true">
-          사건의 지평선 너머로
+          커리어와 기록으로
         </span>
       </button>
     </section>

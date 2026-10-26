@@ -3,24 +3,6 @@
   min-height: 100vh;
   padding: 78px 28px 36px;
 }
-.studio-mode {
-  position: fixed;
-  z-index: 140;
-  top: calc(16px + env(safe-area-inset-top, 0px));
-  right: 128px;
-  display: inline-flex;
-  align-items: center;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(216, 193, 154, 0.7);
-  background: rgba(216, 193, 154, 0.16);
-  color: #f4f0e6;
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-}
 .studio__rows {
   display: flex;
   flex-direction: column;
@@ -87,10 +69,6 @@
 @media (max-width: 760px) {
   .studio {
     padding: 72px 14px 28px;
-  }
-  .studio-mode {
-    right: 12px;
-    height: 36px;
   }
   .studio__row {
     grid-template-columns: 1fr;

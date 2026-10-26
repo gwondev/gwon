@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useHomeLayout } from "../lib/useHomeLayout.js";
 import { filledItems, sectionItems, visibleSections } from "../components/universe/sections.js";
@@ -21,7 +21,6 @@ function bitsOf(item, keys) {
 
 export default function VaultStudio() {
   const { isSuperAdmin } = useAuth();
-  const navigate = useNavigate();
   const home = useHomeLayout();
   const [copied, setCopied] = useState("");
 
@@ -52,9 +51,6 @@ export default function VaultStudio() {
 
   return (
     <main className="studio">
-      <button type="button" className="studio-mode is-on" onClick={() => navigate("/")}>
-        관리자모드
-      </button>
       <div className="studio__rows">
         {boards.map(({ section, items }) => (
           <section key={section.id} className="studio__row">

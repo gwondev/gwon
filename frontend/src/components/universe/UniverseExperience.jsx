@@ -62,15 +62,14 @@ function HorizonCursor({ on }) {
         const dx = (live.pointerX - live.holeX) * (w / Math.max(1, h));
         const dy = live.pointerY - live.holeY;
         const dist = Math.hypot(dx, dy);
-        const near = Math.max(0, 1 - dist / 0.7);
-        const k = near * near * (0.4 + 0.6 * near);
-        const ang = Math.atan2(dy, dx);
-        const shrink = 1 - k * 0.74;
-        const stretch = 1 + k * 1.35;
-        const squash = Math.max(0.22, 1 - k * 0.7);
+        const shadow = 0.42;
+        const inside = Math.max(0, Math.min(1, 1 - dist / shadow));
+        const bright = 1 - inside * inside;
+        const glow = Math.min(2.4, 0.28 + dist * 1.85);
         el.style.opacity = live.pointerOn ? "1" : "0";
-        el.style.setProperty("--k", k.toFixed(3));
-        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) rotate(${ang.toFixed(3)}rad) scale(${(shrink * stretch).toFixed(3)}, ${(shrink * squash).toFixed(3)})`;
+        el.style.setProperty("--bright", bright.toFixed(3));
+        el.style.setProperty("--glow", glow.toFixed(3));
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
       } else if (el) {
         el.style.opacity = "0";
       }
