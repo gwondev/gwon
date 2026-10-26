@@ -169,7 +169,7 @@ body::after {
 }
 .app-shell--phone .chat-widget--home {
   top: 16px;
-  right: 54px;
+  right: 56px;
   bottom: auto;
 }
 .app-shell--phone .chat-widget--home .chat-widget__fab {

@@ -72,7 +72,8 @@
 }
 @media (max-width: 767px) {
   .chat-widget--home {
-    right: 54px;
+    right: 56px;
+    bottom: auto;
   }
   .chat-widget--home .chat-widget__fab {
     width: 36px;
@@ -132,6 +133,10 @@
   .chat-widget {
     right: 12px;
     bottom: 12px;
+  }
+  .chat-widget--home {
+    right: 56px;
+    bottom: auto;
   }
   .chat-widget__fab {
     width: 46px;
