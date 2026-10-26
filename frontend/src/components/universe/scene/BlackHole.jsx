@@ -2,7 +2,7 @@ import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { gatewayPull, live, presence, sectionIndex } from "../director.js";
-import { rng } from "./util.js";
+import { damp, rng } from "./util.js";
 
 /**
  * 슈바르츠실트 블랙홀을 화면 전체 레이마칭으로 그린다(rs = 1).
@@ -18,6 +18,7 @@ import { rng } from "./util.js";
  *  - 원반 평면이 아주 조금씩 세차운동해 천체가 공간 속에서 돌고 있다는 인상을 준다.
  *  - 진입(pull)할 때는 회전·유입이 빨라지고 별빛이 진행 방향으로 늘어지며 광자 고리가 밝아진다.
  *    회전 위상은 CPU 에서 적분하므로 속도가 바뀌어도 무늬가 튀지 않는다.
+ *  - 마우스 아래는 작은 사건의 지평선처럼 공간을 움푹 팬다. 광선이 그쪽으로 빨려 들고 가장자리에 광자 고리가 생긴다.
  */
 const vertex = /* glsl */ `
   varying vec2 vNdc;
@@ -39,6 +40,9 @@ const fragment = /* glsl */ `
   uniform float uFlow;
   uniform float uPull;
   uniform float uFade;
+  uniform float uWell;
+  uniform float uAspect;
+  uniform vec2 uMouse;
   uniform int uSteps;
 
   const float R_IN = 2.6;
@@ -169,7 +173,16 @@ const fragment = /* glsl */ `
   }
 
   void main() {
-    vec4 view = uInvProj * vec4(vNdc, 1.0, 1.0);
+    vec2 ndc = vNdc;
+    vec2 pokeD = vec2((vNdc.x - uMouse.x) * uAspect, vNdc.y - uMouse.y);
+    float pokeR = length(pokeD);
+    if (uWell > 0.001) {
+      float near = smoothstep(0.5, 0.0, pokeR);
+      float k = uWell * near * (0.16 / (pokeR + 0.05) + 0.35 * smoothstep(0.12, 0.0, pokeR));
+      ndc = mix(vNdc, uMouse, clamp(k, 0.0, 0.7));
+    }
+
+    vec4 view = uInvProj * vec4(ndc, 1.0, 1.0);
     vec3 dirW = normalize((uCamWorld * vec4(normalize(view.xyz / view.w), 0.0)).xyz);
     vec3 fwdW = normalize((uCamWorld * vec4(0.0, 0.0, -1.0, 0.0)).xyz);
     vec3 p = uDisk * uCamPos;
@@ -222,6 +235,15 @@ const fragment = /* glsl */ `
     float ring = exp(-pow((minR - 1.55) * 14.0, 2.0)) * (captured ? 0.0 : 1.0);
     col += vec3(1.0, 0.8, 0.55) * ring * (0.4 + uPull * 0.9) * trans;
     col += vec3(1.0, 0.6, 0.28) * glow * trans * (1.0 + uPull * 0.8);
+
+    if (uWell > 0.001) {
+      float core = smoothstep(0.07, 0.018, pokeR) * uWell;
+      col *= 1.0 - core * 0.86;
+      float photon = exp(-pow((pokeR - 0.052) * 42.0, 2.0)) * uWell;
+      col += vec3(1.0, 0.8, 0.5) * photon * 0.95;
+      float bowl = exp(-pokeR * pokeR / 0.07) * uWell * 0.18 * (1.0 - core);
+      col += vec3(1.0, 0.55, 0.22) * bowl;
+    }
 
     col = 1.0 - exp(-col * 0.95);
     col = pow(col, vec3(0.92));
@@ -284,7 +306,7 @@ const _m4 = new THREE.Matrix4();
 export default function BlackHole() {
   const mesh = useRef(null);
   const dust = useRef(null);
-  const motion = useRef({ spin: 0, flow: 0, life: 0, pull: 0 });
+  const motion = useRef({ spin: 0, flow: 0, life: 0, pull: 0, well: 0, hasPointer: false });
   const camera = useThree((s) => s.camera);
   const mobile = useThree((s) => s.size.width < 768);
   const dpr = useThree((s) => s.viewport.dpr);
@@ -308,6 +330,9 @@ export default function BlackHole() {
           uFlow: { value: 0 },
           uPull: { value: 0 },
           uFade: { value: 1 },
+          uWell: { value: 0 },
+          uAspect: { value: 1 },
+          uMouse: { value: new THREE.Vector2() },
           uSteps: { value: 200 },
         },
       }),
@@ -352,17 +377,24 @@ export default function BlackHole() {
   useFrame((state, dt) => {
     const i = sectionIndex("gateway");
     const p = presence(i);
+    const m = motion.current;
     if (!mesh.current) return;
     mesh.current.visible = p.visible;
     if (dust.current) dust.current.visible = p.visible && !live.reduced;
-    if (!p.visible) return;
+    if (!p.visible) {
+      m.well = 0;
+      return;
+    }
 
-    const m = motion.current;
     const step = Math.min(dt, 0.1) * (live.reduced ? 0.25 : 1);
     m.pull = gatewayPull();
     m.spin += step * (1 + m.pull * 3.2);
     m.flow += step * (0.05 + m.pull * 0.55);
     m.life += (step / 45) * (1 + m.pull * 9);
+    const ptr = state.pointer;
+    m.hasPointer = m.hasPointer || ptr.x !== 0 || ptr.y !== 0;
+    const wantWell = m.hasPointer && !live.reduced && !live.mobile ? 1 : 0;
+    m.well = damp(m.well, wantWell, 7, step);
 
     const time = state.clock.elapsedTime;
     const calm = live.reduced ? 0.2 : 1;
@@ -371,8 +403,11 @@ export default function BlackHole() {
     disk.m.setFromMatrix4(_m4);
     disk.inv.copy(disk.m).transpose();
 
-    const u = material.uniforms;
+    const size = state.size;
+    const aspect = size.width / Math.max(1, size.height);
     camera.updateMatrixWorld();
+
+    const u = material.uniforms;
     u.uInvProj.value.copy(camera.projectionMatrixInverse);
     u.uCamWorld.value.copy(camera.matrixWorld);
     u.uCamPos.value.copy(camera.position);
@@ -380,6 +415,9 @@ export default function BlackHole() {
     u.uSpin.value = m.spin;
     u.uFlow.value = m.flow;
     u.uPull.value = m.pull;
+    u.uWell.value = m.well;
+    u.uAspect.value = aspect;
+    u.uMouse.value.copy(ptr);
     u.uSteps.value = mobile ? 110 : 200;
     u.uFade.value = Math.min(1, 0.15 + p.enter * 1.2);
 

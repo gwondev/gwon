@@ -1,8 +1,8 @@
 import gsap from "gsap";
 
 /**
- * 멈춰 있을 때만 짧은 전환을 돌린다. 이미 움직이는 중에 입력이 오면 그 화면으로 즉시 선다.
- * t(0→1) 하나가 카메라·장막을 움직인다. t < 0.5 안으로, t ≥ 0.5 다음 세계에서 빠져나온다.
+ * t(0→1) 하나가 카메라·장막·레일을 움직인다. t < 0.5 안으로, t ≥ 0.5 다음 세계에서 빠져나온다.
+ * 움직이는 중에 입력이 오면 지금 레일 위치에서 새 목적지로 궤적만 갈아탄다. 순간이동하지 않는다.
  */
 const DURATION = 0.52;
 const DURATION_MOBILE = 0.46;
@@ -69,7 +69,15 @@ function clamp(i) {
 }
 
 function duration() {
-  return live.reduced ? DURATION_REDUCED : live.mobile ? DURATION_MOBILE : DURATION;
+  const base = live.reduced ? DURATION_REDUCED : live.mobile ? DURATION_MOBILE : DURATION;
+  const span = Math.abs(live.to - live.from);
+  if (span <= 1) return base;
+  return Math.max(0.24, base * 0.58);
+}
+
+function travelPos() {
+  if (!live.active) return live.index;
+  return live.from + (live.to - live.from) * live.t;
 }
 
 function startTicker() {
@@ -151,16 +159,40 @@ export function setFocus(i) {
   emit();
 }
 
-/** 멈춰 있으면 짧은 전환을 시작하고, 이미 움직이는 중이면 그 화면으로 바로 붙는다. */
-export function goTo(target) {
-  const i = clamp(target);
-
-  if (live.active) {
-    if (i === live.index && i === live.to) return;
-    jump(i);
+function retarget(i) {
+  const p = travelPos();
+  live.target = i;
+  live.focus = -1;
+  live.focusPoint = null;
+  if (Math.abs(p - i) < 0.02) {
+    settle(i);
     return;
   }
+  live.from = i > p ? Math.floor(p) : Math.ceil(p);
+  live.from = clamp(live.from);
+  if (live.from === i) {
+    settle(i);
+    return;
+  }
+  live.to = i;
+  live.dir = i > p ? 1 : -1;
+  live.rate = 1;
+  live.t = (p - live.from) / (live.to - live.from);
+  live.t = Math.min(0.999, Math.max(0, live.t));
+  live.active = true;
+  live.seq += 1;
+  emit();
+  startTicker();
+}
 
+/** 멈춰 있으면 짧은 전환을 시작한다. 이미 움직이는 중이면 지금 위치에서 그 화면으로 궤적을 잇는다. */
+export function goTo(target) {
+  const i = clamp(target);
+  if (live.active) {
+    if (i === live.target) return;
+    retarget(i);
+    return;
+  }
   if (i === live.index) return;
   live.from = live.index;
   live.to = i;
@@ -176,13 +208,9 @@ export function goTo(target) {
   startTicker();
 }
 
-/** 지금 향하고 있는 목적지에서 한 칸 더. 움직이는 중이면 그 칸으로 즉시 선다. */
+/** 지금 향하고 있는 목적지에서 한 칸 더. */
 export function step(dir) {
-  if (live.active) {
-    jump(clamp(live.target + dir));
-    return;
-  }
-  goTo(live.index + dir);
+  goTo((live.active ? live.target : live.index) + dir);
 }
 
 export function dispose() {
