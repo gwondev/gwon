@@ -43,10 +43,12 @@ function sideShift(anchor, aspect) {
   return (anchor.shift || 0) * Math.min(1, Math.max(0, (aspect - 1.1) / 0.6));
 }
 
-/** 세로 화면에서 블랙홀 이외의 세계를 위로 올려, 아래 조작 자리를 비운다. */
+/** 세로 화면에서 장면을 위로 올려, 아래 조작 자리를 비운다. */
 function portraitLift(anchor, aspect) {
-  if (aspect >= 1.05 || anchor === ANCHORS.gateway) return 0;
-  return 2.45 * Math.min(1, (1.05 - aspect) / 0.4);
+  if (aspect >= 1.05) return 0;
+  const amt = Math.min(1, (1.05 - aspect) / 0.4);
+  if (anchor === ANCHORS.gateway) return 1.6 * amt;
+  return 4.25 * amt;
 }
 
 function restPos(anchor, aspect, out, shifted = true) {
@@ -55,7 +57,7 @@ function restPos(anchor, aspect, out, shifted = true) {
     const k = THREE.MathUtils.lerp(1, anchor.portrait, Math.min(1, (1.6 - aspect) / 1.05));
     out.sub(anchor.look).multiplyScalar(k).add(anchor.look);
   }
-  out.y += portraitLift(anchor, aspect) * 0.55;
+  out.y += portraitLift(anchor, aspect) * 0.78;
   return shifted ? out.addScaledVector(anchor.right, sideShift(anchor, aspect)) : out;
 }
 

@@ -162,6 +162,7 @@ export default function UniverseExperience() {
   }, []);
 
   const total = sections.length;
+  const mark = sections[heading] || section;
   const isGateway = section?.id === "gateway";
   const isProjects = section?.id === "projects";
   const project = isProjects ? projects[Math.max(0, snap.focus)] || projects[0] : null;
@@ -282,6 +283,18 @@ export default function UniverseExperience() {
           </button>
         )}
       </div>
+
+      {mark && (
+        <button
+          type="button"
+          className="uv-mark"
+          onClick={() => setMenu(true)}
+          aria-label={`${mark.no} ${mark.label} ${mark.ko}, 메뉴 열기`}
+        >
+          <b>{mark.no}</b>
+          <span>{mark.label}</span>
+        </button>
+      )}
 
       <button type="button" className="uv-burger" onClick={() => setMenu(true)} aria-label="메뉴 열기">
         <i />
