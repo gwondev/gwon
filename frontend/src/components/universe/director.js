@@ -35,9 +35,20 @@ export const live = {
   /** 화면 NDC(종횡비 보정)로 본 블랙홀 그림자 반경. BlackHole 이 매 프레임 갱신. */
   horizonR: 0.22,
   well: 0,
+  /** 경력 및 프로필 섹션에서 펼친 갈래: 0 프로필, 1 경력, 2 기술. 두뇌 장면이 읽는다. */
+  brainMode: 0,
 };
 
-/** 커서 ↔ 사건의 지평선(검은 원 가장자리) 픽셀 거리로 빛/크기. 안쪽은 빛 0. */
+/**
+ * 커서 ↔ 사건의 지평선(검은 원 가장자리) 픽셀 거리로 빛을 정한다.
+ * 검은 원에 들어서는 순간 어두워지고(빛 0), 바깥에서는 거리에 따라 세기와 번지는 범위가 매끄럽게 커진다.
+ * 세기 = 1 - e^(-거리/GLOW_PX): 1px 3% · 5px 15% · 10px 28% · 20px 49% · 40px 74% · 80px 93%.
+ */
+const GLOW_PX = 30;
+const HALO_MIN_PX = 6;
+const HALO_MAX_PX = 96;
+const HALO_PX = 46;
+
 export function cursorFromHorizon(width, height) {
   const w = Math.max(1, width);
   const h = Math.max(1, height);
@@ -48,16 +59,17 @@ export function cursorFromHorizon(width, height) {
   const distPx = distNdc * toPx;
   const horizonPx = horizonNdc * toPx;
   if (!live.pointerOn || distPx <= horizonPx) {
-    const t = live.pointerOn ? distPx / Math.max(horizonPx, 1) : 0;
-    return { inside: true, outPx: 0, glow: 0, core: 0.16 + 0.2 * t, scale: 0.5 + 0.08 * t };
+    return { inside: true, outPx: 0, glow: 0, halo: 0, core: 0.08, dot: 0.7 };
   }
   const outPx = distPx - horizonPx;
+  const glow = 1 - Math.exp(-outPx / GLOW_PX);
   return {
     inside: false,
     outPx,
-    glow: Math.min(1, outPx * 0.05),
-    core: Math.min(1, 0.32 + outPx * 0.04),
-    scale: Math.min(2.2, 0.58 + outPx * 0.032),
+    glow,
+    halo: HALO_MIN_PX + (HALO_MAX_PX - HALO_MIN_PX) * (1 - Math.exp(-outPx / HALO_PX)),
+    core: 0.35 + 0.65 * glow,
+    dot: 1,
   };
 }
 

@@ -310,8 +310,8 @@ const _m4 = new THREE.Matrix4();
 const _ndc = new THREE.Vector3();
 const _edge = new THREE.Vector3();
 const _right = new THREE.Vector3();
-/** 화면에 보이는 검은 원(광자 고리~원반 안쪽). rs=1, 광자권 1.55, 원반 안 2.6 */
-const VISUAL_SHADOW_R = 2.05;
+/** 화면에 보이는 검은 원의 반지름. rs=1 일 때 그림자 경계(임계 충격 매개변수)는 3√3/2 ≈ 2.6 — 렌더에서 잰 검은 원과 일치. */
+const VISUAL_SHADOW_R = 2.6;
 
 export default function BlackHole() {
   const mesh = useRef(null);

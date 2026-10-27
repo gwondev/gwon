@@ -20,32 +20,40 @@
 .topbar.is-desk {
   justify-content: center;
   align-items: center;
-  min-height: 72px;
-  padding-top: 16px;
-  padding-bottom: 16px;
+  min-height: 52px;
+  padding-top: 9px;
+  padding-bottom: 9px;
 }
 .topbar.is-desk .topbar__left {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
 }
-.topbar.is-desk .topbar__right {
-  position: absolute;
-  right: clamp(20px, 5vw, 48px);
-  top: 50%;
-  transform: translateY(-50%);
-}
-.topbar.is-desk .topbar__adminlink,
-.topbar.is-desk .desk-mode {
-  height: 40px;
-  padding: 0 14px;
+.topbar.is-desk .topbar__adminlink {
+  height: 32px;
+  padding: 0 13px;
+  gap: 6px;
   border-radius: 8px;
   box-sizing: border-box;
 }
+.topbar.is-desk .topbar__home {
+  background: var(--bg-soft);
+  color: var(--text-dim);
+}
+.topbar.is-desk .topbar__home.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.topbar__sym {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: #fff;
+}
 .app-shell:has(.schedule-page) .topbar.is-desk,
 .app-shell:has(.schedule-page) .topbar.is-desk.is-scrolled {
-  padding-top: 16px;
-  padding-bottom: 16px;
+  padding-top: 9px;
+  padding-bottom: 9px;
   background: none;
 }
 .topbar.is-scrolled {

@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { blankPage } from "../../../lib/homeLayout.js";
+import { live } from "../director.js";
 import Field from "./Field.jsx";
 import MediaPages from "./MediaPages.jsx";
 
 export function sectionOne(section, home) {
-  const src = section.source;
+  const src = section.source.kind === "merged" ? section.source.one : section.source;
   if (src.kind === "tab") return home.profile?.tabs?.find((t) => t.id === src.id)?.one || "";
   if (src.kind === "world") return home.worlds?.[src.id]?.one || "";
   return "";
 }
 
 export function patchOne(section, home, one) {
-  const src = section.source;
+  const src = section.source.kind === "merged" ? section.source.one : section.source;
   if (src.kind === "tab") home.patchProfileTab(src.id, { one });
   else if (src.kind === "world") home.patchWorld(src.id, { one });
 }
@@ -212,6 +213,94 @@ export function ItemsList({ section, home, items, canEdit, focus, onPick }) {
           })}
         </ol>
       )}
+    </div>
+  );
+}
+
+const CAREER_HINTS = ["두뇌 중심부", "신경 경로", "바깥 신경망"];
+
+/**
+ * 경력 및 프로필: 프로필 · 경력 · 기술 세 갈래를 탭으로 오간다.
+ * 고른 갈래와 항목을 live 에 알려 두뇌 장면이 해당 부위(중심부·경로·바깥 노드)를 밝힌다.
+ */
+export function CareerPanel({ parts, home, canEdit, focus, onPick }) {
+  const [tab, setTab] = useState(live.brainMode || 0);
+  useEffect(() => {
+    live.brainMode = tab;
+  }, [tab]);
+
+  const pick = (i) => {
+    if (i === tab) return;
+    setTab(i);
+    onPick(-1);
+  };
+  const { part, items } = parts[tab];
+  const skillOne = home.worlds?.infrastructure?.one;
+
+  return (
+    <div className="uv-career">
+      <div className="uv-career__tabs" role="tablist" aria-label="경력 및 프로필 갈래" data-no-nav>
+        {parts.map(({ part: pt, items: its }, i) => (
+          <button
+            key={pt.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === i}
+            className={tab === i ? "is-on" : ""}
+            onClick={() => pick(i)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                e.preventDefault();
+                e.stopPropagation();
+                pick((i + (e.key === "ArrowRight" ? 1 : parts.length - 1)) % parts.length);
+              }
+            }}
+          >
+            <span className="uv-career__tab-label">{pt.label}</span>
+            <span className="uv-career__tab-ko">
+              {pt.ko} <em>{its.length}</em>
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="uv-career__hint" aria-hidden="true">
+        <i /> {CAREER_HINTS[tab]}
+      </p>
+      <div className="uv-career__body" key={part.id} role="tabpanel">
+        {part.id === "infrastructure" && !canEdit ? (
+          <SkillChips items={items} one={skillOne} focus={focus} onPick={onPick} />
+        ) : (
+          <ItemsList section={part} home={home} items={items} canEdit={canEdit} focus={focus} onPick={onPick} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SkillChips({ items, one, focus, onPick }) {
+  if (!items.length) {
+    return (
+      <div className="uv-empty">
+        <span className="uv-empty__code">NO SIGNAL</span>
+        <p>아직 공개된 기술 기록이 없습니다.</p>
+      </div>
+    );
+  }
+  const on = items[focus];
+  const note = on ? [on.subtitle, on.description].map((x) => (x || "").trim()).filter(Boolean).join(" · ") : "";
+  return (
+    <div className="uv-skills">
+      {one && <p className="uv-skills__one">{one}</p>}
+      <ul className="uv-skills__chips">
+        {items.map((it, i) => (
+          <li key={it.id}>
+            <button type="button" className={focus === i ? "is-on" : ""} aria-pressed={focus === i} onClick={() => onPick(focus === i ? -1 : i)}>
+              {it.title}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {note && <p className="uv-skills__note">{note}</p>}
     </div>
   );
 }

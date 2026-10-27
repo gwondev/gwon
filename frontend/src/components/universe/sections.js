@@ -16,15 +16,15 @@ export const SECTIONS = [
     accent: "#ffffff",
   },
   {
-    id: "projects",
+    id: "credentials",
     no: "01",
-    label: "PROJECTS",
-    world: "Neural Network",
-    ko: "프로젝트",
-    source: { kind: "projects" },
-    veil: "synapse",
-    color: "#8fd8ff",
-    accent: "#9f8cff",
+    label: "CERTIFICATIONS",
+    world: "Holo Deck",
+    ko: "자격증",
+    source: { kind: "tab", id: "certs", layout: "certs" },
+    veil: "implode",
+    color: "#a9c4ff",
+    accent: "#ffd58a",
   },
   {
     id: "awards",
@@ -38,30 +38,19 @@ export const SECTIONS = [
     accent: "#ffe0a0",
   },
   {
-    id: "infrastructure",
+    id: "projects",
     no: "03",
-    label: "SYSTEMS",
-    world: "Circuit City",
-    ko: "기술 · 인프라",
-    source: { kind: "world", id: "infrastructure", layout: "experience" },
-    veil: "grid",
-    color: "#7ff0cf",
-    accent: "#4fa8ff",
-  },
-  {
-    id: "credentials",
-    no: "04",
-    label: "CERTIFICATIONS",
-    world: "Atomic Structure",
-    ko: "자격증",
-    source: { kind: "tab", id: "certs", layout: "certs" },
-    veil: "implode",
-    color: "#a9c4ff",
-    accent: "#ffd58a",
+    label: "PROJECTS",
+    world: "Neural Network",
+    ko: "프로젝트",
+    source: { kind: "projects" },
+    veil: "synapse",
+    color: "#8fd8ff",
+    accent: "#9f8cff",
   },
   {
     id: "activities",
-    no: "05",
+    no: "04",
     label: "EXPERIENCE",
     world: "Living Environment",
     ko: "경험 · 활동",
@@ -72,27 +61,22 @@ export const SECTIONS = [
   },
   {
     id: "career",
-    no: "06",
-    label: "CAREER",
-    world: "Orbit of Time",
-    ko: "경력",
-    source: { kind: "tab", id: "career", layout: "career" },
+    no: "05",
+    label: "CAREER & PROFILE",
+    world: "Cortex",
+    ko: "경력 및 프로필",
+    source: { kind: "merged", one: { kind: "tab", id: "career" } },
     veil: "spiral",
-    color: "#ffd98a",
-    accent: "#6f8dff",
+    color: "#b9a8ff",
+    accent: "#7fe0ff",
   },
-  {
-    id: "profile",
-    no: "07",
-    label: "PROFILE",
-    world: "Origin Nebula",
-    ko: "프로필",
-    source: { kind: "world", id: "profile", layout: "career" },
-    veil: "nebula",
-    color: "#c4a8ff",
-    accent: "#7fd0ff",
-    optional: true,
-  },
+];
+
+/** 경력 및 프로필 섹션 안의 세 갈래. 각자 원래 데이터 자리(프로필 월드·경력 탭·기술 월드)를 그대로 쓴다. */
+export const CAREER_PARTS = [
+  { id: "profile", no: "05A", label: "PROFILE", ko: "프로필", source: { kind: "world", id: "profile", layout: "career" } },
+  { id: "career", no: "05B", label: "CAREER", ko: "경력", source: { kind: "tab", id: "career", layout: "career" } },
+  { id: "infrastructure", no: "05C", label: "SKILLS", ko: "기술", source: { kind: "world", id: "infrastructure", layout: "experience" } },
 ];
 
 export const SECTION_BY_ID = Object.fromEntries(SECTIONS.map((s) => [s.id, s]));
@@ -102,6 +86,7 @@ export function sectionItems(section, home) {
   if (src.kind === "tab") return home.profile?.tabs?.find((t) => t.id === src.id)?.items || [];
   if (src.kind === "world") return home.worlds?.[src.id]?.items || [];
   if (src.kind === "projects") return home.projects || [];
+  if (src.kind === "merged") return CAREER_PARTS.flatMap((part) => sectionItems(part, home));
   return [];
 }
 

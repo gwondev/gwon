@@ -36,7 +36,9 @@
 .uv-horizon-cursor {
   --glow: 0;
   --core: 0.35;
-  --scale: 1;
+  --halo: 0;
+  --dot: 1;
+  --tilt: 0deg;
   position: absolute;
   z-index: 40;
   left: 0;
@@ -44,54 +46,72 @@
   width: 10px;
   height: 10px;
   margin: 0;
-  border: none;
-  border-radius: 50%;
-  background: none;
-  box-shadow: none;
-  filter: none;
   pointer-events: none;
   opacity: 0;
   will-change: transform, opacity;
 }
+/* 빛: 범위(--halo)와 세기(--glow)가 지평선과의 거리에 비례. 가장자리 없이 안개처럼 사라진다. */
 .uv-horizon-cursor em {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 28px;
-  height: 28px;
-  margin: 0;
-  border: none;
+  width: calc(var(--halo) * 1px);
+  height: calc(var(--halo) * 1px);
   border-radius: 50%;
-  font-style: normal;
   transform: translate(-50%, -50%);
   opacity: var(--glow);
   background: radial-gradient(
-    circle,
-    rgba(255, 244, 220, 0.85) 0%,
-    rgba(255, 214, 160, 0.28) 42%,
-    transparent 70%
+    circle closest-side,
+    rgba(255, 246, 228, 0.62) 0%,
+    rgba(255, 232, 196, 0.36) 16%,
+    rgba(255, 218, 170, 0.17) 36%,
+    rgba(255, 210, 160, 0.07) 58%,
+    rgba(255, 206, 156, 0.02) 80%,
+    rgba(255, 206, 156, 0) 100%
   );
-  box-shadow: 0 0 calc(36px * var(--glow)) rgba(255, 226, 180, calc(0.5 * var(--glow)));
   pointer-events: none;
 }
 .uv-horizon-cursor.is-inside em {
   display: none;
-  opacity: 0;
-  background: none;
-  box-shadow: none;
 }
-.uv-horizon-cursor b {
+.uv-ufo {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 8px;
-  height: 8px;
-  border: none;
-  border-radius: 50%;
-  background: rgb(calc(220 * var(--core)), calc(220 * var(--core)), calc(220 * var(--core)));
-  box-shadow: none;
-  filter: grayscale(1);
-  transform: translate(-50%, -50%);
+  overflow: visible;
+  transform: translate(-50%, -50%) rotate(var(--tilt)) scale(var(--dot));
+  filter: brightness(calc(0.2 + var(--core) * 0.95)) drop-shadow(0 0 calc(var(--glow) * 5px) rgba(255, 232, 196, calc(var(--glow) * 0.8)));
+  animation: uv-ufo-bob 2.6s ease-in-out infinite;
+}
+.uv-ufo__lamp {
+  fill: #ffd9a0;
+  animation: uv-ufo-lamp 1.2s steps(1) infinite;
+}
+.uv-ufo__lamp:nth-of-type(2) {
+  animation-delay: 0.4s;
+}
+.uv-ufo__lamp:nth-of-type(3) {
+  animation-delay: 0.8s;
+}
+.uv-horizon-cursor.is-inside .uv-ufo {
+  filter: brightness(0.22);
+}
+.uv-horizon-cursor.is-inside .uv-ufo__lamp {
+  animation: none;
+  fill: #5a4a3a;
+}
+@keyframes uv-ufo-bob {
+  50% {
+    margin-top: -2px;
+  }
+}
+@keyframes uv-ufo-lamp {
+  0% {
+    fill: #fff1c8;
+  }
+  33% {
+    fill: #7a6a58;
+  }
 }
 
 .uv-stage,
@@ -1702,5 +1722,132 @@
   }
   .uv-horizon-cursor {
     display: none;
+  }
+}
+
+/* career & profile — 세 갈래 탭 */
+.uv-career__tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 0.7rem;
+}
+.uv-career__tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0.62rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--uv-line);
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(244, 243, 241, 0.55);
+  text-align: left;
+  transition: border-color 0.35s var(--uv-ease), background 0.35s var(--uv-ease), color 0.35s var(--uv-ease);
+}
+.uv-career__tabs button:hover {
+  color: rgba(244, 243, 241, 0.88);
+  border-color: color-mix(in srgb, var(--uv-color) 30%, transparent);
+}
+.uv-career__tabs button.is-on {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--uv-color) 55%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--uv-color) 16%, transparent), color-mix(in srgb, var(--uv-accent) 6%, transparent));
+  box-shadow: 0 0 24px -10px var(--uv-color);
+}
+.uv-career__tabs button:focus-visible {
+  outline: 1px solid var(--uv-accent);
+  outline-offset: 2px;
+}
+.uv-career__tab-label {
+  font: 600 0.62rem/1 var(--uv-mono);
+  letter-spacing: 0.14em;
+  color: var(--uv-color);
+}
+.uv-career__tab-ko {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.uv-career__tab-ko em {
+  margin-left: 2px;
+  font: 500 0.66rem/1 var(--uv-mono);
+  font-style: normal;
+  opacity: 0.55;
+}
+.uv-career__hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 0.8rem;
+  font: 500 0.6rem/1 var(--uv-mono);
+  letter-spacing: 0.12em;
+  color: rgba(244, 243, 241, 0.45);
+}
+.uv-career__hint i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--uv-accent);
+  box-shadow: 0 0 10px var(--uv-accent);
+  animation: uv-career-pulse 2.4s ease-in-out infinite;
+}
+.uv-career__body {
+  animation: uv-career-in 0.45s var(--uv-ease) both;
+}
+@keyframes uv-career-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes uv-career-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.uv-skills__one {
+  margin: 0 0 0.9rem;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: rgba(244, 243, 241, 0.7);
+}
+.uv-skills__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.uv-skills__chips button {
+  padding: 0.42rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--uv-line);
+  background: rgba(255, 255, 255, 0.03);
+  font: 500 0.74rem/1.2 var(--uv-mono);
+  letter-spacing: 0.03em;
+  color: rgba(244, 243, 241, 0.78);
+  transition: border-color 0.3s var(--uv-ease), color 0.3s var(--uv-ease), box-shadow 0.3s var(--uv-ease);
+}
+.uv-skills__chips button:hover {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--uv-accent) 40%, transparent);
+}
+.uv-skills__chips button.is-on {
+  color: #fff;
+  border-color: var(--uv-accent);
+  box-shadow: 0 0 16px -6px var(--uv-accent);
+}
+.uv-skills__note {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  color: rgba(244, 243, 241, 0.62);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uv-career__body,
+  .uv-career__hint i {
+    animation: none;
   }
 }

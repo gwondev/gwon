@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useViewMode } from "../context/ViewModeContext";
 import SideDrawer from "./SideDrawer";
-import { IconHome } from "./ActionIcons";
+import { IconCalendar, IconCoin, IconDatabase, IconHome } from "./ActionIcons";
 import "./TopBar.css";
 
 const VIEWMODE_PATHS = ["/certifications", "/activities", "/competitions", "/projects", "/career"];
@@ -72,17 +72,26 @@ export default function TopBar() {
               type="button"
               className={`topbar__adminlink topbar__home ${onHome ? "is-active" : ""}${homeEditing ? " is-editing" : ""}`}
               onClick={handleHome}
-              aria-label={isDesk ? "홈" : "홈"}
+              aria-label="홈"
             >
-              {isDesk ? "홈" : <IconHome width={15} height={15} />}
+              {isDesk ? (
+                <>
+                  <IconHome className="topbar__sym" />홈
+                </>
+              ) : (
+                <IconHome width={15} height={15} />
+              )}
             </button>
             {isDesk && (
               <>
                 <button type="button" className={`topbar__adminlink${onCoin ? " is-active" : ""}`} onClick={() => navigate("/binance")}>
-                  코인
+                  <IconCoin className="topbar__sym" />코인
                 </button>
                 <button type="button" className={`topbar__adminlink${onSchedule ? " is-active" : ""}`} onClick={() => navigate("/schedule")}>
-                  일정
+                  <IconCalendar className="topbar__sym" />일정
+                </button>
+                <button type="button" className={`topbar__adminlink${isStudio ? " is-active" : ""}`} onClick={() => navigate("/studio")}>
+                  <IconDatabase className="topbar__sym" />DB
                 </button>
               </>
             )}
@@ -112,13 +121,7 @@ export default function TopBar() {
           </div>
         )}
 
-        {isDesk ? (
-          <div className="topbar__right">
-            <button type="button" className="topbar__adminlink desk-mode is-active" onClick={() => navigate(isStudio ? "/" : "/studio")}>
-              관리자모드
-            </button>
-          </div>
-        ) : (
+        {!isDesk && (
         <div className="topbar__right">
           <button
             type="button"

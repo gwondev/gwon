@@ -6,12 +6,10 @@ import BlackHole from "./BlackHole.jsx";
 import SpaceBackdrop from "./SpaceBackdrop.jsx";
 import TransitionVeil from "./TransitionVeil.jsx";
 import NeuralWorld from "./NeuralWorld.jsx";
-import InfraWorld from "./InfraWorld.jsx";
-import AtomWorld from "./AtomWorld.jsx";
+import CardWorld from "./CardWorld.jsx";
 import LivingWorld from "./LivingWorld.jsx";
-import TimeWorld from "./TimeWorld.jsx";
+import BrainWorld from "./BrainWorld.jsx";
 import CreationWorld from "./CreationWorld.jsx";
-import OriginWorld from "./OriginWorld.jsx";
 
 /**
  * 하나의 캔버스, 하나의 카메라. 모든 세계는 같은 원점에 있고 지금 보이는 것만 그린다.
@@ -42,12 +40,10 @@ export default function UniverseCanvas({ ids, projects, counts, mobile }) {
       <BlackHole />
       <SpaceBackdrop />
       {has("projects") && <NeuralWorld projects={projects} />}
-      {has("infrastructure") && <InfraWorld items={counts.infrastructureItems} />}
-      {has("credentials") && <AtomWorld count={counts.credentials} />}
-      {has("activities") && <LivingWorld count={counts.activities} />}
-      {has("career") && <TimeWorld count={counts.career} />}
+      {has("credentials") && <CardWorld items={counts.credentialItems} />}
       {has("awards") && <CreationWorld count={counts.awards} />}
-      {has("profile") && <OriginWorld />}
+      {has("activities") && <LivingWorld count={counts.activities} />}
+      {has("career") && <BrainWorld careerCount={counts.career} skillCount={counts.skills} />}
       <TransitionVeil />
     </Canvas>
   );

@@ -4,10 +4,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useViewMode } from "../../context/ViewModeContext";
 import { useHomeLayout } from "../../lib/useHomeLayout.js";
-import { filledItems, sectionItems, visibleSections } from "./sections.js";
+import { CAREER_PARTS, filledItems, sectionItems, visibleSections } from "./sections.js";
 import { cursorFromHorizon, dispose, getSnapshot, goTo, jump, live, releaseScrub, scrubTo, setEnv, setFocus, setSections, step, subscribe } from "./director.js";
 import { useUniverseInput } from "./useUniverseInput.js";
-import { HeroBlock, ItemsList, ProjectDetail, ProjectPicker, patchOne, sectionOne } from "./content/Panels.jsx";
+import { CareerPanel, HeroBlock, ItemsList, ProjectDetail, ProjectPicker, patchOne, sectionOne } from "./content/Panels.jsx";
 import Field from "./content/Field.jsx";
 import SideDrawer from "../SideDrawer";
 import "./UniverseExperience.css";
@@ -51,6 +51,8 @@ function HorizonCursor({ on }) {
   useEffect(() => {
     if (!on) return undefined;
     let raf = 0;
+    let lastX = null;
+    let tilt = 0;
     const tick = () => {
       const el = ref.current;
       if (el && live.pointerOn) {
@@ -60,14 +62,21 @@ function HorizonCursor({ on }) {
         const x = (live.pointerX * 0.5 + 0.5) * w;
         const y = (-live.pointerY * 0.5 + 0.5) * h;
         const look = cursorFromHorizon(w, h);
-        el.style.opacity = live.pointerOn ? "1" : "0";
+        // 옆으로 움직이는 만큼 UFO 가 기울었다가 천천히 수평으로 돌아온다.
+        const vx = lastX === null ? 0 : x - lastX;
+        lastX = x;
+        tilt += (Math.max(-22, Math.min(22, vx * 1.6)) - tilt) * 0.12;
+        el.style.opacity = "1";
         el.classList.toggle("is-inside", look.inside);
         el.style.setProperty("--glow", look.glow.toFixed(3));
         el.style.setProperty("--core", look.core.toFixed(3));
-        el.style.setProperty("--scale", look.scale.toFixed(3));
-        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${look.scale.toFixed(3)})`;
+        el.style.setProperty("--halo", look.halo.toFixed(1));
+        el.style.setProperty("--dot", look.dot.toFixed(2));
+        el.style.setProperty("--tilt", `${tilt.toFixed(2)}deg`);
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
       } else if (el) {
         el.style.opacity = "0";
+        lastX = null;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -78,7 +87,25 @@ function HorizonCursor({ on }) {
   return (
     <i className="uv-horizon-cursor" ref={ref} aria-hidden="true">
       <em />
-      <b />
+      <svg className="uv-ufo" viewBox="0 0 32 20" width="26" height="16">
+        <defs>
+          <linearGradient id="uv-ufo-dome" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#ffffff" />
+            <stop offset="1" stopColor="#a9d8ff" stopOpacity="0.55" />
+          </linearGradient>
+          <linearGradient id="uv-ufo-hull" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#f4f6fb" />
+            <stop offset="0.55" stopColor="#9aa3b5" />
+            <stop offset="1" stopColor="#4a5162" />
+          </linearGradient>
+        </defs>
+        <path d="M10.5 10.2 Q16 1.2 21.5 10.2 Z" fill="url(#uv-ufo-dome)" />
+        <ellipse cx="16" cy="12" rx="14.2" ry="4.3" fill="url(#uv-ufo-hull)" />
+        <ellipse cx="16" cy="10.9" rx="11.5" ry="1.5" fill="#ffffff" opacity="0.55" />
+        <circle className="uv-ufo__lamp" cx="8.5" cy="13.2" r="1.05" />
+        <circle className="uv-ufo__lamp" cx="16" cy="14.3" r="1.05" />
+        <circle className="uv-ufo__lamp" cx="23.5" cy="13.2" r="1.05" />
+      </svg>
     </i>
   );
 }
@@ -196,15 +223,24 @@ export default function UniverseExperience() {
   const items = (section && lists[section.id]) || [];
   const projects = home.projects || [];
 
+  const parts = useMemo(
+    () =>
+      CAREER_PARTS.map((part) => {
+        const all = sectionItems(part, home);
+        return { part, items: canEdit ? all : filledItems(all) };
+      }),
+    [home, canEdit]
+  );
+
   const counts = useMemo(
     () => ({
-      infrastructureItems: lists.infrastructure || [],
-      credentials: lists.credentials?.length || 0,
+      credentialItems: lists.credentials || [],
       activities: lists.activities?.length || 0,
-      career: lists.career?.length || 0,
+      career: parts[1].items.length,
+      skills: parts[2].items.length,
       awards: lists.awards?.length || 0,
     }),
-    [lists]
+    [lists, parts]
   );
 
   useUniverseInput(!menu && !login);
@@ -215,8 +251,9 @@ export default function UniverseExperience() {
     const hash = id && id !== "gateway" ? `#${id}` : "";
     if (window.location.hash !== hash) window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash}`);
     if (id === "projects" && live.focus < 0 && projects.length) setFocus(0);
+    if (id === "credentials" && live.focus < 0 && lists.credentials?.length) setFocus(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settled, snap.index]);
+  }, [settled, snap.index, lists.credentials?.length]);
 
   useEffect(() => {
     const onHash = () => {
@@ -231,6 +268,7 @@ export default function UniverseExperience() {
   const mark = sections[heading] || section;
   const isGateway = section?.id === "gateway";
   const isProjects = section?.id === "projects";
+  const isCareer = section?.source.kind === "merged";
   const project = isProjects ? projects[Math.max(0, snap.focus)] || projects[0] : null;
   const one = section ? sectionOne(section, home) : "";
   const tabLabel = section?.source.kind === "tab" ? home.profile?.tabs?.find((t) => t.id === section.source.id)?.label : null;
@@ -312,6 +350,8 @@ export default function UniverseExperience() {
         <aside className="uv-panel" data-ui-scroll aria-label={`${section.ko} 내용`} key={`p-${section.id}`}>
           {isProjects ? (
             <ProjectDetail project={project} home={home} canEdit={canEdit} />
+          ) : isCareer ? (
+            <CareerPanel parts={parts} home={home} canEdit={canEdit} focus={snap.focus} onPick={setFocus} />
           ) : (
             <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} />
           )}
@@ -389,7 +429,7 @@ export default function UniverseExperience() {
           type="button"
           className="uv-mark"
           onClick={() => navigate("/studio")}
-          aria-label="관리자 모드로 화면 전환"
+          aria-label="DB 화면으로 전환"
         >
           <b>{mark.no}</b>
           <span>{mark.label}</span>
@@ -418,6 +458,8 @@ export default function UniverseExperience() {
           <div className="uv-dock__peek" data-ui-scroll aria-label={`${section.ko} 내용`}>
             {isProjects ? (
               <ProjectDetail project={project} home={home} canEdit={canEdit} />
+            ) : isCareer ? (
+              <CareerPanel parts={parts} home={home} canEdit={canEdit} focus={snap.focus} onPick={setFocus} />
             ) : (
               <ItemsList section={section} home={home} items={items} canEdit={canEdit} focus={snap.focus} onPick={setFocus} />
             )}

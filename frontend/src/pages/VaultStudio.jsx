@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useHomeLayout } from "../lib/useHomeLayout.js";
-import { filledItems, sectionItems, visibleSections } from "../components/universe/sections.js";
+import { CAREER_PARTS, filledItems, sectionItems, visibleSections } from "../components/universe/sections.js";
 import "./VaultStudio.css";
 
 const FACTS = {
@@ -27,6 +27,7 @@ export default function VaultStudio() {
   const boards = useMemo(() => {
     return visibleSections(home, false)
       .filter((section) => section.id !== "gateway")
+      .flatMap((section) => (section.source.kind === "merged" ? CAREER_PARTS : [section]))
       .map((section) => ({
         section,
         items: filledItems(sectionItems(section, home)).map((item) => ({

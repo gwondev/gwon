@@ -125,3 +125,45 @@ export function IconGrid(props) {
     </svg>
   );
 }
+
+export function IconCoin(props) {
+  const p = {
+    width: 20,
+    height: 20,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.45,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+    ...props,
+  };
+  return (
+    <svg {...p}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M9.5 8h3.8a2 2 0 0 1 0 4H9.5h4.3a2 2 0 0 1 0 4H9.5V8zM11 6.5V8M11 16v1.5M13 6.5V8M13 16v1.5" />
+    </svg>
+  );
+}
+
+export function IconDatabase(props) {
+  const p = {
+    width: 20,
+    height: 20,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.45,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+    ...props,
+  };
+  return (
+    <svg {...p}>
+      <ellipse cx="12" cy="6" rx="7" ry="2.6" />
+      <path d="M5 6v12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6M5 12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6" />
+    </svg>
+  );
+}
