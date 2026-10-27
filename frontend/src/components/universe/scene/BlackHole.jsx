@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { gatewayPull, live, presence, sectionIndex } from "../director.js";
+import { cursorFromHorizon, gatewayPull, live, presence, sectionIndex } from "../director.js";
 import { damp, rng } from "./util.js";
 
 /**
@@ -41,6 +41,7 @@ const fragment = /* glsl */ `
   uniform float uPull;
   uniform float uFade;
   uniform float uWell;
+  uniform float uCursorLight;
   uniform float uAspect;
   uniform vec2 uMouse;
   uniform int uSteps;
@@ -242,9 +243,10 @@ const fragment = /* glsl */ `
     if (uWell > 0.001) {
       float core = smoothstep(0.07, 0.018, pokeR) * uWell;
       col *= 1.0 - core * 0.86;
-      float photon = exp(-pow((pokeR - 0.052) * 42.0, 2.0)) * uWell;
+      float light = uCursorLight;
+      float photon = exp(-pow((pokeR - 0.052) * 42.0, 2.0)) * uWell * light;
       col += vec3(1.0, 0.97, 0.92) * photon * 0.95;
-      float bowl = exp(-pokeR * pokeR / 0.07) * uWell * 0.18 * (1.0 - core);
+      float bowl = exp(-pokeR * pokeR / 0.07) * uWell * 0.18 * (1.0 - core) * light;
       col += vec3(0.95, 0.82, 0.68) * bowl;
     }
 
@@ -306,6 +308,10 @@ const dustFragment = /* glsl */ `
 const _euler = new THREE.Euler();
 const _m4 = new THREE.Matrix4();
 const _ndc = new THREE.Vector3();
+const _edge = new THREE.Vector3();
+const _right = new THREE.Vector3();
+/** 화면에 보이는 검은 원(광자 고리~원반 안쪽). rs=1, 광자권 1.55, 원반 안 2.6 */
+const VISUAL_SHADOW_R = 2.05;
 
 export default function BlackHole() {
   const mesh = useRef(null);
@@ -335,6 +341,7 @@ export default function BlackHole() {
           uPull: { value: 0 },
           uFade: { value: 1 },
           uWell: { value: 0 },
+          uCursorLight: { value: 0 },
           uAspect: { value: 1 },
           uMouse: { value: new THREE.Vector2() },
           uSteps: { value: 200 },
@@ -412,7 +419,11 @@ export default function BlackHole() {
     _ndc.set(0, 0, 0).project(camera);
     live.holeX = _ndc.x;
     live.holeY = _ndc.y;
+    _right.set(1, 0, 0).transformDirection(camera.matrixWorld).multiplyScalar(VISUAL_SHADOW_R);
+    _edge.copy(_right).project(camera);
+    live.horizonR = Math.hypot((_edge.x - _ndc.x) * aspect, _edge.y - _ndc.y);
     live.well = m.well;
+    const look = cursorFromHorizon(size.width, size.height);
 
     const u = material.uniforms;
     u.uInvProj.value.copy(camera.projectionMatrixInverse);
@@ -423,6 +434,7 @@ export default function BlackHole() {
     u.uFlow.value = m.flow;
     u.uPull.value = m.pull;
     u.uWell.value = m.well;
+    u.uCursorLight.value = look.glow;
     u.uAspect.value = aspect;
     u.uMouse.value.set(live.pointerX, live.pointerY);
     u.uSteps.value = mobile ? 110 : 200;

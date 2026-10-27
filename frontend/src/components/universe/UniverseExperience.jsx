@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useViewMode } from "../../context/ViewModeContext";
 import { useHomeLayout } from "../../lib/useHomeLayout.js";
 import { filledItems, sectionItems, visibleSections } from "./sections.js";
-import { dispose, getSnapshot, goTo, jump, live, releaseScrub, scrubTo, setEnv, setFocus, setSections, step, subscribe } from "./director.js";
+import { cursorFromHorizon, dispose, getSnapshot, goTo, jump, live, releaseScrub, scrubTo, setEnv, setFocus, setSections, step, subscribe } from "./director.js";
 import { useUniverseInput } from "./useUniverseInput.js";
 import { HeroBlock, ItemsList, ProjectDetail, ProjectPicker, patchOne, sectionOne } from "./content/Panels.jsx";
 import Field from "./content/Field.jsx";
@@ -59,30 +59,13 @@ function HorizonCursor({ on }) {
         const h = root?.clientHeight || window.innerHeight;
         const x = (live.pointerX * 0.5 + 0.5) * w;
         const y = (-live.pointerY * 0.5 + 0.5) * h;
-        const aspect = w / Math.max(1, h);
-        const distNdc = Math.hypot((live.pointerX - live.holeX) * aspect, live.pointerY - live.holeY);
-        const distPx = distNdc * (h * 0.5);
-        // 블랙홀 코어(사건의 지평선) — 셰이더 pokeR 스케일과 맞춤
-        const horizonPx = 0.055 * (h * 0.5);
-        let bright;
-        let glow;
-        let scale;
-        if (distPx <= horizonPx) {
-          const depth = 1 - distPx / Math.max(horizonPx, 1);
-          bright = 1 - depth * depth;
-          glow = bright * 0.25;
-          scale = 0.35 + (1 - depth) * 0.45;
-        } else {
-          const outPx = distPx - horizonPx;
-          bright = Math.min(1, 0.42 + outPx * 0.07);
-          glow = Math.min(2.4, 0.32 + outPx * 0.14);
-          scale = Math.min(2.1, 1 + outPx * 0.038);
-        }
+        const look = cursorFromHorizon(w, h);
         el.style.opacity = live.pointerOn ? "1" : "0";
-        el.style.setProperty("--bright", bright.toFixed(3));
-        el.style.setProperty("--glow", glow.toFixed(3));
-        el.style.setProperty("--scale", scale.toFixed(3));
-        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${scale.toFixed(3)})`;
+        el.classList.toggle("is-inside", look.inside);
+        el.style.setProperty("--glow", look.glow.toFixed(3));
+        el.style.setProperty("--core", look.core.toFixed(3));
+        el.style.setProperty("--scale", look.scale.toFixed(3));
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${look.scale.toFixed(3)})`;
       } else if (el) {
         el.style.opacity = "0";
       }
@@ -94,6 +77,7 @@ function HorizonCursor({ on }) {
   if (!on) return null;
   return (
     <i className="uv-horizon-cursor" ref={ref} aria-hidden="true">
+      <em />
       <b />
     </i>
   );

@@ -32,8 +32,34 @@ export const live = {
   pointerOn: false,
   holeX: 0.45,
   holeY: 0,
+  /** 화면 NDC(종횡비 보정)로 본 블랙홀 그림자 반경. BlackHole 이 매 프레임 갱신. */
+  horizonR: 0.22,
   well: 0,
 };
+
+/** 커서 ↔ 사건의 지평선(검은 원 가장자리) 픽셀 거리로 빛/크기. 안쪽은 빛 0. */
+export function cursorFromHorizon(width, height) {
+  const w = Math.max(1, width);
+  const h = Math.max(1, height);
+  const aspect = w / h;
+  const distNdc = Math.hypot((live.pointerX - live.holeX) * aspect, live.pointerY - live.holeY);
+  const horizonNdc = live.horizonR > 1e-4 ? live.horizonR : 0.22;
+  const toPx = h * 0.5;
+  const distPx = distNdc * toPx;
+  const horizonPx = horizonNdc * toPx;
+  if (!live.pointerOn || distPx <= horizonPx) {
+    const t = live.pointerOn ? distPx / Math.max(horizonPx, 1) : 0;
+    return { inside: true, outPx: 0, glow: 0, core: 0.16 + 0.2 * t, scale: 0.5 + 0.08 * t };
+  }
+  const outPx = distPx - horizonPx;
+  return {
+    inside: false,
+    outPx,
+    glow: Math.min(1, outPx * 0.05),
+    core: Math.min(1, 0.32 + outPx * 0.04),
+    scale: Math.min(2.2, 0.58 + outPx * 0.032),
+  };
+}
 
 let ticking = false;
 let snapshot = makeSnapshot();
