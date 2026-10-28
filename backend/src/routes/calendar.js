@@ -1594,7 +1594,7 @@ router.put("/theme", requireCalendarAdmin, async (req, res, next) => {
   }
 });
 
-// 오늘 → #일정-오늘, 이번 주(오늘 제외) → #일정-일주일. 같은 메시지를 덮어쓴다.
+// 오늘·내일 → #일정-오늘, 이번 주(오늘 제외) → #일정-일주일. 새 메시지로 보내고 이전 것은 지운다.
 router.post("/discord-notify", requireCalendarAdmin, async (req, res, next) => {
   try {
     const date = String(req.body?.date || req.query?.date || "").trim();

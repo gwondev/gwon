@@ -123,9 +123,10 @@ function weekDatesExceptToday(todayKey) {
   return out;
 }
 
+/** 오늘·내일 → 오늘 채널, 나머지 이번 주 → 일주일 채널. */
 function notifyChannelForDate(dateKey, todayKey) {
   if (!dateKey || !todayKey) return null;
-  if (dateKey === todayKey) return "today";
+  if (dateKey === todayKey || dateKey === shiftDateKey(todayKey, 1)) return "today";
   if (weekDatesExceptToday(todayKey).includes(dateKey)) return "week";
   return null;
 }
@@ -2060,11 +2061,11 @@ function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd, onNotify,
               className="schedule__day-bell"
               onClick={() => onNotify?.(dateKey)}
               disabled={notifyBusy}
-              aria-label={notifyChannel === "today" ? "오늘 일정을 디스코드에 반영" : "이번 주 일정을 디스코드에 반영"}
+              aria-label={notifyChannel === "today" ? "오늘·내일 일정을 디스코드에 반영" : "이번 주 일정을 디스코드에 반영"}
               title={
                 notifyChannel === "today"
-                  ? "#일정-오늘 메시지를 이 내용으로 덮어씁니다."
-                  : "#일정-일주일 메시지를 이번 주(오늘 제외) 일정으로 덮어씁니다."
+                  ? "#일정-오늘 에 오늘·내일 일정을 새로 보냅니다."
+                  : "#일정-일주일 에 이번 주(오늘 제외) 일정을 새로 보냅니다."
               }
             >
               🔔

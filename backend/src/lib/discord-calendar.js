@@ -98,10 +98,15 @@ export function weekDatesExceptToday(today) {
   return Array.from({ length: 7 }, (_, i) => addDays(mon, i)).filter((d) => d !== today);
 }
 
-/** 종 버튼 대상: today | week | null(숨김). */
+/** 오늘 채널 날짜: 오늘 + 내일. */
+export function todayChannelDates(today) {
+  return [today, addDays(today, 1)];
+}
+
+/** 종 버튼 대상: today | week | null(숨김). 오늘·내일은 오늘 채널. */
 export function notifyChannelForDate(dateKey, today = kstParts().date) {
   if (!dateKey) return null;
-  if (dateKey === today) return "today";
+  if (todayChannelDates(today).includes(dateKey)) return "today";
   if (weekDatesExceptToday(today).includes(dateKey)) return "week";
   return null;
 }
@@ -125,6 +130,11 @@ function dateHeader(dateKey) {
 function todayTitle(dateKey) {
   const [y, m, d] = String(dateKey).split("-").map(Number);
   return `${y}년 ${m}월 ${d}일`;
+}
+
+function todayChannelHeadings(today) {
+  const [, tomorrow] = todayChannelDates(today);
+  return { [today]: `오늘 · ${todayTitle(today)}`, [tomorrow]: `내일 · ${todayTitle(tomorrow)}` };
 }
 
 function fingerprint(event) {
@@ -156,7 +166,7 @@ function scheduleBannerEmbed(channel) {
   };
 }
 
-function buildEmbeds(dates, current, snapshot, markChanges, { heading, channel } = {}) {
+function buildEmbeds(dates, current, snapshot, markChanges, { headings = {}, channel } = {}) {
   const currentById = new Map(current.map((event) => [event.id, event]));
   const embeds = [scheduleBannerEmbed(channel || "today")];
 
@@ -188,7 +198,7 @@ function buildEmbeds(dates, current, snapshot, markChanges, { heading, channel }
     }
 
     const embed = {
-      title: dates.length === 1 && heading ? heading : dateHeader(date),
+      title: headings[date] || dateHeader(date),
       color: 0x5865f2,
     };
     if (!fields.length) {
@@ -289,21 +299,12 @@ async function postOrEdit(channel, embeds) {
 
   const body = {
     username: channel === "week" ? "gwon 일정 · 일주일" : "gwon 일정 · 오늘",
+    content: "@everyone",
     embeds,
-    allowed_mentions: { parse: [] },
+    allowed_mentions: { parse: ["everyone"] },
   };
 
   const existingId = await loadMessageId(channel);
-  if (existingId) {
-    const editUrl = `${url}/messages/${encodeURIComponent(existingId)}`;
-    const editRes = await fetch(editUrl, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (editRes.ok) return { messageId: existingId, edited: true };
-    // 메시지가 지워졌으면 새로 보낸다.
-  }
 
   const createRes = await fetch(`${url}?wait=true`, {
     method: "POST",
@@ -319,6 +320,11 @@ async function postOrEdit(channel, embeds) {
   const created = await createRes.json().catch(() => ({}));
   const messageId = String(created?.id || "").trim();
   if (messageId) await saveSetting(MSG_KEY[channel], messageId);
+
+  // 수정은 알림이 안 가므로 새로 보내고 이전 메시지는 지운다.
+  if (existingId && existingId !== messageId) {
+    await fetch(`${url}/messages/${encodeURIComponent(existingId)}`, { method: "DELETE" }).catch(() => {});
+  }
   return { messageId, edited: false };
 }
 
@@ -356,7 +362,7 @@ async function sendChannel(channel, dates, { markChanges = false, now = kstParts
   const rows = await loadRange(start, end);
   const current = mapRows(rows, emojis).filter((e) => dates.includes(e.date));
   const embeds = buildEmbeds(dates, current, snap, markChanges, {
-    heading: channel === "today" ? todayTitle(dates[0]) : undefined,
+    headings: channel === "today" ? todayChannelHeadings(now.date) : {},
     channel,
   });
   await postOrEdit(channel, embeds);
@@ -371,7 +377,7 @@ export async function sendCalendarDigest({
   channel = "both",
   now = kstParts(),
 } = {}) {
-  const todayDates = [now.date];
+  const todayDates = todayChannelDates(now.date);
   const weekDates = weekDatesExceptToday(now.date);
   const allDates = [...new Set([...todayDates, ...weekDates])].sort();
   const snapshot = await loadSnapshot();
