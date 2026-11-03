@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import {
+  collectMultiDaySeriesKeys,
   dedupeEventsBySeries,
   effectiveEventTimes,
   enrichSeriesBounds,
@@ -308,6 +309,11 @@ export default function ScheduleTab() {
     [events]
   );
 
+  const multiDaySeriesKeys = useMemo(
+    () => collectMultiDaySeriesKeys(displayEvents),
+    [displayEvents]
+  );
+
   const eventsByDate = useMemo(() => {
     const map = {};
     for (const ev of displayEvents) {
@@ -315,10 +321,10 @@ export default function ScheduleTab() {
       map[ev.eventDate].push(ev);
     }
     for (const key of Object.keys(map)) {
-      map[key] = sortDayEvents(map[key]);
+      map[key] = sortDayEvents(map[key], multiDaySeriesKeys);
     }
     return map;
-  }, [displayEvents]);
+  }, [displayEvents, multiDaySeriesKeys]);
 
   const seriesDateSet = useMemo(() => {
     const set = new Set();
@@ -809,7 +815,10 @@ export default function ScheduleTab() {
                     onToggleSelect={toggleSeriesSelection}
                     onOpenDay={() => {
                       if (deleteMode) return;
-                      setDayOpen({ dateKey: key, events: dedupeEventsBySeries(dayEvents) });
+                      setDayOpen({
+                        dateKey: key,
+                        events: dedupeEventsBySeries(dayEvents, multiDaySeriesKeys),
+                      });
                     }}
                   />
                 );
@@ -848,6 +857,7 @@ export default function ScheduleTab() {
           <DayModal
             dateKey={dayOpen.dateKey}
             events={dayOpen.events}
+            multiKeys={multiDaySeriesKeys}
             onClose={() => setDayOpen(null)}
             onEdit={openEdit}
             onDelete={deleteEvent}
@@ -1877,8 +1887,8 @@ function eventAccent(ev, keywords) {
   return getThemeById(eventThemeColorId(ev, keywords)).accent;
 }
 
-function sortDayEvents(list) {
-  return dedupeEventsBySeries(list);
+function sortDayEvents(list, multiKeys) {
+  return dedupeEventsBySeries(list, multiKeys);
 }
 
 function DayEventCard({ ev, onEdit, onDelete }) {
@@ -2053,14 +2063,14 @@ function DayTimeline({ events, expanded, onToggleExpand }) {
   );
 }
 
-function DayModal({ dateKey, events, onClose, onEdit, onDelete, onAdd, onNotify, notifyBusy, notifyNote, notifyChannel }) {
+function DayModal({ dateKey, events, multiKeys, onClose, onEdit, onDelete, onAdd, onNotify, notifyBusy, notifyNote, notifyChannel }) {
   const [y, m, d] = dateKey.split("-");
   const [viewMode, setViewMode] = useState("grouped");
   const [tlExpanded, setTlExpanded] = useState(false);
 
   const uniqueEvents = useMemo(
-    () => sortDayEvents(dedupeEventsBySeries(events)),
-    [events]
+    () => sortDayEvents(events, multiKeys),
+    [events, multiKeys]
   );
 
   return (

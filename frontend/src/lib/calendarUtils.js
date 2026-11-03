@@ -297,14 +297,20 @@ export function isContinuousMultiDay(ev) {
   return Boolean(start && end && start !== end);
 }
 
+function normalizeEventTitle(title) {
+  return String(title || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function allDayLinkGroupKey(ev) {
-  // 시간 있는 일정(근장 등)은 절대 묶지 않는다. 종일 + 같은 제목/키워드/색만.
+  // 시간 있는 일정(근장 등)은 절대 묶지 않는다. 종일 + 같은 제목만으로 묶는다.
+  // (키워드/색이 날짜마다 달라도 14~16 KNR 같은 케이스가 끊기지 않게)
   if (!ev || ev.startTime || ev.repeat?.freq) return null;
-  const title = String(ev.title || "").trim();
+  const title = normalizeEventTitle(ev.title);
   if (!title) return null;
-  const kw = ev.appointmentType || (ev.incomeType ? "MONEY" : "");
-  const color = ev.themeColor || "";
-  return `${title}\0${kw}\0${color}`;
+  return title;
 }
 
 /**
