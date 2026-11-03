@@ -18,6 +18,7 @@ import {
   expandOccurrences,
   isContinuousMultiDay,
   normalizeWeekdays,
+  packMonthWeekLanes,
   WEEKDAY_LABELS,
   REPEAT_FREQS,
   repeatFreqById,
@@ -324,6 +325,12 @@ export default function ScheduleTab() {
     }
     return set;
   }, [displayEvents]);
+
+  // 주 단위 레인: 연속 다일 띠가 하루짜리에 밀려 세로로 갈라지지 않게 한다.
+  const weekLaneLayout = useMemo(
+    () => packMonthWeekLanes(grid, eventsByDate, CAL_MAX_VISIBLE),
+    [grid, eventsByDate]
+  );
 
   const loadOwners = useCallback(async () => {
     if (localMode) {
@@ -774,11 +781,18 @@ export default function ScheduleTab() {
                 const isSaturday = date.getDay() === 6;
                 const isWeekend = isSunday || isSaturday;
 
+                const lanePack = weekLaneLayout.get(key) || {
+                  lanes: Array.from({ length: CAL_MAX_VISIBLE }, () => null),
+                  hiddenCount: 0,
+                };
+
                 return (
                   <DayCell
                     key={key}
                     date={date}
                     events={dayEvents}
+                    lanes={lanePack.lanes}
+                    hiddenCount={lanePack.hiddenCount}
                     weekSlots={weekSlots}
                     isToday={isToday}
                     isWeekend={isWeekend}
@@ -908,6 +922,8 @@ function DayCell({
   date,
   dateKey,
   events,
+  lanes: lanesProp,
+  hiddenCount: hiddenProp,
   weekSlots = CAL_WEEK_SLOTS,
   isToday,
   isWeekend,
@@ -919,10 +935,20 @@ function DayCell({
   selectedSeriesKeys,
   onToggleSelect,
 }) {
-  const uniqueEvents = dedupeEventsBySeries(events);
-  const visible = uniqueEvents.slice(0, CAL_MAX_VISIBLE);
-  const hiddenCount = Math.max(0, uniqueEvents.length - CAL_MAX_VISIBLE);
-  const usedSlots = visible.length + (hiddenCount > 0 ? 1 : 0);
+  // lanesProp: 주 단위로 고정된 슬롯(빈 칸은 null → pad). 다일 띠가 같은 가로줄을 유지한다.
+  const normalizedLanes = Array.from({ length: CAL_MAX_VISIBLE }, (_, i) =>
+    Array.isArray(lanesProp) ? lanesProp[i] ?? null : null
+  );
+  if (!Array.isArray(lanesProp)) {
+    dedupeEventsBySeries(events).slice(0, CAL_MAX_VISIBLE).forEach((ev, i) => {
+      normalizedLanes[i] = ev;
+    });
+  }
+  const hiddenCount =
+    typeof hiddenProp === "number"
+      ? hiddenProp
+      : Math.max(0, dedupeEventsBySeries(events).length - CAL_MAX_VISIBLE);
+  const usedSlots = CAL_MAX_VISIBLE + (hiddenCount > 0 ? 1 : 0);
   const padCount = Math.max(0, weekSlots - usedSlots);
   const { holidayNames, minorNames } = getDayInfo(dateKey);
   const isHolidayDay = holidayNames.length > 0;
@@ -954,7 +980,10 @@ function DayCell({
         )}
       </div>
       <div className="schedule__bubbles">
-        {visible.map((ev) => {
+        {normalizedLanes.map((ev, lane) => {
+          if (!ev) {
+            return <span key={`lane-pad-${lane}`} className="schedule__slot-pad" aria-hidden />;
+          }
           const seriesKey = eventSeriesKey(ev);
           const isDiscrete = !!ev.repeat?.freq;
           const prev = !isDiscrete && seriesDateSet.has(`${seriesKey}::${shiftDateKey(dateKey, -1)}`);
@@ -964,7 +993,7 @@ function DayCell({
           const showLabel = isDiscrete ? true : (!prev || date.getDay() === 0);
           return (
             <EventBubble
-              key={seriesKey}
+              key={`${seriesKey}-${lane}`}
               event={ev}
               showTime
               showLabel={showLabel}
@@ -1845,12 +1874,7 @@ function eventAccent(ev, keywords) {
 }
 
 function sortDayEvents(list) {
-  return [...list].sort((a, b) => {
-    if (a.startTime && !b.startTime) return -1;
-    if (!a.startTime && b.startTime) return 1;
-    if (!a.startTime && !b.startTime) return a.id - b.id;
-    return a.startTime.localeCompare(b.startTime);
-  });
+  return dedupeEventsBySeries(list);
 }
 
 function DayEventCard({ ev, onEdit, onDelete }) {

@@ -304,15 +304,43 @@ export function effectiveEventTimes(ev) {
   return { startTime: null, endTime: null };
 }
 
-// 정렬 우선순위: 시간순이 위, 종일은 맨 아래.
+// 정렬: 연속 다일(하루 초과) → 시간 있는 하루 → 종일. 같은 그룹은 시간/시작일/id.
 function eventSortRank(ev) {
-  if (!ev.startTime) return 1;
-  return 0;
+  if (isContinuousMultiDay(ev)) return 0;
+  if (ev?.startTime) return 1;
+  return 2;
+}
+
+function compareDayEvents(a, b) {
+  const ra = eventSortRank(a);
+  const rb = eventSortRank(b);
+  if (ra !== rb) return ra - rb;
+
+  if (isContinuousMultiDay(a) && isContinuousMultiDay(b)) {
+    const sa = a.seriesStartDate || a.eventDate || "";
+    const sb = b.seriesStartDate || b.eventDate || "";
+    if (sa !== sb) return sa.localeCompare(sb);
+    const ea = a.seriesEndDate || a.eventDate || "";
+    const eb = b.seriesEndDate || b.eventDate || "";
+    if (ea !== eb) return eb.localeCompare(ea); // 더 긴 기간 우선
+    return (a.id || 0) - (b.id || 0);
+  }
+
+  if (!a.startTime && !b.startTime) {
+    const da = a.seriesStartDate || a.eventDate || "";
+    const db = b.seriesStartDate || b.eventDate || "";
+    if (da !== db) return da.localeCompare(db);
+    return (a.id || 0) - (b.id || 0);
+  }
+
+  const t = (a.startTime || "").localeCompare(b.startTime || "");
+  if (t !== 0) return t;
+  return (a.id || 0) - (b.id || 0);
 }
 
 /**
  * 연속·반복 일정은 시리즈당 하나만 표시.
- * 시간 있는 일정을 위에 두고, 종일은 맨 아래에 둔다.
+ * 연속 다일 → 시간 일정 → 종일 순.
  */
 export function dedupeEventsBySeries(events) {
   const map = new Map();
@@ -320,20 +348,133 @@ export function dedupeEventsBySeries(events) {
     const key = eventSeriesKey(ev);
     if (!map.has(key)) map.set(key, ev);
   }
-  return [...map.values()].sort((a, b) => {
-    const ra = eventSortRank(a);
-    const rb = eventSortRank(b);
-    if (ra !== rb) return ra - rb;
+  return [...map.values()].sort(compareDayEvents);
+}
 
-    if (!a.startTime && !b.startTime) {
-      const da = a.seriesStartDate || a.eventDate;
-      const db = b.seriesStartDate || b.eventDate;
-      if (da !== db) return da.localeCompare(db);
-      return a.id - b.id;
+/**
+ * 월간 그리드를 주(日~土) 단위로 레인 배치한다.
+ * 연속 다일(하루 초과) 시리즈는 주 안에서 같은 lane 을 끝까지 써서
+ * 하루짜리가 끼어도 띠가 세로로 갈라지지 않는다.
+ *
+ * @param {(Date|null)[]} grid
+ * @param {Record<string, object[]>} eventsByDate
+ * @param {number} maxVisible
+ * @returns {Map<string, { lanes: (object|null)[], hiddenCount: number }>}
+ */
+export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
+  const out = new Map();
+  const cells = Array.isArray(grid) ? grid : [];
+  const byDate = eventsByDate || {};
+
+  for (let w = 0; w < cells.length; w += 7) {
+    const week = cells.slice(w, w + 7);
+    const dateKeys = week.map((d) => (d ? dateKeyOf(d) : null));
+    const dayCount = 7;
+
+    /** @type {Map<string, { key: string, event: object, dayIdxs: number[] }>} */
+    const multi = new Map();
+    /** @type {Map<number, object[]>} */
+    const singles = new Map();
+
+    for (let di = 0; di < dayCount; di++) {
+      const key = dateKeys[di];
+      if (!key) continue;
+      const unique = dedupeEventsBySeries(byDate[key] || []);
+      for (const ev of unique) {
+        const sk = eventSeriesKey(ev);
+        if (isContinuousMultiDay(ev)) {
+          let seg = multi.get(sk);
+          if (!seg) {
+            seg = { key: sk, event: ev, dayIdxs: [] };
+            multi.set(sk, seg);
+          }
+          seg.dayIdxs.push(di);
+          // 대표 이벤트는 주에서 가장 이른 날 것으로
+          const prev = seg.event.eventDate || "";
+          if ((ev.eventDate || "") < prev) seg.event = ev;
+        } else {
+          if (!singles.has(di)) singles.set(di, []);
+          singles.get(di).push(ev);
+        }
+      }
     }
 
-    const t = (a.startTime || "").localeCompare(b.startTime || "");
-    if (t !== 0) return t;
-    return a.id - b.id;
-  });
+    const segments = [...multi.values()].sort((a, b) => {
+      const span = b.dayIdxs.length - a.dayIdxs.length;
+      if (span !== 0) return span;
+      const sa = a.event.seriesStartDate || a.event.eventDate || "";
+      const sb = b.event.seriesStartDate || b.event.eventDate || "";
+      if (sa !== sb) return sa.localeCompare(sb);
+      return (a.event.id || 0) - (b.event.id || 0);
+    });
+
+    /** @type {boolean[][]} */
+    const occupied = [];
+    /** @type {Map<string, number>} seriesKey|`d${di}:${sk}` → lane */
+    const laneOf = new Map();
+
+    const ensureLane = (lane) => {
+      while (occupied.length <= lane) occupied.push(Array(dayCount).fill(false));
+    };
+
+    const canPlace = (lane, dayIdxs) => dayIdxs.every((di) => !occupied[lane][di]);
+
+    const place = (lane, dayIdxs, token) => {
+      ensureLane(lane);
+      for (const di of dayIdxs) occupied[lane][di] = true;
+      laneOf.set(token, lane);
+    };
+
+    const firstFree = (dayIdxs) => {
+      for (let lane = 0; ; lane++) {
+        ensureLane(lane);
+        if (canPlace(lane, dayIdxs)) return lane;
+      }
+    };
+
+    for (const seg of segments) {
+      const lane = firstFree(seg.dayIdxs);
+      place(lane, seg.dayIdxs, seg.key);
+    }
+
+    for (let di = 0; di < dayCount; di++) {
+      const list = (singles.get(di) || []).slice().sort(compareDayEvents);
+      for (const ev of list) {
+        const token = `d${di}:${eventSeriesKey(ev)}`;
+        const lane = firstFree([di]);
+        place(lane, [di], token);
+        // 하루 칸 렌더용으로 시리즈키도 같은 날 lane 에 묶어둠
+        laneOf.set(`${dateKeys[di]}::${eventSeriesKey(ev)}`, lane);
+      }
+      for (const seg of segments) {
+        if (seg.dayIdxs.includes(di)) {
+          laneOf.set(`${dateKeys[di]}::${seg.key}`, laneOf.get(seg.key));
+        }
+      }
+    }
+
+    for (let di = 0; di < dayCount; di++) {
+      const dateKey = dateKeys[di];
+      if (!dateKey) continue;
+
+      const lanes = Array.from({ length: maxVisible }, () => null);
+      let hiddenCount = 0;
+      const unique = dedupeEventsBySeries(byDate[dateKey] || []);
+
+      for (const ev of unique) {
+        const sk = eventSeriesKey(ev);
+        const lane = laneOf.get(`${dateKey}::${sk}`);
+        if (lane == null) continue;
+        if (lane < maxVisible) {
+          lanes[lane] = ev;
+        } else {
+          hiddenCount += 1;
+        }
+      }
+
+      out.set(dateKey, { lanes, hiddenCount });
+    }
+  }
+
+  return out;
 }
