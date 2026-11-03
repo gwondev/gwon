@@ -273,6 +273,21 @@ export function isMultiDayEvent(ev) {
   return (Number(ev?.spanDays) || 1) > 1;
 }
 
+function daySpanInclusive(start, end) {
+  if (!start || !end) return 1;
+  const a = Date.parse(`${start}T00:00:00`);
+  const b = Date.parse(`${end}T00:00:00`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 1;
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+function shiftDateKeyUtil(dateKey, delta) {
+  if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return dateKey;
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + delta);
+  return dateKeyOf(dt);
+}
+
 /** 반복 없는 연속 기간(하루 초과). spanDays·시리즈 시작/끝 모두 본다. */
 export function isContinuousMultiDay(ev) {
   if (!ev || ev.repeat?.freq) return false;
@@ -282,12 +297,92 @@ export function isContinuousMultiDay(ev) {
   return Boolean(start && end && start !== end);
 }
 
+function allDayLinkGroupKey(ev) {
+  // 시간 있는 일정(근장 등)은 절대 묶지 않는다. 종일 + 같은 제목/키워드/색만.
+  if (!ev || ev.startTime || ev.repeat?.freq) return null;
+  const title = String(ev.title || "").trim();
+  if (!title) return null;
+  const kw = ev.appointmentType || (ev.incomeType ? "MONEY" : "");
+  const color = ev.themeColor || "";
+  return `${title}\0${kw}\0${color}`;
+}
+
+/**
+ * 시리즈 ID 없이 날짜마다 따로 저장된 종일 일정도, 제목·키워드가 같고
+ * 날짜가 하루씩 이어지면 하나의 다일 띠로 묶는다. (KNR 14~16 같은 경우)
+ */
+function linkConsecutiveAllDayEvents(events) {
+  const list = Array.isArray(events) ? events.map((ev) => ({ ...ev })) : [];
+  /** @type {Map<string, object[]>} */
+  const groups = new Map();
+  for (const ev of list) {
+    const gk = allDayLinkGroupKey(ev);
+    if (!gk) continue;
+    if (!groups.has(gk)) groups.set(gk, []);
+    groups.get(gk).push(ev);
+  }
+
+  for (const items of groups.values()) {
+    items.sort((a, b) => String(a.eventDate).localeCompare(String(b.eventDate)) || (a.id || 0) - (b.id || 0));
+    let run = [];
+    const flush = () => {
+      if (run.length < 2) {
+        run = [];
+        return;
+      }
+      // 날짜가 하루씩 연속인 구간만 묶는다.
+      let seg = [run[0]];
+      const segs = [];
+      for (let i = 1; i < run.length; i++) {
+        const prev = seg[seg.length - 1].eventDate;
+        const cur = run[i].eventDate;
+        if (cur === shiftDateKeyUtil(prev, 1)) seg.push(run[i]);
+        else {
+          if (seg.length >= 2) segs.push(seg);
+          seg = [run[i]];
+        }
+      }
+      if (seg.length >= 2) segs.push(seg);
+
+      for (const s of segs) {
+        const start = s[0].eventDate;
+        const end = s[s.length - 1].eventDate;
+        const span = daySpanInclusive(start, end);
+        // 이미 서로 다른 진짜 시리즈면 억지로 합치지 않는다.
+        const seriesIds = new Set(s.map((ev) => ev.seriesId).filter(Boolean));
+        const realSeries = [...seriesIds].filter((id) => !String(id).startsWith("single-"));
+        if (realSeries.length > 1) continue;
+        const linkId =
+          realSeries[0] ||
+          `link-${start}-${end}-${String(s[0].title || "")
+            .trim()
+            .slice(0, 24)}`;
+        for (const ev of s) {
+          ev.seriesId = linkId;
+          ev.seriesStartDate = start;
+          ev.seriesEndDate = end;
+          ev.spanDays = Math.max(Number(ev.spanDays) || 1, span);
+        }
+      }
+      run = [];
+    };
+
+    for (const ev of items) {
+      // 같은 날 중복 제목은 런에 하나만
+      if (run.length && run[run.length - 1].eventDate === ev.eventDate) continue;
+      run.push(ev);
+    }
+    flush();
+  }
+  return list;
+}
+
 /**
  * 같은 시리즈가 여러 eventDate 에 있으면 시작/끝·spanDays 를 실제 출현으로 보정한다.
- * (메타가 하루짜처럼 깨져 있어도 시간 일정보다 위에 오고 띠가 이어지게)
+ * 시리즈 ID 가 없는 연속 종일도 먼저 묶어 다일로 만든다.
  */
 export function enrichSeriesBounds(events) {
-  const list = Array.isArray(events) ? events : [];
+  const list = linkConsecutiveAllDayEvents(events);
   /** @type {Map<string, { start: string, end: string, count: number }>} */
   const bounds = new Map();
   for (const ev of list) {
@@ -305,8 +400,21 @@ export function enrichSeriesBounds(events) {
   return list.map((ev) => {
     if (!ev?.eventDate || ev.repeat?.freq) return ev;
     const b = bounds.get(eventSeriesKey(ev));
-    if (!b || b.count <= 1 || b.start === b.end) return ev;
-    const span = Math.max(1, Math.round((Date.parse(`${b.end}T00:00:00`) - Date.parse(`${b.start}T00:00:00`)) / 86400000) + 1);
+    if (!b || b.count <= 1 || b.start === b.end) {
+      // 메타만으로도 다일이면 span 유지
+      if (isContinuousMultiDay(ev)) {
+        const start = ev.seriesStartDate || ev.eventDate;
+        const end = ev.seriesEndDate || ev.eventDate;
+        return {
+          ...ev,
+          seriesStartDate: start,
+          seriesEndDate: end,
+          spanDays: Math.max(Number(ev.spanDays) || 1, daySpanInclusive(start, end)),
+        };
+      }
+      return ev;
+    }
+    const span = daySpanInclusive(b.start, b.end);
     return {
       ...ev,
       seriesStartDate: b.start,
@@ -314,6 +422,22 @@ export function enrichSeriesBounds(events) {
       spanDays: Math.max(Number(ev.spanDays) || 1, span),
     };
   });
+}
+
+/** 월 전체에서 하루 초과 시리즈 키 집합 */
+export function collectMultiDaySeriesKeys(events) {
+  const keys = new Set();
+  const counts = new Map();
+  for (const ev of events || []) {
+    if (!ev?.eventDate || ev.repeat?.freq) continue;
+    const k = eventSeriesKey(ev);
+    if (isContinuousMultiDay(ev)) keys.add(k);
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  for (const [k, n] of counts) {
+    if (n > 1) keys.add(k);
+  }
+  return keys;
 }
 
 /**
@@ -339,25 +463,32 @@ export function effectiveEventTimes(ev) {
   return { startTime: null, endTime: null };
 }
 
-// 정렬: 연속 다일(하루 초과) → 시간 있는 하루 → 종일. 같은 그룹은 시간/시작일/id.
-function eventSortRank(ev) {
-  if (isContinuousMultiDay(ev)) return 0;
+function isMultiForSort(ev, multiKeys) {
+  if (!ev) return false;
+  if (isContinuousMultiDay(ev)) return true;
+  if (multiKeys && multiKeys.has(eventSeriesKey(ev))) return true;
+  return false;
+}
+
+// 정렬: 연속 다일(하루 초과) → 시간 있는 하루 → 종일.
+function eventSortRank(ev, multiKeys) {
+  if (isMultiForSort(ev, multiKeys)) return 0;
   if (ev?.startTime) return 1;
   return 2;
 }
 
-function compareDayEvents(a, b) {
-  const ra = eventSortRank(a);
-  const rb = eventSortRank(b);
+function compareDayEvents(a, b, multiKeys) {
+  const ra = eventSortRank(a, multiKeys);
+  const rb = eventSortRank(b, multiKeys);
   if (ra !== rb) return ra - rb;
 
-  if (isContinuousMultiDay(a) && isContinuousMultiDay(b)) {
+  if (isMultiForSort(a, multiKeys) && isMultiForSort(b, multiKeys)) {
     const sa = a.seriesStartDate || a.eventDate || "";
     const sb = b.seriesStartDate || b.eventDate || "";
     if (sa !== sb) return sa.localeCompare(sb);
-    const ea = a.seriesEndDate || a.eventDate || "";
-    const eb = b.seriesEndDate || b.eventDate || "";
-    if (ea !== eb) return eb.localeCompare(ea); // 더 긴 기간 우선
+    const spanA = daySpanInclusive(sa, a.seriesEndDate || a.eventDate || sa);
+    const spanB = daySpanInclusive(sb, b.seriesEndDate || b.eventDate || sb);
+    if (spanA !== spanB) return spanB - spanA; // 더 긴 기간 우선
     return (a.id || 0) - (b.id || 0);
   }
 
@@ -377,13 +508,14 @@ function compareDayEvents(a, b) {
  * 연속·반복 일정은 시리즈당 하나만 표시.
  * 연속 다일 → 시간 일정 → 종일 순.
  */
-export function dedupeEventsBySeries(events) {
+export function dedupeEventsBySeries(events, multiKeys) {
   const map = new Map();
   for (const ev of events) {
     const key = eventSeriesKey(ev);
     if (!map.has(key)) map.set(key, ev);
   }
-  return [...map.values()].sort(compareDayEvents);
+  const keys = multiKeys || collectMultiDaySeriesKeys(events);
+  return [...map.values()].sort((a, b) => compareDayEvents(a, b, keys));
 }
 
 /**
@@ -401,6 +533,13 @@ export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
   const cells = Array.isArray(grid) ? grid : [];
   const byDate = eventsByDate || {};
 
+  // 월 전체 기준으로 다일 판정 (주 끝에 하루만 걸친 14~15 KNR 도 다일로 유지)
+  const allEvents = [];
+  for (const list of Object.values(byDate)) {
+    for (const ev of list || []) allEvents.push(ev);
+  }
+  const multiKeys = collectMultiDaySeriesKeys(allEvents);
+
   for (let w = 0; w < cells.length; w += 7) {
     const week = cells.slice(w, w + 7);
     const dateKeys = week.map((d) => (d ? dateKeyOf(d) : null));
@@ -412,7 +551,7 @@ export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
     for (let di = 0; di < dayCount; di++) {
       const key = dateKeys[di];
       if (!key) continue;
-      const unique = dedupeEventsBySeries(byDate[key] || []);
+      const unique = dedupeEventsBySeries(byDate[key] || [], multiKeys);
       for (const ev of unique) {
         const sk = eventSeriesKey(ev);
         let seg = presence.get(sk);
@@ -434,9 +573,11 @@ export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
 
     for (const seg of presence.values()) {
       const ev = seg.event;
-      // 메타가 깨져도, 비반복 시리즈가 주에 이틀 이상 있으면 하루초과 띠로 본다.
+      // 전역 다일 키 · 메타 · 주 내 이틀 이상 → 전부 다일 띠
       const asMulti =
-        isContinuousMultiDay(ev) || (!ev.repeat?.freq && seg.dayIdxs.length > 1);
+        multiKeys.has(seg.key) ||
+        isContinuousMultiDay(ev) ||
+        (!ev.repeat?.freq && seg.dayIdxs.length > 1);
       if (asMulti) {
         multi.set(seg.key, seg);
       } else {
@@ -448,8 +589,17 @@ export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
     }
 
     const segments = [...multi.values()].sort((a, b) => {
-      const span = b.dayIdxs.length - a.dayIdxs.length;
-      if (span !== 0) return span;
+      // 전체 시리즈 길이 우선 (주 안에 하루만 있어도 긴 다일이 위)
+      const spanA = daySpanInclusive(
+        a.event.seriesStartDate || a.event.eventDate,
+        a.event.seriesEndDate || a.event.eventDate
+      );
+      const spanB = daySpanInclusive(
+        b.event.seriesStartDate || b.event.eventDate,
+        b.event.seriesEndDate || b.event.eventDate
+      );
+      if (spanA !== spanB) return spanB - spanA;
+      if (b.dayIdxs.length !== a.dayIdxs.length) return b.dayIdxs.length - a.dayIdxs.length;
       const sa = a.event.seriesStartDate || a.event.eventDate || "";
       const sb = b.event.seriesStartDate || b.event.eventDate || "";
       if (sa !== sb) return sa.localeCompare(sb);
@@ -486,7 +636,7 @@ export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
     }
 
     for (let di = 0; di < dayCount; di++) {
-      const list = (singles.get(di) || []).slice().sort(compareDayEvents);
+      const list = (singles.get(di) || []).slice().sort((a, b) => compareDayEvents(a, b, multiKeys));
       for (const ev of list) {
         const token = `d${di}:${eventSeriesKey(ev)}`;
         const lane = firstFree([di]);
@@ -507,7 +657,7 @@ export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
 
       const lanes = Array.from({ length: maxVisible }, () => null);
       let hiddenCount = 0;
-      const unique = dedupeEventsBySeries(byDate[dateKey] || []);
+      const unique = dedupeEventsBySeries(byDate[dateKey] || [], multiKeys);
 
       for (const ev of unique) {
         const sk = eventSeriesKey(ev);
