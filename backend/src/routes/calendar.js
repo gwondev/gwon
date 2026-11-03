@@ -70,12 +70,8 @@ function publicEvent(row) {
     id: row.id,
     ownerId: row.owner_id,
     seriesId: row.series_id || `single-${row.id}`,
-    seriesStartDate: row.series_start_date
-      ? String(row.series_start_date).slice(0, 10)
-      : (row.event_date instanceof Date ? row.event_date.toISOString().slice(0, 10) : String(row.event_date).slice(0, 10)),
-    seriesEndDate: row.series_end_date
-      ? String(row.series_end_date).slice(0, 10)
-      : (row.event_date instanceof Date ? row.event_date.toISOString().slice(0, 10) : String(row.event_date).slice(0, 10)),
+    seriesStartDate: toDateKey(row.series_start_date) || toDateKey(row.event_date),
+    seriesEndDate: toDateKey(row.series_end_date) || toDateKey(row.event_date),
     spanDays: Number(row.series_span_days) || 1,
     repeatWeeks: Number(row.series_repeat_weeks) || 1,
     weekdays: normalizeWeekdays(row.series_weekdays),
@@ -97,9 +93,7 @@ function publicEvent(row) {
     createdBy: row.created_by,
     title: row.title,
     description: row.description || "",
-    eventDate: row.event_date instanceof Date
-      ? row.event_date.toISOString().slice(0, 10)
-      : String(row.event_date).slice(0, 10),
+    eventDate: toDateKey(row.event_date),
     startTime: row.start_time ? String(row.start_time).slice(0, 5) : null,
     endTime: row.end_time ? String(row.end_time).slice(0, 5) : null,
     incomeType: row.income_type || null,
@@ -163,16 +157,23 @@ function parseOwnerIdsQuery(raw) {
 function toDateKey(input) {
   if (input == null) return null;
   if (input instanceof Date && !Number.isNaN(input.getTime())) {
-    return input.toISOString().slice(0, 10);
+    // DATE 컬럼은 로컬 달력일 기준으로 (UTC toISOString 하면 하루 밀릴 수 있음)
+    const y = input.getFullYear();
+    const m = String(input.getMonth() + 1).padStart(2, "0");
+    const d = String(input.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
 
   const s = String(input).trim();
   if (!s) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
 
   const dt = new Date(s);
   if (Number.isNaN(dt.getTime())) return null;
-  return dt.toISOString().slice(0, 10);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function toTimeMinute(v) {

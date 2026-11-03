@@ -273,12 +273,47 @@ export function isMultiDayEvent(ev) {
   return (Number(ev?.spanDays) || 1) > 1;
 }
 
-/** 반복 없는 연속 기간 일정 (16일 09:00 ~ 18일 18:00) */
+/** 반복 없는 연속 기간(하루 초과). spanDays·시리즈 시작/끝 모두 본다. */
 export function isContinuousMultiDay(ev) {
   if (!ev || ev.repeat?.freq) return false;
+  if ((Number(ev.spanDays) || 1) > 1) return true;
   const start = ev.seriesStartDate || ev.eventDate;
   const end = ev.seriesEndDate || ev.eventDate;
   return Boolean(start && end && start !== end);
+}
+
+/**
+ * 같은 시리즈가 여러 eventDate 에 있으면 시작/끝·spanDays 를 실제 출현으로 보정한다.
+ * (메타가 하루짜처럼 깨져 있어도 시간 일정보다 위에 오고 띠가 이어지게)
+ */
+export function enrichSeriesBounds(events) {
+  const list = Array.isArray(events) ? events : [];
+  /** @type {Map<string, { start: string, end: string, count: number }>} */
+  const bounds = new Map();
+  for (const ev of list) {
+    if (!ev?.eventDate || ev.repeat?.freq) continue;
+    const k = eventSeriesKey(ev);
+    const d = ev.eventDate;
+    const b = bounds.get(k);
+    if (!b) bounds.set(k, { start: d, end: d, count: 1 });
+    else {
+      if (d < b.start) b.start = d;
+      if (d > b.end) b.end = d;
+      b.count += 1;
+    }
+  }
+  return list.map((ev) => {
+    if (!ev?.eventDate || ev.repeat?.freq) return ev;
+    const b = bounds.get(eventSeriesKey(ev));
+    if (!b || b.count <= 1 || b.start === b.end) return ev;
+    const span = Math.max(1, Math.round((Date.parse(`${b.end}T00:00:00`) - Date.parse(`${b.start}T00:00:00`)) / 86400000) + 1);
+    return {
+      ...ev,
+      seriesStartDate: b.start,
+      seriesEndDate: b.end,
+      spanDays: Math.max(Number(ev.spanDays) || 1, span),
+    };
+  });
 }
 
 /**
@@ -372,9 +407,7 @@ export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
     const dayCount = 7;
 
     /** @type {Map<string, { key: string, event: object, dayIdxs: number[] }>} */
-    const multi = new Map();
-    /** @type {Map<number, object[]>} */
-    const singles = new Map();
+    const presence = new Map();
 
     for (let di = 0; di < dayCount; di++) {
       const key = dateKeys[di];
@@ -382,17 +415,32 @@ export function packMonthWeekLanes(grid, eventsByDate, maxVisible = 4) {
       const unique = dedupeEventsBySeries(byDate[key] || []);
       for (const ev of unique) {
         const sk = eventSeriesKey(ev);
-        if (isContinuousMultiDay(ev)) {
-          let seg = multi.get(sk);
-          if (!seg) {
-            seg = { key: sk, event: ev, dayIdxs: [] };
-            multi.set(sk, seg);
-          }
-          seg.dayIdxs.push(di);
-          // 대표 이벤트는 주에서 가장 이른 날 것으로
-          const prev = seg.event.eventDate || "";
-          if ((ev.eventDate || "") < prev) seg.event = ev;
-        } else {
+        let seg = presence.get(sk);
+        if (!seg) {
+          seg = { key: sk, event: ev, dayIdxs: [] };
+          presence.set(sk, seg);
+        }
+        if (!seg.dayIdxs.includes(di)) seg.dayIdxs.push(di);
+        // 대표 이벤트는 주에서 가장 이른 날 것으로
+        const prev = seg.event.eventDate || "";
+        if ((ev.eventDate || "") < prev) seg.event = ev;
+      }
+    }
+
+    /** @type {Map<string, { key: string, event: object, dayIdxs: number[] }>} */
+    const multi = new Map();
+    /** @type {Map<number, object[]>} */
+    const singles = new Map();
+
+    for (const seg of presence.values()) {
+      const ev = seg.event;
+      // 메타가 깨져도, 비반복 시리즈가 주에 이틀 이상 있으면 하루초과 띠로 본다.
+      const asMulti =
+        isContinuousMultiDay(ev) || (!ev.repeat?.freq && seg.dayIdxs.length > 1);
+      if (asMulti) {
+        multi.set(seg.key, seg);
+      } else {
+        for (const di of seg.dayIdxs) {
           if (!singles.has(di)) singles.set(di, []);
           singles.get(di).push(ev);
         }

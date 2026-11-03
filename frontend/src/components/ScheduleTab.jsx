@@ -14,6 +14,7 @@ import { api } from "../lib/api";
 import {
   dedupeEventsBySeries,
   effectiveEventTimes,
+  enrichSeriesBounds,
   eventSeriesKey,
   expandOccurrences,
   isContinuousMultiDay,
@@ -302,7 +303,10 @@ export default function ScheduleTab() {
     return superAdmin?.id ?? owners[0]?.id ?? user.id;
   }, [owners, user.id]);
 
-  const displayEvents = useMemo(() => events.map((e) => enrichEvent(e)), [events]);
+  const displayEvents = useMemo(
+    () => enrichSeriesBounds(events.map((e) => enrichEvent(e))),
+    [events]
+  );
 
   const eventsByDate = useMemo(() => {
     const map = {};
