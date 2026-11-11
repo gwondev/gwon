@@ -103,6 +103,29 @@ function keywordOf(keywords, id) {
   return keywords.find((k) => k.id === id) || null;
 }
 
+// '중요'·'결과' 키워드 일정은 일반 일정과 따로 모아 2열로 보여준다. 배열 순서 = 표시 순서.
+const PINNED_KEYWORD_LABELS = ["중요", "결과"];
+const CAL_PINNED_MAX = 4;
+
+function pinnedRank(event, keywords) {
+  const kw = keywordOf(keywords, resolveKeywordId(event));
+  if (!kw) return -1;
+  return PINNED_KEYWORD_LABELS.indexOf((kw.label || "").trim());
+}
+
+/** 일정 목록을 [일반, 중요·결과] 로 나눈다. 중요·결과는 중요 → 결과 순(같은 키워드 안에서는 기존 순서 유지). */
+function splitPinnedEvents(list, keywords) {
+  const normal = [];
+  const pinned = [];
+  for (const ev of list || []) {
+    const rank = pinnedRank(ev, keywords);
+    if (rank < 0) normal.push(ev);
+    else pinned.push({ ev, rank, i: pinned.length });
+  }
+  pinned.sort((a, b) => a.rank - b.rank || a.i - b.i);
+  return { normal, pinned: pinned.map((p) => p.ev) };
+}
+
 function makeKeywordId() {
   return `KW${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`.toUpperCase();
 }
@@ -326,6 +349,20 @@ export default function ScheduleTab() {
     return map;
   }, [displayEvents, multiDaySeriesKeys]);
 
+  // 달력 칸: 일반 일정은 주 단위 레인으로, 중요·결과 일정은 칸 아래 2열 묶음으로 따로 그린다.
+  const { laneEventsByDate, pinnedByDate } = useMemo(() => {
+    const lanes = {};
+    const pinned = {};
+    for (const [key, list] of Object.entries(eventsByDate)) {
+      const split = splitPinnedEvents(list, keywords);
+      lanes[key] = split.normal;
+      if (split.pinned.length) {
+        pinned[key] = dedupeEventsBySeries(split.pinned, multiDaySeriesKeys);
+      }
+    }
+    return { laneEventsByDate: lanes, pinnedByDate: pinned };
+  }, [eventsByDate, keywords, multiDaySeriesKeys]);
+
   const seriesDateSet = useMemo(() => {
     const set = new Set();
     for (const ev of displayEvents) {
@@ -338,8 +375,8 @@ export default function ScheduleTab() {
 
   // 주 단위 레인: 연속 다일 띠가 하루짜리에 밀려 세로로 갈라지지 않게 한다.
   const weekLaneLayout = useMemo(
-    () => packMonthWeekLanes(grid, eventsByDate, CAL_MAX_VISIBLE),
-    [grid, eventsByDate]
+    () => packMonthWeekLanes(grid, laneEventsByDate, CAL_MAX_VISIBLE),
+    [grid, laneEventsByDate]
   );
 
   const loadOwners = useCallback(async () => {
@@ -461,7 +498,7 @@ export default function ScheduleTab() {
   }, [loadOwners, loadKeywords, loadEmojiHistory]);
 
   useEffect(() => {
-    if (!ownerId) return;
+    if (ownerId == null) return;
     let alive = true;
     (async () => {
       setErr(null);
@@ -786,6 +823,7 @@ export default function ScheduleTab() {
                 }
                 const key = toDateKey(date);
                 const dayEvents = eventsByDate[key] || [];
+                const pinnedEvents = pinnedByDate[key] || [];
                 const isToday = key === todayKey;
                 const isSunday = date.getDay() === 0;
                 const isSaturday = date.getDay() === 6;
@@ -800,7 +838,8 @@ export default function ScheduleTab() {
                   <DayCell
                     key={key}
                     date={date}
-                    events={dayEvents}
+                    events={laneEventsByDate[key] || []}
+                    pinned={pinnedEvents}
                     lanes={lanePack.lanes}
                     hiddenCount={lanePack.hiddenCount}
                     weekSlots={weekSlots}
@@ -877,12 +916,12 @@ export default function ScheduleTab() {
   );
 }
 
-function EventTitleDisplay({ event, className = "" }) {
+function EventTitleDisplay({ event, className = "", showEmoji = true }) {
   const keywords = useKeywords();
   const kw = keywordOf(keywords, resolveKeywordId(event));
   return (
     <span className={className}>
-      {kw?.emoji && <span className="schedule__title-emoji">{kw.emoji}</span>}
+      {showEmoji && kw?.emoji && <span className="schedule__title-emoji">{kw.emoji}</span>}
       {event.title}
     </span>
   );
@@ -898,6 +937,7 @@ function EventBubble({
   deleteMode,
   selected,
   selectable,
+  showEmoji = true,
 }) {
   const keywords = useKeywords();
   const bubbleTheme = getThemeById(eventThemeColorId(event, keywords));
@@ -917,7 +957,7 @@ function EventBubble({
       )}
       {showLabel && (
         <span className="schedule__bubble-title">
-          <EventTitleDisplay event={event} />
+          <EventTitleDisplay event={event} showEmoji={showEmoji} />
         </span>
       )}
       {showLabel && showTime && event.startTime && (
@@ -936,6 +976,7 @@ function DayCell({
   date,
   dateKey,
   events,
+  pinned = [],
   lanes: lanesProp,
   hiddenCount: hiddenProp,
   weekSlots = CAL_WEEK_SLOTS,
@@ -962,7 +1003,14 @@ function DayCell({
     typeof hiddenProp === "number"
       ? hiddenProp
       : Math.max(0, dedupeEventsBySeries(events).length - CAL_MAX_VISIBLE);
-  const usedSlots = CAL_MAX_VISIBLE + (hiddenCount > 0 ? 1 : 0);
+  // 중요·결과 묶음이 있으면 아래쪽 빈 레인을 비우고 그 자리에 묶음을 넣어 칸 높이를 유지한다.
+  // (뒤쪽 빈 레인만 잘라내므로 위쪽 다일 띠의 가로줄 정렬은 그대로다.)
+  let laneCount = CAL_MAX_VISIBLE;
+  if (pinned.length > 0) {
+    while (laneCount > 0 && !normalizedLanes[laneCount - 1]) laneCount -= 1;
+  }
+  const pinnedRows = Math.ceil(Math.min(pinned.length, CAL_PINNED_MAX) / 2);
+  const usedSlots = laneCount + (hiddenCount > 0 ? 1 : 0) + pinnedRows;
   const padCount = Math.max(0, weekSlots - usedSlots);
   const { holidayNames, minorNames } = getDayInfo(dateKey);
   const isHolidayDay = holidayNames.length > 0;
@@ -994,7 +1042,7 @@ function DayCell({
         )}
       </div>
       <div className="schedule__bubbles">
-        {normalizedLanes.map((ev, lane) => {
+        {normalizedLanes.slice(0, laneCount).map((ev, lane) => {
           if (!ev) {
             return <span key={`lane-pad-${lane}`} className="schedule__slot-pad" aria-hidden />;
           }
@@ -1038,9 +1086,61 @@ function DayCell({
             +{hiddenCount}
           </span>
         )}
+        {pinned.length > 0 && (
+          <PinnedBubbles
+            events={pinned}
+            deleteMode={deleteMode}
+            selectedSeriesKeys={selectedSeriesKeys}
+            onToggleSelect={onToggleSelect}
+            onOpenDay={onOpenDay}
+          />
+        )}
         <SlotPads count={padCount} />
       </div>
     </button>
+  );
+}
+
+function PinnedBubbles({ events, deleteMode, selectedSeriesKeys, onToggleSelect, onOpenDay }) {
+  const overflow = events.length > CAL_PINNED_MAX;
+  const shown = overflow ? events.slice(0, CAL_PINNED_MAX - 1) : events;
+  const hidden = events.length - shown.length;
+  return (
+    <div className="schedule__pinned">
+      {shown.map((ev) => {
+        const seriesKey = eventSeriesKey(ev);
+        return (
+          <EventBubble
+            key={seriesKey}
+            event={ev}
+            showTime={false}
+            showEmoji={false}
+            deleteMode={deleteMode}
+            selected={selectedSeriesKeys.has(seriesKey)}
+            selectable
+            onClick={(e) => {
+              e.stopPropagation();
+              if (deleteMode) {
+                onToggleSelect(ev);
+                return;
+              }
+              onOpenDay();
+            }}
+          />
+        );
+      })}
+      {hidden > 0 && (
+        <span
+          className="schedule__more"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!deleteMode) onOpenDay();
+          }}
+        >
+          +{hidden}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -1891,7 +1991,7 @@ function sortDayEvents(list, multiKeys) {
   return dedupeEventsBySeries(list, multiKeys);
 }
 
-function DayEventCard({ ev, onEdit, onDelete }) {
+function DayEventCard({ ev, onEdit, onDelete, compact = false }) {
   const keywords = useKeywords();
   const kw = keywordOf(keywords, resolveKeywordId(ev));
   return (
@@ -1903,7 +2003,7 @@ function DayEventCard({ ev, onEdit, onDelete }) {
             {kw && (
               <span className="schedule__day-item-keyword">
                 {kw.emoji && <span className="schedule__day-item-keyword-icon">{kw.emoji}</span>}
-                {kw.label}
+                {!(compact && kw.emoji) && kw.label}
               </span>
             )}
             <span className="schedule__day-item-title-text">{ev.title}</span>
@@ -2067,10 +2167,15 @@ function DayModal({ dateKey, events, multiKeys, onClose, onEdit, onDelete, onAdd
   const [y, m, d] = dateKey.split("-");
   const [viewMode, setViewMode] = useState("grouped");
   const [tlExpanded, setTlExpanded] = useState(false);
+  const keywords = useKeywords();
 
   const uniqueEvents = useMemo(
     () => sortDayEvents(events, multiKeys),
     [events, multiKeys]
+  );
+  const { normal: normalEvents, pinned: pinnedEvents } = useMemo(
+    () => splitPinnedEvents(uniqueEvents, keywords),
+    [uniqueEvents, keywords]
   );
 
   return (
@@ -2082,7 +2187,7 @@ function DayModal({ dateKey, events, multiKeys, onClose, onEdit, onDelete, onAdd
       onClick={onClose}
     >
       <motion.div
-        className={`schedule__modal schedule__modal--day ${viewMode === "timeline" ? "schedule__modal--timeline" : ""} ${viewMode === "timeline" && tlExpanded ? "is-expanded" : ""}`}
+        className={`schedule__modal schedule__modal--day ${pinnedEvents.length && viewMode !== "timeline" ? "has-pinned" : ""} ${viewMode === "timeline" ? "schedule__modal--timeline" : ""} ${viewMode === "timeline" && tlExpanded ? "is-expanded" : ""}`}
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -2150,8 +2255,8 @@ function DayModal({ dateKey, events, multiKeys, onClose, onEdit, onDelete, onAdd
           />
         ) : (
           <div className="schedule__day-list">
-            {uniqueEvents.map((ev, idx) => {
-              const prev = uniqueEvents[idx - 1];
+            {normalEvents.map((ev, idx) => {
+              const prev = normalEvents[idx - 1];
               const split = prev && prev.startTime && !ev.startTime;
               return (
                 <Fragment key={eventSeriesKey(ev)}>
@@ -2160,6 +2265,20 @@ function DayModal({ dateKey, events, multiKeys, onClose, onEdit, onDelete, onAdd
                 </Fragment>
               );
             })}
+            {pinnedEvents.length > 0 && (
+              <>
+                {normalEvents.length > 0 && (
+                  <div className="schedule__day-pinned-split" role="separator">
+                    <span>{PINNED_KEYWORD_LABELS.join(" · ")}</span>
+                  </div>
+                )}
+                <div className="schedule__day-pinned">
+                  {pinnedEvents.map((ev) => (
+                    <DayEventCard key={eventSeriesKey(ev)} ev={ev} onEdit={onEdit} onDelete={onDelete} compact />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
       </motion.div>
