@@ -1,5 +1,7 @@
 .schedule {
   --cal-accent: #ef4444;
+  /* 달력 칸 경계선 진하기 */
+  --cal-grid-line: rgba(255, 255, 255, 0.16);
   --cal-slot-h: 1.02rem;
   display: flex;
   flex-direction: column;
@@ -2330,7 +2332,7 @@
   margin: 0 var(--cell-pad-x);
   margin-top: 0.06rem;
   padding-top: 0.14rem;
-  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+  border-top: 1px dashed rgba(255, 255, 255, 0.28);
   min-width: 0;
 }
 
@@ -2374,9 +2376,79 @@
   min-width: 0;
 }
 
-.schedule__day-pinned .schedule__day-item-row:not(.schedule__day-item-row--sub) {
-  flex-wrap: wrap;
-  row-gap: 0.25rem;
+.schedule__day-item--compact .schedule__day-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.schedule__day-item-meta {
+  gap: 0.4rem;
+}
+
+.schedule__day-item-meta .schedule__day-item-keyword {
+  padding: 0.1rem 0.36rem;
+}
+
+.schedule__day-item-meta .schedule__day-item-title-time {
+  margin-left: 0;
+}
+
+.schedule__day-item-meta .schedule__day-item-done {
+  margin-left: auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  font-size: 0.68rem;
+}
+
+.schedule__day-item-compact-title {
+  font-size: 0.92rem;
+  line-height: 1.3;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.schedule__day-item-main .schedule__day-item-compact-desc {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.schedule__day-item-compact-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  margin-top: auto;
+  padding-top: 0.1rem;
+}
+
+.schedule__day-item-compact-actions .schedule__day-delete-btn {
+  margin-left: 0;
+}
+
+@media (max-width: 720px) {
+  .schedule__day-pinned {
+    gap: 0.4rem;
+  }
+
+  .schedule__day-pinned .schedule__day-item {
+    padding: 0.5rem;
+  }
+
+  .schedule__day-item-compact-actions .schedule__day-edit-btn,
+  .schedule__day-item-compact-actions .schedule__day-delete-btn {
+    min-width: 0;
+    flex: 1;
+  }
 }
 
 /* ── 데스크톱 확대: 가로 약 10%, 세로 약 20% ───────────────────── */
@@ -2440,7 +2512,7 @@
    그림자는 칸 내용 아래에 그려지므로, 여러 날에 걸친 일정 막대가 선에 끊기지 않는다.
    주의 마지막 칸(토요일)은 달력 바깥 테두리와 겹치지 않게 뺀다. */
 .schedule__cell {
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.07);
+  box-shadow: inset -1px 0 0 var(--cal-grid-line);
 }
 
 .schedule__grid > .schedule__cell:nth-child(7n) {
@@ -2448,7 +2520,17 @@
 }
 
 .schedule__weekday {
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  border-right: 1px solid var(--cal-grid-line);
+}
+
+/* 가로선도 세로선과 같은 진하기로 맞춘다. */
+.schedule__cell,
+.schedule__weekdays {
+  border-bottom-color: var(--cal-grid-line);
+}
+
+.schedule__calendar {
+  border-color: var(--cal-grid-line);
 }
 
 .schedule__weekday:last-child {

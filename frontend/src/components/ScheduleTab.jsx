@@ -2006,7 +2006,61 @@ function sortDayEvents(list, multiKeys) {
   return dedupeEventsBySeries(list, multiKeys);
 }
 
-function DayEventCard({ ev, onEdit, onDelete, compact = false }) {
+// 중요·결과 2열 카드: 폭이 좁아(특히 모바일) 한 줄 배치로는 제목이 안 보이므로 세로로 쌓는다.
+// 1줄: 점 · 이모지 · 시간 / 2줄: 제목 / 3줄: 장소·상세 / 4줄: 수정·삭제
+function CompactDayEventCard({ ev, onEdit, onDelete }) {
+  const keywords = useKeywords();
+  const kw = keywordOf(keywords, resolveKeywordId(ev));
+  return (
+    <div className={`schedule__day-item schedule__day-item--compact ${ev.isDone ? "is-done" : ""}`}>
+      <div className="schedule__day-item-main">
+        <div className="schedule__day-item-row schedule__day-item-meta">
+          <span className="schedule__day-item-dot" style={{ background: eventAccent(ev, keywords) }} aria-hidden />
+          {kw && (
+            <span className="schedule__day-item-keyword" title={kw.label}>
+              {kw.emoji ? <span className="schedule__day-item-keyword-icon">{kw.emoji}</span> : kw.label}
+            </span>
+          )}
+          <span className="schedule__day-item-title-time">
+            {formatEventTime(ev, { continuousSpan: true })}
+          </span>
+          {ev.isDone && (
+            <span className="schedule__day-item-done" title="해결된 할 일" aria-hidden>
+              ✓
+            </span>
+          )}
+        </div>
+        <strong className="schedule__day-item-compact-title">{ev.title}</strong>
+        {ev.locationName && ev.locationLat != null && ev.locationLng != null && (
+          <a
+            className="schedule__day-item-location"
+            href={mapsLink(ev.locationLat, ev.locationLng)}
+            target="_blank"
+            rel="noreferrer"
+            title={ev.locationName}
+          >
+            📍 {shortenLocationName(ev.locationName)}
+          </a>
+        )}
+        {ev.description && (
+          <p className="schedule__day-item-desc schedule__day-item-compact-desc" title={ev.description}>
+            {ev.description}
+          </p>
+        )}
+        <div className="schedule__day-item-compact-actions">
+          <button type="button" className="btn btn-ghost schedule__day-edit-btn" onClick={() => onEdit(ev)}>
+            수정
+          </button>
+          <button type="button" className="btn btn-ghost schedule__day-delete-btn" onClick={() => onDelete(ev.id)}>
+            삭제
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayEventCard({ ev, onEdit, onDelete }) {
   const keywords = useKeywords();
   const kw = keywordOf(keywords, resolveKeywordId(ev));
   return (
@@ -2018,7 +2072,7 @@ function DayEventCard({ ev, onEdit, onDelete, compact = false }) {
             {kw && (
               <span className="schedule__day-item-keyword">
                 {kw.emoji && <span className="schedule__day-item-keyword-icon">{kw.emoji}</span>}
-                {!(compact && kw.emoji) && kw.label}
+                {kw.label}
               </span>
             )}
             <span className="schedule__day-item-title-text">{ev.title}</span>
@@ -2289,7 +2343,7 @@ function DayModal({ dateKey, events, multiKeys, onClose, onEdit, onDelete, onAdd
                 )}
                 <div className="schedule__day-pinned">
                   {pinnedEvents.map((ev) => (
-                    <DayEventCard key={eventSeriesKey(ev)} ev={ev} onEdit={onEdit} onDelete={onDelete} compact />
+                    <CompactDayEventCard key={eventSeriesKey(ev)} ev={ev} onEdit={onEdit} onDelete={onDelete} />
                   ))}
                 </div>
               </>
