@@ -2177,9 +2177,9 @@
     gap: 0.06rem;
   }
 
-  /* 이모지가 붙으면 자리를 더 차지하니, 모바일에서는 이모지만 작게(75%, 여기에 추가로 5% 축소) */
+  /* 이모지가 붙으면 자리를 더 차지하니, 모바일에서는 이모지만 작게(71% → 20% 더 줄여 57%) */
   .schedule__title-emoji {
-    font-size: 71%;
+    font-size: 57%;
   }
 
   .schedule__bubble.is-pickable {
@@ -2457,8 +2457,8 @@
     padding: 0.5rem;
   }
 
-  .schedule__day-item-compact-actions .schedule__day-edit-btn,
-  .schedule__day-item-compact-actions .schedule__day-delete-btn {
+  .schedule__day-pinned .schedule__day-item-compact-actions .schedule__day-edit-btn,
+  .schedule__day-pinned .schedule__day-item-compact-actions .schedule__day-delete-btn {
     min-width: 0;
     flex: 1;
   }
@@ -2550,12 +2550,12 @@
   border-right: none;
 }
 
-/* 키워드 선택 창: 맨 위 '중요·결과' 묶음과 나머지 키워드 사이 구분선 */
+/* 키워드 선택 창: 맨 위 '중요·결과·할 일' 묶음과 나머지 키워드 사이 구분선 */
 .schedule__kw-group-split {
   grid-column: 1 / -1;
   height: 0;
   margin: 0.15rem 0;
-  border-top: 1px dashed rgba(255, 255, 255, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* ── 데스크톱: 왼쪽 달력만 가로 약 5% 확대(할 일 위젯 폭은 그대로) ──

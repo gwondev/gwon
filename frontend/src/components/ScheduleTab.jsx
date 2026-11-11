@@ -103,17 +103,38 @@ function keywordOf(keywords, id) {
   return keywords.find((k) => k.id === id) || null;
 }
 
-// '중요'·'결과' 키워드 일정은 일반 일정과 따로 모아 2열로 보여준다. 배열 순서 = 표시 순서.
-const PINNED_KEYWORD_LABELS = ["중요", "결과"];
+// '중요'·'결과'·'할 일' 키워드 일정은 일반 일정과 따로 모아 2열로 보여준다. 배열 순서 = 표시 순서.
+// 중요·결과는 사용자가 만든 키워드라 이름으로, 할 일은 내장 키워드라 id(TODO)로 찾는다.
+const PINNED_KEYWORDS = [{ label: "중요" }, { label: "결과" }, { id: "TODO", label: "할 일" }];
+const PINNED_KEYWORD_LABELS = PINNED_KEYWORDS.map((p) => p.label);
 const CAL_PINNED_MAX = 4;
 
-function pinnedRank(event, keywords) {
-  const kw = keywordOf(keywords, resolveKeywordId(event));
+function pinnedKeywordRank(kw) {
   if (!kw) return -1;
-  return PINNED_KEYWORD_LABELS.indexOf((kw.label || "").trim());
+  const label = (kw.label || "").trim();
+  return PINNED_KEYWORDS.findIndex((p) => (p.id ? p.id === kw.id : p.label === label));
 }
 
-/** 일정 목록을 [일반, 중요·결과] 로 나눈다. 중요·결과는 중요 → 결과 순(같은 키워드 안에서는 기존 순서 유지). */
+function pinnedRank(event, keywords) {
+  return pinnedKeywordRank(keywordOf(keywords, resolveKeywordId(event)));
+}
+
+/** 모바일(≤720px) 여부. 창 크기가 바뀌면 다시 계산한다. */
+function useIsMobile() {
+  const query = "(max-width: 720px)";
+  const [mobile, setMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(query).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return mobile;
+}
+
+/** 일정 목록을 [일반, 중요·결과·할 일] 로 나눈다. 중요 → 결과 → 할 일 순(같은 키워드 안에서는 기존 순서 유지). */
 function splitPinnedEvents(list, keywords) {
   const normal = [];
   const pinned = [];
@@ -1546,7 +1567,7 @@ function EventModal({
     const ranked = keywords.map((k, i) => ({
       k,
       i,
-      rank: PINNED_KEYWORD_LABELS.indexOf((k.label || "").trim()),
+      rank: pinnedKeywordRank(k),
     }));
     const pinned = ranked.filter((r) => r.rank >= 0).sort((a, b) => a.rank - b.rank || a.i - b.i);
     const rest = ranked.filter((r) => r.rank < 0);
@@ -2006,7 +2027,7 @@ function sortDayEvents(list, multiKeys) {
   return dedupeEventsBySeries(list, multiKeys);
 }
 
-// 중요·결과 2열 카드: 폭이 좁아(특히 모바일) 한 줄 배치로는 제목이 안 보이므로 세로로 쌓는다.
+// 중요·결과·할 일 2열 카드(모바일에서는 일반 일정도 이 카드): 폭이 좁아(특히 모바일) 한 줄 배치로는 제목이 안 보이므로 세로로 쌓는다.
 // 1줄: 점 · 이모지 · 시간 / 2줄: 제목 / 3줄: 장소·상세 / 4줄: 수정·삭제
 function CompactDayEventCard({ ev, onEdit, onDelete }) {
   const keywords = useKeywords();
@@ -2237,6 +2258,7 @@ function DayModal({ dateKey, events, multiKeys, onClose, onEdit, onDelete, onAdd
   const [viewMode, setViewMode] = useState("grouped");
   const [tlExpanded, setTlExpanded] = useState(false);
   const keywords = useKeywords();
+  const isMobile = useIsMobile();
 
   const uniqueEvents = useMemo(
     () => sortDayEvents(events, multiKeys),
@@ -2330,7 +2352,12 @@ function DayModal({ dateKey, events, multiKeys, onClose, onEdit, onDelete, onAdd
               return (
                 <Fragment key={eventSeriesKey(ev)}>
                   {split && <div className="schedule__day-split" />}
-                  <DayEventCard ev={ev} onEdit={onEdit} onDelete={onDelete} />
+                  {/* 모바일은 한 줄에 다 넣으면 제목이 잘리므로 세로로 쌓는 카드를 쓴다. */}
+                  {isMobile ? (
+                    <CompactDayEventCard ev={ev} onEdit={onEdit} onDelete={onDelete} />
+                  ) : (
+                    <DayEventCard ev={ev} onEdit={onEdit} onDelete={onDelete} />
+                  )}
                 </Fragment>
               );
             })}
