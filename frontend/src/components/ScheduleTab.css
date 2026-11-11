@@ -2330,10 +2330,23 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.12rem;
   margin: 0 var(--cell-pad-x);
-  margin-top: 0.06rem;
-  padding-top: 0.14rem;
-  border-top: 1px dashed rgba(255, 255, 255, 0.28);
+  margin-top: 0.08rem;
+  padding-top: 0.2rem;
   min-width: 0;
+  position: relative;
+}
+
+/* 칸 안 구분선: 칸 경계선(16%)보다 옅은 실선(10%)을 양끝을 띄워 짧게 긋는다.
+   칸 끝까지 닿지 않으니 날짜 경계와 헷갈리지 않는다. */
+.schedule__pinned::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14%;
+  right: 14%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
 }
 
 .schedule__pinned .schedule__bubble,
