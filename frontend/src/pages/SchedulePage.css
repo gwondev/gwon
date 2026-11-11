@@ -54,8 +54,8 @@
 @media (min-width: 721px) {
   .schedule-page__body {
     /* 데스크톱에서는 화면 양옆까지 꽉 채우지 않고 80% 정도로 제한한다. */
-    /* 가로 약 10% 확대 (73.5vw → 81vw) */
-    max-width: min(1850px, 81vw);
+    /* 가로 약 10% 확대 (73.5vw → 81vw), 이후 달력만 5% 더 (→ 84vw, ScheduleTab.css 참고) */
+    max-width: min(1920px, 84vw);
   }
 }
 

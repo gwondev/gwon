@@ -2328,8 +2328,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.12rem;
   margin: 0 var(--cell-pad-x);
-  padding-top: 0.1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  margin-top: 0.06rem;
+  padding-top: 0.14rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.2);
   min-width: 0;
 }
 
@@ -2381,7 +2382,7 @@
 /* ── 데스크톱 확대: 가로 약 10%, 세로 약 20% ───────────────────── */
 @media (min-width: 721px) {
   .schedule {
-    --cal-slot-h: 1.2rem;
+    --cal-slot-h: 1.03rem;
   }
 
   .schedule__modal--day.has-pinned {
@@ -2399,12 +2400,12 @@
   }
 
   .schedule__cell {
-    padding: 0.2rem 0 0.18rem;
-    gap: 0.12rem;
+    padding: 0.16rem 0 0.14rem;
+    gap: 0.1rem;
   }
 
   .schedule__bubbles {
-    gap: 0.15rem;
+    gap: 0.13rem;
   }
 
   .schedule__day-num {
@@ -2431,5 +2432,71 @@
 
   .schedule__month {
     font-size: 1.23rem;
+  }
+}
+
+/* ── 날짜 칸 경계선 ─────────────────────────────────────────────
+   가로선(border-bottom)은 이미 있다. 세로선은 border 대신 inset 그림자로 긋는다:
+   그림자는 칸 내용 아래에 그려지므로, 여러 날에 걸친 일정 막대가 선에 끊기지 않는다.
+   주의 마지막 칸(토요일)은 달력 바깥 테두리와 겹치지 않게 뺀다. */
+.schedule__cell {
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.07);
+}
+
+.schedule__grid > .schedule__cell:nth-child(7n) {
+  box-shadow: none;
+}
+
+.schedule__weekday {
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.schedule__weekday:last-child {
+  border-right: none;
+}
+
+/* 키워드 선택 창: 맨 위 '중요·결과' 묶음과 나머지 키워드 사이 구분선 */
+.schedule__kw-group-split {
+  grid-column: 1 / -1;
+  height: 0;
+  margin: 0.15rem 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.22);
+}
+
+/* ── 데스크톱: 왼쪽 달력만 가로 약 5% 확대(할 일 위젯 폭은 그대로) ──
+   페이지 폭을 81vw → 84vw 로 늘리고, 할 일 위젯은 예전 폭
+   (81vw 페이지에서 6.6:3.8 비율로 받던 폭, 최대 420px)에 고정해
+   늘어난 폭이 전부 달력으로 가게 한다. */
+@media (min-width: 1321px) {
+  .schedule__calendar-col {
+    flex: 1 1 0%;
+  }
+
+  .schedule__layout .todo {
+    flex: 0 0 calc((81vw - 1.35rem) * 3.8 / 10.4);
+  }
+}
+
+/* ── 모바일: 칸 안 제목을 한 글자라도 더 ──────────────────────────
+   말줄임표(…)가 한 글자 자리를 먹으므로, 모바일에서는 잘라내고(clip)
+   오른쪽 끝을 살짝 흐리게 해서 잘렸다는 것만 보여준다.
+   이모지 뒤 간격도 줄인다. */
+@media (max-width: 720px) {
+  .schedule__bubble-title {
+    text-overflow: clip;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 0.45rem), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 0.45rem), transparent);
+  }
+
+  .schedule__title-emoji {
+    margin-right: 0.08em;
+  }
+
+  .schedule__pinned {
+    gap: 0.08rem;
+  }
+
+  .schedule__pinned .schedule__bubble:not(.is-pickable) {
+    padding: 0 0.05rem;
   }
 }

@@ -916,12 +916,12 @@ export default function ScheduleTab() {
   );
 }
 
-function EventTitleDisplay({ event, className = "", showEmoji = true }) {
+function EventTitleDisplay({ event, className = "" }) {
   const keywords = useKeywords();
   const kw = keywordOf(keywords, resolveKeywordId(event));
   return (
     <span className={className}>
-      {showEmoji && kw?.emoji && <span className="schedule__title-emoji">{kw.emoji}</span>}
+      {kw?.emoji && <span className="schedule__title-emoji">{kw.emoji}</span>}
       {event.title}
     </span>
   );
@@ -937,7 +937,6 @@ function EventBubble({
   deleteMode,
   selected,
   selectable,
-  showEmoji = true,
 }) {
   const keywords = useKeywords();
   const bubbleTheme = getThemeById(eventThemeColorId(event, keywords));
@@ -957,7 +956,7 @@ function EventBubble({
       )}
       {showLabel && (
         <span className="schedule__bubble-title">
-          <EventTitleDisplay event={event} showEmoji={showEmoji} />
+          <EventTitleDisplay event={event} />
         </span>
       )}
       {showLabel && showTime && event.startTime && (
@@ -1114,7 +1113,6 @@ function PinnedBubbles({ events, deleteMode, selectedSeriesKeys, onToggleSelect,
             key={seriesKey}
             event={ev}
             showTime={false}
-            showEmoji={false}
             deleteMode={deleteMode}
             selected={selectedSeriesKeys.has(seriesKey)}
             selectable
@@ -1543,6 +1541,18 @@ function EventModal({
   const [pendingNewKw, setPendingNewKw] = useState(null);
   const isWeekly = form.repeatFreq === "weekly";
 
+  // '중요'·'결과' 키워드는 다른 키워드와 쓰임이 달라 맨 위에 따로 모아 둔다.
+  const { orderedKeywords, pinnedKwCount } = useMemo(() => {
+    const ranked = keywords.map((k, i) => ({
+      k,
+      i,
+      rank: PINNED_KEYWORD_LABELS.indexOf((k.label || "").trim()),
+    }));
+    const pinned = ranked.filter((r) => r.rank >= 0).sort((a, b) => a.rank - b.rank || a.i - b.i);
+    const rest = ranked.filter((r) => r.rank < 0);
+    return { orderedKeywords: [...pinned, ...rest].map((r) => r.k), pinnedKwCount: pinned.length };
+  }, [keywords]);
+
   const startEditKeyword = (id) => {
     setPendingNewKw(null);
     setEditingKwId(id);
@@ -1896,8 +1906,12 @@ function EventModal({
               {keywords.length === 0 && !pendingNewKw && (
                 <p className="schedule__hint">등록된 키워드가 없습니다. "키워드 관리"에서 추가해보세요.</p>
               )}
-              {keywords.map((k) =>
-                kwManageOpen && editingKwId === k.id ? (
+              {orderedKeywords.map((k, idx) => (
+                <Fragment key={k.id}>
+                {idx === pinnedKwCount && pinnedKwCount > 0 && (
+                  <div className="schedule__kw-group-split" role="separator" aria-hidden />
+                )}
+                {kwManageOpen && editingKwId === k.id ? (
                   <KeywordEditRow
                     key={k.id}
                     keyword={k}
@@ -1935,8 +1949,9 @@ function EventModal({
                     {k.emoji ? `${k.emoji} ` : ""}
                     {k.label}
                   </button>
-                )
-              )}
+                )}
+                </Fragment>
+              ))}
               {pendingNewKw && (
                 <KeywordEditRow
                   keyword={pendingNewKw}
